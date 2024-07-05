@@ -1,46 +1,36 @@
 #!/usr/bin/env bash
 ###########################################################
-# SELinux : Set to Permissive|Enforcing (now and forever)
+# SELinux : Set to Permissive|Enforcing (now and persist)
 # - Idempotent
-# ARGs: [Enforcing|Permissive(default)]
+# ARGs: [Enforcing|Permissive(Default)]
 ###########################################################
+conf=/etc/selinux/config
+disabled=$(grep SELINUX=disabled $conf)
+permissive=$(grep SELINUX=permissive $conf)
+enforcing=$(grep SELINUX=enforcing $conf)
+
 e(){
-    [[ $(cat /etc/selinux/config |grep -e '^SELINUX=permissive' -e '^SELINUX=disabled') ]] \
-        || return 0 
-
-    echo '=== SELinux : Set to Enforcing'
-    sudo setenforce 1 # Unreliable and does NOT persist.
-    sudo sed -i -e 's/^SELINUX=disabled/SELINUX=eforcing/' /etc/selinux/config
-    sudo sed -i -e 's/^SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config
-
-    return $?
+    [[ $permisive || $disabled ]] || return
+    sudo setenforce 1 # set to Enforcing : Unreliable and does NOT persist.
+    sudo sed -i -e 's/^SELINUX=disabled/SELINUX=eforcing/' $conf
+    sudo sed -i -e 's/^SELINUX=permissive/SELINUX=enforcing/' $conf
 }
 p(){
-    [[ $(cat /etc/selinux/config |grep -e '^SELINUX=enforcing' -e '^SELINUX=disabled') ]] \
-        || return 0
-
-    echo '=== SELinux : Set to Permissive'
-    sudo setenforce 0 # Unreliable and does NOT persist.
-    sudo sed -i -e 's/^SELINUX=disabled/SELINUX=permissive/' /etc/selinux/config
-    sudo sed -i -e 's/^SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
-
-    return $?
+    [[ $enforcing || $disabled ]] || return
+    sudo setenforce 0 # set to Permissive : Unreliable and does NOT persist.
+    sudo sed -i -e 's/^SELINUX=disabled/SELINUX=permissive/' $conf
+    sudo sed -i -e 's/^SELINUX=enforcing/SELINUX=permissive/' $conf
 }
 export -f e
 export -f p
 
-if [[ $(echo "$1" |grep -i enforc) ]]
-    then e
-    else p
-fi 
-code=$?
-(( $code )) || echo ok
+was=$(getenforce)
+want=$1
+[[ $1 && $(echo $1 |grep -i $want) ]] && e || p
+now=$(getenforce)
 
-exit $code
+echo "🔍  SELinux : $(getenforce)"
 
-#sestatus |grep 'SELinux status' # service status
-#getenforce
-
-#echo '=== REBOOT may be REQUIRED for SELinux changes to take effect.'
-
-
+[[ ${now} =~ $was ]] &&
+    echo '✅  NO CHANGE to SELinux config' ||
+        echo '🚧  REBOOT required for some SELinux CHANGEs to take effect.'

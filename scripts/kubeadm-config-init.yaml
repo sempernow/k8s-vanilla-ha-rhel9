@@ -1,0 +1,97 @@
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+nodeRegistration:
+  name: "a1" # Defaults to $(hostname)
+  criSocket: unix:///var/run/containerd/containerd.sock
+  taints: []       # No taints on control nodes
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+kubernetesVersion: 1.29.6
+apiServer:
+  timeoutForControlPlane: 4m # Wait for apiserver to appear
+  extraArgs:    # map[string]string : arg(s), each sans leading dashes
+  extraVolumes: # []HostPathMount
+  certSANs:     # []string          : SANs of API Server signing certificate.
+clusterName: lime
+controlPlaneEndpoint: "192.168.11.101:6443"
+controllerManager: 
+  extraArgs:
+    allocate-node-cidrs: "true"
+    cluster-cidr: "10.244.0.0/16"
+networking:
+  serviceSubnet: "10.96.0.0/12"
+  podSubnet: "10.244.0.0/16"
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration  
+containerLogMaxSize: 1Mi  # Default is 10Mi
+containerLogMaxFiles: 5   # Default is 5
+containerRuntimeEndpoint: unix:///var/run/containerd/containerd.sock
+cgroupDriver: systemd 
+hairpinMode: hairpin-veth
+evictionHard:
+  nodefs.available: "10%"
+  imagefs.available: "15%"
+  memory.available: "100Mi"
+evictionSoft:
+  nodefs.available: "15%"
+  imagefs.available: "20%"
+evictionSoftGracePeriod:
+  nodefs.available: "1m"
+  imagefs.available: "1m"
+evictionMaxPodGracePeriod: 30
+evictionPressureTransitionPeriod: 30s
+nodeStatusReportFrequency: 10s
+nodeStatusUpdateFrequency: 10s
+runtimeRequestTimeout: 2m
+volumeStatsAggPeriod: 1m
+syncFrequency: 1m
+rotateCertificates: true
+cpuManagerReconcilePeriod: 10s
+fileCheckFrequency: 20s
+httpCheckFrequency: 10s
+logging:
+  flushFrequency: 5s
+  verbosity: 1
+shutdownGracePeriod: 30s
+shutdownGracePeriodCriticalPods: 10s
+streamingConnectionIdleTimeout: 0s
+tlsMinVersion: VersionTLS12 
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+kind: KubeProxyConfiguration
+mode: "ipvs"                            # Use IPVS for better performance and scalability compared to iptables.
+clusterCIDR: "10.244.0.0/16"             # Replace with your cluster's pod network CIDR.
+detectLocalMode: "ClusterCIDR"          # Detect local traffic based on the cluster CIDR.
+healthzBindAddress: "0.0.0.0:10256"
+metricsBindAddress: "0.0.0.0:10249"     # Enable metrics for monitoring tools (Prometheus, etc.).
+ipvs:
+  strictARP: true                       # Ensures traffic is only processed if it belongs to the node.
+  scheduler: "rr"                       # Use Round Robin for IPVS load balancing.
+  minSyncPeriod: 0s                     # If 0s, then every Service or EndpointSlice change triggers immediate resync.
+clientConnection:
+  kubeconfig: "/var/lib/kube-proxy/kubeconfig.conf"
+conntrack:
+  maxPerCore: 32768                     # Adjust based on workload; default is usually sufficient.
+  min: 131072                           # Minimum conntrack entries; increase if under heavy traffic.
+  tcpCloseWaitTimeout: 60s              # Shorten for faster resource cleanup.
+  tcpEstablishedTimeout: 30m0s          # Default timeout for long-lived connections.
+  udpStreamTimeout: 30s
+  udpTimeout: 300s
+iptables:
+  masqueradeAll: false                  # Only masquerade traffic that needs it; some CNI require true.
+  minSyncPeriod: 0s                     # If 0s, then every Service or EndpointSlice change triggers immediate resync.
+  syncPeriod: 30s                       # Periodic refresh of iptables rules as safety net for a failed event trigger.
+nftables:
+  masqueradeAll: false                  # Only masquerade traffic that needs it; some CNI require true.
+  minSyncPeriod: 0s                     # If 0s, then every Service or EndpointSlice change triggers immediate resync.
+  syncPeriod: 30s                       # Periodic refresh of iptables rules as safety net for a failed event trigger.
+configSyncPeriod: 1m0s                  # Periodic updates from apiserver
+logging:
+  flushFrequency: 10s                   # Periodic flush from its own buffer to the storage medium or logging sink
+  options:
+    json:
+      infoBufferSize: "0"
+  verbosity: 0                          # 0-5; 0 is only the most important and error messages.
