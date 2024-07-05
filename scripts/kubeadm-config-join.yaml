@@ -1,0 +1,16 @@
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+discovery: # TLS Bootstrap process
+  file:
+    kubeConfigPath: discovery.yaml
+  timeout: 1m
+nodeRegistration: 
+  criSocket: unix:///var/run/containerd/containerd.sock 
+  name: THIS_NODE_NAME
+  taints: []        # For no taints
+controlPlane:
+  localAPIEndpoint: 
+    advertiseAddress: THIS_NODE_IP
+    bindPort: 6443
+  certificateKey: 1553b23a27792ca313f11df68633a73bd344f5590028ce9b252a9871ca53273c
