@@ -114,7 +114,7 @@ menu :
 	@echo "env          : Print Makefile environment"
 #	@echo "pki          : Setup this user's PKI at remote provisioner account"
 #	@echo "pki2         : Same but automated. Requires user having root access sans password"
-#	@echo "hello        : hostname and user at target(s)"
+	@echo "status       : Print targets' status"
 	@echo "home         : Update dotfiles of targets per Git project @ github.com/sempernow/home.git"
 #	@echo "dl           : Download to admin machine all assets; RPMs, binaries, charts, …"
 #	@echo "dl-rpms      : Download to admin machine all RPM packages and all their dependencies"
@@ -202,8 +202,9 @@ scan :
 
 # Smoke test this setup
 status hello :
-	@ansibash 'printf "%12s: %s\n" User $$(id -un) \
-		&& printf "%12s: %s\n" Host $$(hostname) \
+	@ansibash 'printf "%12s: %s\n" Host $$(hostname) \
+		&& printf "%12s: %s\n" User $$(id -un) \
+		&& printf "%12s: %s\n" Kernel $$(uname -r) \
 		&& printf "%12s: %s\n" firewalld $$(systemctl is-active firewalld.service) \
 		&& printf "%12s: %s\n" SELinux $$(getenforce) \
 		&& printf "%12s: %s\n" containerd $$(systemctl is-active containerd) \
