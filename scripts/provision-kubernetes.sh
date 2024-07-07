@@ -2,6 +2,8 @@
 ###############################################################################
 # Provision tools for a production K8s cluster built of kubeadm
 # https://v1-29.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+#
+# ARGs: [K8S_VERSION [K8S_REGISTRY]
 ###############################################################################
 ################################################
 # >>>  ALIGN apps VERSIONs with K8s version  <<<
@@ -79,17 +81,18 @@ ok(){
     printf "%s\n" $list |xargs -I{} sudo cp $src/{} $dst/
 
     kubelet --version || return 21
-    kubeadm version || return 22
-    kubectl version --client=true || return 23
+    kubectl version --client=true || return 22
+    sudo kubeadm version || return 23
+    #... So, if exit 23, then sudo PATH (secure_path) does *not* contain $dst
 }
 ok || exit $?
 
 ok(){
     # List all container images required by kubelet (K8s Static Pods)
-    ver='1.29.6'
+    ver="${1:-1.29.6}"
     #reg=registry.local:5000
-    reg='registry.k8s.io'
-    conf="kubeadm-${ver}-config-images.yaml"
+    reg="${2:-registry.k8s.io}"
+    conf="kubeadm-config-images.yaml"
     [[ -f ${conf/.yaml/.log} ]] && return 0
 	cat <<-EOH |tee $conf
 	apiVersion: kubeadm.k8s.io/v1beta3
@@ -99,7 +102,7 @@ ok(){
 	EOH
     kubeadm config images list --config $conf |tee ${conf/.yaml/.log}
 }
-ok || exit $?
+ok "$@" || exit $?
 
 ok(){
     # Configure kubelet as systemd service (kubelet.service) else fail

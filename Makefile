@@ -78,7 +78,7 @@ export ANSIBASH_USER        ?= ${GITOPS_USER}
 ## K8s RELEASEs https://kubernetes.io/releases/
 export K8S_VERSION            ?= 1.29.6
 export K8S_PROVISIONER        ?= ${GITOPS_USER}
-export K8S_PROVISIONER_KEY    ?= ${HOME}/.ssh/vm_common
+export K8S_PROVISIONER_KEY    ?= ${GITIPS_KEY}
 #export K8S_REGISTRY           ?= registry.k8s.io
 export K8S_REGISTRY           ?= ${CNCF_REGISTRY_ENDPOINT}
 export K8S_VERBOSITY          ?= 5
@@ -245,21 +245,19 @@ cri :
 	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-cri.sh \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-cri.log
 k8s :
-	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-kubernetes.sh \
+	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-kubernetes.sh ${K8S_VERSION} ${K8S_REGISTRY} \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-kubernetes.log
 
-
 ## Generate cluster PKI (if not exist) and declare kubeadm-relevant params at Makefile.settings 
-conf-prep :
+init-certs :
 	ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} /bin/bash -s < \
-		${GITOPS_SRC_DIR}/scripts/conf-prep.sh ${K8S_INIT_NODE} ${K8S_KUBEADM_CONFIG} \
-		|grep 'export K8S_' |& tee ${GITOPS_SRC_DIR}/scripts/conf-prep
-	echo '## @ Makefile.settings : This file is DYNAMICALLY GENERATED  (See Makefile recipes)' \
-		|tee Makefile.settings
-	cat scripts/conf-prep |tee -a Makefile.settings
+		${GITOPS_SRC_DIR}/scripts/kubeadm-init-certs.sh ${K8S_INIT_NODE} ${K8S_KUBEADM_CONFIG} \
+		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-certs.log
+	cp -p Makefile.settings Makefile.settings.bak
+	cp -p scripts/_Makefile.settings Makefile.settings
 
-conf-gen :
-	cat ${GITOPS_SRC_DIR}/kubernetes/${K8S_KUBEADM_CONFIG}.tpl \
+init-conf :
+	cat ${GITOPS_SRC_DIR}/${K8S_KUBEADM_CONFIG}.tpl \
 		|sed 's#K8S_VERSION#${K8S_VERSION}#g' \
 		|sed 's#K8S_REGISTRY#${K8S_REGISTRY}#g' \
 		|sed 's#K8S_VERBOSITY#${K8S_VERBOSITY}#g' \
@@ -275,18 +273,18 @@ conf-gen :
 		|sed 's#K8S_CERTIFICATE_KEY#${K8S_CERTIFICATE_KEY}#g' \
 		|sed 's#K8S_CA_CERT_HASH#${K8S_CA_CERT_HASH}#g' \
 		|sed '/^ *#/d' |sed '/^\s*$$/d' \
-		|tee ${GITOPS_SRC_DIR}/kubernetes/${K8S_KUBEADM_CONFIG}
+		|tee ${GITOPS_SRC_DIR}/${K8S_KUBEADM_CONFIG}
 
-conf-push :
-	ansibash -u ${GITOPS_SRC_DIR}/kubernetes/${K8S_KUBEADM_CONFIG} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.conf-push.log
+init-push :
+	ansibash -u ${GITOPS_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG} \
+		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-push.log
 
-conf-pull :
+init-images :
 	ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
 		--config ${K8S_KUBEADM_CONFIG} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.conf-pull.log
+		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-images.log
 
-init-pre init-preflight :
+init-pre :
 	ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
 		--config ${K8S_KUBEADM_CONFIG} \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-pre.log

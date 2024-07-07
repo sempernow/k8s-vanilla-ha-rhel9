@@ -1,0 +1,34 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+kubernetesVersion: 1.29.6
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
+cgroupDriver: systemd 
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+certificateKey: e7bd0818d8ff317537d2f65ab553a3185f0ddae646dafc224a2e98e873acc4bc 
+bootstrapTokens:
+- token: gw2n8a.gcpq9fhyysc7jw4k
+  ttl: 24h
+  usages:
+  - authentication
+  - signing
+  groups:
+  - system:bootstrappers:kubeadm:default-node-token
+nodeRegistration:
+  criSocket: unix:///var/run/containerd/containerd.sock
+  taints: []    ## No taints on control nodes
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    token: gw2n8a.gcpq9fhyysc7jw4k
+    caCertHashes: 
+    - sha256:sha256:212b51ebc405c032152bd9fe8264d88fd876afc971c247562be8da61d6aec3c2
+  tlsBootstrapToken: gw2n8a.gcpq9fhyysc7jw4k 
+nodeRegistration: 
+  criSocket: unix:///var/run/containerd/containerd.sock 
+  taints: []   ## For no taints
