@@ -8,10 +8,10 @@
 ################################################
 # >>>  ALIGN apps VERSIONs with K8s version  <<<
 ################################################
-
-ARCH="$(uname -m)"
-[[ "$ARCH" ]] || ARCH=amd64
-[[ "$ARCH" == 'x86_64' ]] && ARCH=amd64
+ARCH=$(uname -m)
+[[ $ARCH ]] || ARCH=amd64
+[[ $ARCH = aarch64 ]] && ARCH=arm64
+[[ $ARCH = x86_64  ]] && ARCH=amd64
 
 ok(){
     # Verify containerd is installed else fail
@@ -48,8 +48,8 @@ ok(){
     # https://v1-29.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
     # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
     arch=${ARCH:-amd64}
-    #ver="$(curl -sSL https://dl.k8s.io/release/stable.txt)" # @ v1.30.2
-    ver='1.29.6'
+    #ver=$(curl -sSL https://dl.k8s.io/release/stable.txt) # @ v1.30.2
+    ver=1.29.6
     [[ $(type -t kubelet) && $(kubeadm version |grep v$ver) ]] && return 0
     #base="https://dl.k8s.io/release/v${ver}/bin/linux/${arch}" ## Prior scheme
     ## Current scheme: client, server and node archives, where client and node have subsets of server
@@ -68,7 +68,7 @@ ok(){
     #     |xargs -IX /bin/bash -c '
     #         sudo cp $0/$2 $1/$2 && sudo chmod 0755 $1/$2
     #     ' $src $dst X \;
-    list='
+    subset='
         kubelet
         kubeadm
         kubectl
@@ -78,7 +78,7 @@ ok(){
         mounter
         apiextensions-apiserver
     '
-    printf "%s\n" $list |xargs -I{} sudo cp $src/{} $dst/
+    printf "%s\n" $subset |xargs -I{} sudo cp $src/{} $dst/
 
     kubelet --version || return 21
     kubectl version --client=true || return 22

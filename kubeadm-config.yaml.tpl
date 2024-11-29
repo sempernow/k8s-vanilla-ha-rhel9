@@ -4,7 +4,7 @@ kind: ClusterConfiguration
 ## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ClusterConfiguration
 ## RELEASEs https://kubernetes.io/releases/
 kubernetesVersion: K8S_VERSION
-#imageRepository: K8S_IMAGE_REPOSITORY
+# imageRepository: K8S_IMAGE_REPOSITORY
 # apiServer:
 #   timeoutForControlPlane: 4m
 # certificatesDir: /etc/kubernetes/pki
@@ -17,7 +17,7 @@ kubernetesVersion: K8S_VERSION
 #   local:
 #     dataDir: /var/lib/etcd
 ## HA LB Endpoint
-#controlPlaneEndpoint: K8S_CONTROL_PLANE_IP:K8S_CONTROL_PLANE_PORT
+# controlPlaneEndpoint: K8S_CONTROL_PLANE_IP:K8S_CONTROL_PLANE_PORT
 # networking:
 #   ## Services subnet CIDR : 10.96.0.0/12 (default)
 #   serviceSubnet: K8S_SERVICE_CIDR

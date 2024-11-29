@@ -174,11 +174,10 @@ env :
 	@env |grep GITOPS_ 
 
 
-perms :
+perms mode :
+	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \+
 	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \+
 	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \+
-
-    ##… Each affected file has mtime RESET by `make perms`
 
 #ansibash sudo firewall-cmd --permanent --zone=public --service=k8s-workers --add-interface=cni0
 foo :

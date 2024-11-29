@@ -1,21 +1,12 @@
 #!/usr/bin/env bash
-########################################################
-# Disable all swaps 
-# - Idempotent.
-########################################################
-[[ $(cat /proc/swaps |grep -v Filename) ]] || {
-    echo '== All swaps are already disabled'
-    exit 0
-} 
 
 echo '=== Disable Swap memory'
-
-echo '@ swap : BEFORE'
+echo '@ swap : BEFORE config'
 sudo swapon --show
-cat /etc/fstab |grep swap
+cat /etc/fstab 
 ## Disable swap now and forever : required by kubelet
 ## To find a particular swap, use lsblk 
-sudo swapoff -a  # Disable all swaps of /proc/swaps
+sudo swapoff -a  # All swaps of /proc/swaps
 ## #############################################
 ## >>>  DO NOT disable swap.target (static)  <<<
 ## #############################################
@@ -33,9 +24,35 @@ swap_mounted="$(cat /etc/fstab |grep ' swap' |grep -v '^ *#' |awk '{print $1}')"
     sudo sed -i "s,$device,#$device," /etc/fstab
 } || { echo '=== swap mount ALREADY commented out'; }
 
-echo '@ swap : AFTER'
-
+echo '@ swap : AFTER config'
 sudo swapon --show
-cat /etc/fstab |grep swap
+cat /etc/fstab 
 sudo systemctl daemon-reload
 sudo firewall-cmd --reload
+
+[[ $(getenforce |grep Permissive) ]] && {
+echo '=== SELinux : NO CHANGE'
+    getenforce
+    
+    exit 0 
+}
+
+# SELinux mod : now and forever
+echo '=== SELinux : Set to Permissive'
+echo '@ SELinux : BEFORE mod'
+getenforce
+echo '@ SELinux : Reset/Configure:'
+sudo setenforce 0 # set to Permissive (Unreliable)
+# "permissive" is "disabled", but logs what would have been if "enforcing".
+#sudo sed -i -e 's/^SELINUX=permissive/SELINUX=disabled/' /etc/selinux/config
+#sudo sed -i -e 's/^SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
+sudo sed -i -e 's/^SELINUX=disabled/SELINUX=permissive/' /etc/selinux/config
+sudo sed -i -e 's/^SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+echo '@ SELinux : AFTER mod'
+sestatus |grep 'SELinux status'
+getenforce
+
+
+echo '=== REBOOT may be REQUIRED for all changes to take effect.'
+
+exit 0
