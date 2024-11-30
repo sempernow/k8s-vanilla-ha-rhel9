@@ -124,14 +124,14 @@ menu :
 #	@echo "firewalls    : firewalld mods"
 #	@echo "rpms         : Install all RPM packages"
 #	@echo "bins         : Install binaries"
-	@echo "prep         : kernel selinux swap : See scripts/configure-*"
-	@echo "  kernel     : Configure targets' kernel for K8s/CNI/CRI : load modules and set runtime params"
-	@echo "  selinux    : Configure targets' SELinux : Set to Permissive"
-	@echo "  swap       : Configure targets' swap : Disable all swap devices"
+	@echo "conf         : kernel selinux swap : See scripts/configure-*"
+	@echo "  -kernel    : Configure kernel for K8s/CNI/CRI : load modules and set runtime params"
+	@echo "  -selinux   : Configure targets' SELinux : Set to Permissive"
+	@echo "  -swap      : Configure targets' swap : Disable all swap devices"
 	@echo "reboot       : Reboot targets"
 	@echo "provision    : cri k8s : See scripts/provision-*.sh"
-	@echo "  cri        : Provision targets with CRI tools and services"
-	@echo "  k8s        : Provision targets with K8s/CNI tools and services"
+	@echo "  -cri       : Provision targets with CRI tools and services"
+	@echo "  -k8s       : Provision targets with K8s/CNI tools and services"
 #	@echo "post         : Configure host, services, and user (${GITOPS_USER})"
 #	@echo "etcd-test    : Smoke test etcd"
 #	@echo "enforcing    : Set SELinux to Enforcing (reboot targets afterward)"
@@ -164,7 +164,6 @@ menu :
 	@echo "kw           : kubectl get pods -o wide (current namespace; see kn)"
 	@echo "cilium       : cilium status"
 	@echo "etcd-members : List member nodes of the etcd cluster (expect all control-plane nodes)"
-
 
 env : 
 	$(INFO) 'Environment'
@@ -224,28 +223,32 @@ pki :
 pki2 :
 	GITOPS_USER=${USER} ANSIBASH_USER=${USER} ansibash -s ${GITOPS_SRC_DIR}/scripts/create_provisioner_target_node.sh '$(shell cat ${GITOPS_KEY}.pub)'
 
-prep : kernel selinux swap
-
-kernel :
-	ansibash -s ${GITOPS_SRC_DIR}/scripts/configure-kernel.sh \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.configure-kernel.log
-selinux :
-	ansibash -s ${GITOPS_SRC_DIR}/scripts/configure-selinux.sh \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.configure-selinux.log
-swap :
-	ansibash -s ${GITOPS_SRC_DIR}/scripts/configure-swap.sh \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.configure-swap.log
+tools :
+	ansibash sudo dnf install -y conntrack dnf-plugins-core make iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree htop fio sysstat
 
 reboot :
 	ansibash sudo reboot
 
+## Host config
+conf configure : conf-kernel conf-selinux conf-swap
+conf-kernel :
+	ansibash -s ${GITOPS_SRC_DIR}/scripts/configure-kernel.sh \
+		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.conf-kernel.log
+conf-selinux :
+	ansibash -s ${GITOPS_SRC_DIR}/scripts/configure-selinux.sh \
+		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.conf-selinux.log
+conf-swap :
+	ansibash -s ${GITOPS_SRC_DIR}/scripts/configure-swap.sh \
+		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.conf-swap.log
+
+## CRI and K8s binaries
 provision : cri k8s 
 cri :
 	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-cri.sh \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-cri.log
 k8s :
-	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-kubernetes.sh ${K8S_VERSION} ${K8S_REGISTRY} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-kubernetes.log
+	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
+		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-k8s.log
 
 ## Generate cluster PKI (if not exist) and declare kubeadm-relevant params at Makefile.settings 
 init-certs :

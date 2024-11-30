@@ -4,11 +4,14 @@
 # - Idempotent
 ########################################
 
-# Install kernel headers 
-rpm -q kernel-headers || sudo dnf -y install kernel-headers-$(uname -r) || exit 10
-rpm -q kernel-devel   || sudo dnf -y install kernel-devel-$(uname -r)   || exit 11
+# Install kernel headers else fail
+rpm -q kernel-headers ||
+    sudo dnf -y install kernel-headers-$(uname -r) ||
+        exit 10
 
-unset _flag_config_kernel
+rpm -q kernel-devel ||
+    sudo dnf -y install kernel-devel-$(uname -r) ||
+        exit 11
 
 ok(){
     # Load kernel modules now (okay if already loaded) else fail
@@ -30,7 +33,7 @@ ok(){
     sudo modprobe ip_vs_sh  
     [[ $(lsmod |grep ip_vs_sh) ]] || return 26
 
-    # Load kernel modules on boot
+    # Load kernel modules on boot (configure for that else fail)
     conf=/etc/modules-load.d/kubernetes.conf
     [[ $(cat $conf 2>/dev/null |grep overlay) ]] && return 0
     ## br_netfilter enables transparent masquerading 
@@ -44,13 +47,12 @@ ok(){
 	overlay
 	EOH
     [[ $(cat $conf 2>/dev/null |grep overlay) ]] || return 33
-    _flag_config_kernel=1
 }
 ok || exit $?
 
 ok(){
-    # Set kernel runtime params (sysctl) for K8s networking
-    conf='/etc/sysctl.d/kubernetes.conf'
+    # Configure kernel runtime params (sysctl) 
+    conf='/etc/sysctl.d/99-kubernetes.conf'
     [[ $(cat $conf 2>/dev/null |grep 'net.bridge.bridge-nf-call-iptables  = 1') ]] && return 0
 	cat <<-EOH |sudo tee $conf
 	net.bridge.bridge-nf-call-ip6tables = 1
@@ -64,14 +66,10 @@ ok(){
     # |`net.ipv4.ip_forward`                |IPv4 packet forwarding.           |
 
     [[ $(cat $conf 2>/dev/null |grep 'net.bridge.bridge-nf-call-iptables  = 1') ]] || return 44
-
-    _flag_config_kernel=1
 }
 ok || exit $?
     
 # If configuration changed, then apply settings else fail
-[[ $_flag_config_kernel ]] && {
-    sudo sysctl --system |grep Applying || exit 99
-}
+sudo sysctl --system |grep Applying || exit 88
 
-[[ $(sysctl net.ipv4.ip_forward |cut -d' ' -f3- |grep '1') ]] || exit 999
+[[ $(sysctl net.ipv4.ip_forward |cut -d' ' -f3- |grep '1') ]] || exit 99

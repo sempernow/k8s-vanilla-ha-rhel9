@@ -19,13 +19,16 @@ ok(){
 }
 ok || exit $?
 
+# An undocumented dependency
+sudo dnf install -y conntrack
+
 ok(){
     # Install CNI Plugins else fail
     # https://github.com/containernetworking/plugins/releases
     #ver="v1.5.1" # 2024-06-30
-    ver="v1.6.0"  # 2024-06-30 K8s v1.29.6
+    ver="v1.6.0"  # 2024-06-30 @ K8s v1.29.6, 2024-11-30 @ K8s v1.30.1
     arch=${ARCH:-amd64}
-    dst=/opt/cni/bin
+    dst=/opt/cni/bin # /etc/cni/net.d content created by CNI (deletable on teardown)
     [[ -d $dst && $($dst/loopback 2>&1 |grep $ver) ]] && return 0
     sudo mkdir -p $dst
     base="https://github.com/containernetworking/plugins/releases/download/$ver"
@@ -57,7 +60,7 @@ ok(){
     curl -sSL $base/$tarball |tar -xz ||
         return 22
     src=kubernetes/server/bin 
-    dst=/usr/local/bin
+    dst=/usr/local/bin # Abide LFS conventions for binary (non-pkg) installs
     subset='
         kubelet
         kubeadm
@@ -98,21 +101,29 @@ ok(){
     # https://v1-29.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
     ver='0.16.2' # Has no releases page!
     base="https://raw.githubusercontent.com/kubernetes/release/v${ver}/cmd/krel/templates/latest"
-    bin=/usr/local/bin
+    bin=/usr/local/bin # Abide LFS conventions for binary (non-pkg) installs
     sys=/usr/lib/systemd/system
     [[ -d $sys/kubelet.service.d ]] && return 0
     sudo mkdir -p $sys/kubelet.service.d
-    curl -sSL "$base/kubelet/kubelet.service" \
+    
+    url="$base/kubelet/kubelet.service"
+    wget --spider -q $url || return 44
+    wget -O - $url \
         |sed "s:/usr/bin:$bin:g" \
-        |sudo tee $sys/kubelet.service
-    curl -sSL "$base/kubeadm/10-kubeadm.conf" \
+        |sudo tee $sys/kubelet.service ||
+            return 45
+    
+    url="$base/kubeadm/10-kubeadm.conf"
+    wget --spider -q $url || return 46
+    wget -O - $url \
         |sed "s:/usr/bin:$bin:g" \
-        |sudo tee $sys/kubelet.service.d/10-kubeadm.conf
+        |sudo tee $sys/kubelet.service.d/10-kubeadm.conf ||
+            return 47
 
     [[ $(type -t kubelet) && $(kubeadm version |grep v$ver) ]] ||
-        return 1
+        return 48
     
     sudo systemctl enable --now kubelet ||
-        return 1
+        return 49
 }
 ok || exit $?

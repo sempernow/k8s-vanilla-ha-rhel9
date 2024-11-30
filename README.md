@@ -12,90 +12,24 @@ built of HAProxy and Keepalived.
     - Storage: 20GB
     - Network: Eternal (Host)
 
-## Prep the Host(s) OS
 
-Provision and configure all nodes for K8s
+## Prep
 
-### Preliminary Setup
-
-Every target machine must be configured
-
-- Reset hostname
-    ```bash
-    export ANSIBASH_TARGET_LIST='a0 a1 a3' 
-    printf "%s\n" $ANSIBASH_TARGET_LIST |xargs -IX /bin/bash -c '
-        ssh $1 sudo hostnamectl set-hostname ${1}.local
-    ' _ X
-    ```
-- Configure for SSH
-    - Add target "`IP_ADDR FQDN`" map to local DNS resolver.
-    ```bash
-    echo $vm_ip $vm_fqdn |sudo tee -a /etc/hosts
-    ```
-    - Push SSH public key to target.
-    ```bash
-    hostfprs $vm_fqdn # Scan and list host fingerprint(s) (FPRs)
-    # Validate host by matching host-claimed FPR against those scanned,
-    # and push key if match.
-    ssh-copy-id ~/.ssh/config/vm_common $vm_fqdn 
-    ```
-    - Add target `Host` entry to `~/.ssh/config`
-    ```bash
-    vim ~/.ssh/config
-    ```
-- Configure ssh user for automated/headless `sudo`
-    - Create/Mod `/etc/sudoers.d/$USER` file at each target machine.
-    ```bash
-    line="$USER ALL=(ALL) NOPASSWD: ALL"
-    echo "$line" |sudo tee /etc/sudoers.d/$USER
-    ```
-    ```bash
-    # Test
-    ssh $vm sudo cat /etc/sudoers
-    ```
-
-#### Verify Targets are Configured for Automation
-
-At each machine, attempt to print (`cat`) a file 
-that requires elevated privileges to do so.
+### Optionally install useful tools
 
 ```bash
-ansibash 'sudo cat /etc/sudoers.d/$USER'
+# sysstat contains: iostat vmstat sar
+all='conntrack dnf-plugins-core make iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree htop fio sysstat'
+sudo dnf install -y $all
+
 ```
-
-## Prep : Install/Configure Packages/Tools
-
-```bash
-ssh_configured_nodes='a0 a1 a2 a3'
-
-# K8s tools, Docker, containerd
-pushd rhel
-./provision-k8s-tools.sh $ssh_configured_nodes
-popd
-
-# Etcd
-pushd etcd
-./provision-etcd.sh $ssh_configured_nodes
-popd
-```
-- If VMs are of Hyper-V with dynamic memory, 
-then decompose the provisioning script into segments, 
-and reboot after each, else FS error on "Out of memory" 
-during package install operations.
-
-### @ Air-gap Install : Muster Assets
-
-- Target machines must have 10GB+ @ `/var/local/repos`
-- Images must be saved; `docker save ...`
-- Target machines must have access to local Docker Registry
-  that is loaded with the images.
 
 #### The easy way 
 
 ```bash
 mkdir k8s-air-gap-install
 cd k8s-air-gap-install
-sudo kubeadm config images pull |& tee kubeadm.config.images.pull.log
+sudo kubeadm config images list |& tee kubeadm.config.images.list.log
 sudo yum -y download --arch x86_64 
 sudo dnf -y download --arch x86_64 kubectl kubeadm kubelet --resolve --alldeps #... See provisioning scripts
 
@@ -145,193 +79,6 @@ sudo kubeadm config images pull |& tee kubeadm.config.images.pull.log
 
 ```
 
-### Verify 
-
-```bash
-# Environment
-export ANSIBASH_TARGET_LIST="a0 a1 a2 a3"
-
-# crictl : List the K8s-core images
-ansibash sudo crictl images
-# etcd : Read/Write test
-pushd etcd
-ansibash -s etcd-test.sh
-popd
-```
-
-Or per node:
-
-```bash
-ssh $vm 
-ssh $vm COMMAND ARGs
-ssh $vm /bin/bash -s < $script
-```
-
-## HA Load Balancer : [HAProxy](http://docs.haproxy.org/) + [Keepalived](https://keepalived.org/)
-
->HAProxy and Keepalived utilize [Virtual Router Redundancy Protocol (VRRP)](https://en.wikipedia.org/wiki/Virtual_Router_Redundancy_Protocol) to implement a **virtual Gateway Router** having an IP address of VIP, and all the control nodes as its clients, load balancing requests to them. Connectivity to the VIP is maintained as long as one or more of its nodes are functioning. Our cluster is built with two such nodes that also function as the cluster's control nodes.
-
-### HA LB : Architecture / Topology
-
-```text
-                        kubectl 
-                           |
-                     keepalived VIP 
-                   192.168.0.100:8443
-                         (VRRP)
-                           |
-              -----------------------------
-              |                           |
-    n0.local: 192.168.0.93      n1.local: 192.168.0.94
-    haproxy:                    haproxy:
-    - frontend: 8443            - frontend: 8443
-    - backend:  6443            - backend:  6443 
-```
-- VIP is the (highly-available) K8s control-plane endpoint.
-    - May also handle data-plane traffic (HTTP/HTTPS) 
-      simply by coding more frontend-backend server pairs. 
-      See `/etc/haproxy/haproxy.cfg` .
-- Regarding the (sub)net in which it operates, 
-  select a VIP from any unused IP address in the (sub)net's CIDR,
-  and protect it from downstream DHCP assignments.
-  E.g., place it outside the DHCP server's client range,
-  or add it to the DHCP server's Address Reservation list: 
-    - VIP: `192.168.0.100` (Admin selects)
-    - MAC: `FE-4D-0F-3B-76-9F` (bogus)
-- HAProxy runs on each HA LB (K8s master) node to provide access at `*:8443` for all nodes.
-    - HAProxy backend server, listening on port `8443`, 
-      forwards traffic in TLS-passthrough mode 
-      (AKA "Layer-4 mode" AKA "TCP mode") 
-      through its configured frontend server to 
-      the upstream server (`kube-apiserver`) listening on port `6443`.
-- Keepalived service runs on all control nodes, implementing VRRP to provide `VIP` failover. 
-  At any given time, only one node (the current `MASTER`) is set to that `VIP`.
-- `kubectl` client connects to this HA endpoint of the K8s control plane (`VIP:8443`).
-
-### HA LB : Install and Configure
-
-See `rhel8-air-gap/halb/`
-
-- [`provision-halb.sh`](rhel8-air-gap/halb/provision-halb.sh) : 
-  Modify as necessary to fit the target environment.
-    - [`haproxy.cfg.tpl`](rhel8-air-gap/halb/haproxy.cfg.tpl)
-        - `default_server`
-            - `inter 10s`: Sets the interval between health checks to 10 seconds.
-            - `downinter 5s`: Sets the interval between health checks when a server is considered down to 5 seconds.
-        - `rise 2`: The server is considered up after 2 successful health checks.
-        - `fall 2`: The server is considered down after 2 failed health checks.
-        - `slowstart 60s`: Gradually increases the load sent to a server that just came back up over 60 seconds.
-        - `maxconn 250`: Maximum number of concurrent connections allowed to a server.
-        - `maxqueue 256`: Maximum number of requests allowed to be queued when the server's `maxconn` is reached.
-        - `weight 100`: Sets the weight of the server in load balancing decisions.
-        - `check`: Enables health checking.
-        - `check-ssl`: Uses SSL for health checks.
-        - `verify none`: Disables SSL certificate verification in health checks.
-    - [`keepalived.conf.tpl`](rhel8-air-gap/halb/keepalived.conf.tpl)
-    - [firewalld-halb.sh](rhel8-air-gap/halb/firewalld-halb.sh)
-        - TODO : __Add rules to allow Multicast mode__ : 
-            The current keeplaived configuration announces vIP in Unicast mode,  
-            whereas "strict" VRRP specifies Multicast mode.
-            - __VRRP Multicast Address__: The VRRP specification defines the use of a specific multicast address, `224.0.0.18`, for IPv4 VRRP communication (or `ff02::12` for IPv6). This address is reserved for VRRP routers, and only routers participating in VRRP join this multicast group. This allows them to efficiently receive advertisements while other devices ignore them.
-
-### HA LB : Verify/Test/Monitor/Troubleshoot
-
-Verify
-
-```bash
-vip='192.168.0.100'
-dev=eth0
-# Verify connectivity
-nc -zvw 2 $vip 8443 
-#> "Connection to 192.168.0.100 8443 port [tcp/*] succeeded!"
-# Verify HA
-ping -4 -D $vip # While running, toggle off each HA (control) node
-# Verify VIP added to MASTER node
-ansibash ip -4 -brief addr show $dev |grep -e $vip -e ===
-```
-
-Test 
-
-```bash
-# Ping : prepend timestamp
-ping -4 -D $vip  # [1709347772.232527] 64 bytes from 192.168.0.100:... time=0.375 ms
-# HTTP GET request
-wget --spider -t 1 http://$vip #... connected.
-```
-
-Monitor
-
-```bash
-# Check state (MASTER||BACKUP) 
-ansibash sudo journalctl -eu keepalived |grep -e Entering -e @
-# rsyslog of HAProxy
-ansibash sudo cat /var/log/haproxy.log
-```
-
-Troubleshoot
-
-```bash
-# Service (Unit) status
-ansibash systemctl status haproxy.service
-ansibash systemctl status keepalived.service
-# Logs per service (unit)
-ansibash journalctl -u $service --since today
-# Configuration files
-ansibash cat /etc/keepalived/keepalived.conf
-ansibash cat /etc/haproxy/haproxy.cfg
-```
-- Per node (`$vm`) by replacing `ansible` with "`ssh $vm`&hellip;".
-
-Mock an upstream at a node running HA-LB
-
-```bash
-# Start listener (mock server) as background process
-port=6443
-socat TCP-LISTEN:$port,fork - &
-#... forward to a viable upstream
-socat TCP4-LISTEN:6443,fork TCP4:www.google.com:443 &
-
-```
-
-Request to that node
-
-```bash
-ip='192.168.0.102'
-curl -i --max-time 2 http://$ip:6443/ #> curl: (52) Empty reply from server
-```
-- The point is that a connection was established; 
-  the server (`socat`) responded (with nothing, as expected).
-
-Mock upstream such that it satisfies the vrrp health-check 
-script @ `/etc/keepalived/check_apiserver.sh`
-
-```bash
-curl --silent --max-time 2 --insecure https://${vip}:6443/
-```
-
-### Ensure clean start
-
-```bash
-vip='192.168.0.100'
-dev='eth0'
-sudo ip addr del $vip/24 dev $dev
-
-# Toggle the interface (through which this ssh session runs), exit and reboot
-sudo ip link set dev $dev down && sudo shutdown +00:05 -r & && exit
-
-```
-
-## [K8s Cloud Provider Interface (CPI)](https://kubernetes.io/blog/2023/12/14/cloud-provider-integration-changes/)
-
->The Cloud Provider Interface (CPI) is responsible for running all the platform specific control loops that were previously run in core Kubernetes components under Kubernetes Controller Manager (KCM), which is a daemon that embeds the core control loops shipped with Kubernetes. CPI is moved out-of-tree (K8s `v1.29+`) to allow cloud and infrastructure providers to implement integrations that can be developed, built and released independent of Kubernetes core.
-
-### [keepalived-cloud-provider](https://github.com/munnerz/keepalived-cloud-provider)
-
-### [vSphere CPI](https://cloud-provider-vsphere.sigs.k8s.io/cloud_provider_interface.html#:~:text=The%20Cloud%20Provider%20Interface%20is%20responsible%20for%20running,developed%2C%20built%20and%20released%20independent%20of%20Kubernetes%20core.)
-
-### [K8s Cloud Controller Manager (CCM)](https://kubernetes.io/docs/concepts/architecture/cloud-controller/) | [Develop](https://k8s-docs.netlify.app/en/docs/tasks/administer-cluster/developing-cloud-controller-manager/)
-
-[Getting Started](https://www.techtarget.com/searchCloudComputing/tutorial/Get-started-with-Kubernetes-Cloud-Controller-Manager)
 
 
 ## Cluster Initialization 
@@ -372,10 +119,18 @@ Identify the cgroup version on Linux Nodes
 
 ```bash
 stat -fc %T /sys/fs/cgroup/
+
+cgroup ()
+{
+    fs=$(stat -fc %T /sys/fs/cgroup/);
+    [[ $fs == 'tmpfs' ]] && printf v1 && return;
+    [[ $fs == 'cgroup2fs' ]] && printf v2 && return;
+    echo unknown
+}
 ```
-- For cgroup v2, the output is `cgroup2fs`.
-- For cgroup v1, the output is `tmpfs`.
-    - Is v1 @ Hyper-V / AlamLinux 8
+- `cgroup2fs` is v2; `tmpfs` is v1.
+- Hyper-V / AlamLinux8 : v1
+- Hyper-V / RHEL9 : v2
 
 ~~If cgroup v1, then set `kubelet` flag `--cgroup-driver` to `systemd`, else set to `cgroupfs`.~~
 Driver should match the container runtime setting, and if the parent processes are `systemd`, then should use that. 
@@ -414,11 +169,10 @@ ansibash sudo kubeadm init phase preflight -v5 \
     --ignore-preflight-errors=Mem \
     |& tee kubeadm.init.phase.preflight.log
 
-
 # Initialize an HA cluster imperatively : Delete `--dry-run` line when ready.
 ## All CIDRs are in the Private Address Space (RFC-1918)
 ver='1.28.5'
-vipp='192.168.0.100:8443'
+ep='192.168.0.100:8443' # Or by FQDN : k8s.lime.lan
 pnet='10.10.0.0/16'
 snet='10.55.0.0/16'
 tkn=$(kubeadm token generate)
@@ -429,7 +183,7 @@ sudo kubeadm init -v5 --kubernetes-version $ver \
     --certificate-key=$key \
     --upload-certs \
     --ignore-preflight-errors=Mem \
-    --control-plane-endpoint "$vipp" \
+    --control-plane-endpoint "$ep" \
     --pod-network-cidr "$pnet" \
     --service-cidr "$snet" \
     |& tee kubeadm.init.$(hostname).log
@@ -474,6 +228,12 @@ kubectl get node
 - Status of node(s) remains `NotReady` until the "Pod Nework" 
   is configured by installing a CNI-compliant addon such as Calico. 
   Perform such installs at any Master node. See "Install Pod Network" section.
+- `--apiserver-advertise-address $ip_of_this_control_node` : Useful if __this control node__ has more than one interface; bind to stable IP. 
+    - Default is `0.0.0.0`, whereof K8s API listens on all interfaces, 
+      which is less secure and less stable.
+- `--control-plane-endpoint` : Useful to set single (shared) endpoint __for all nodes of the control plane__. This is typically the entrypoint to an external (HA) load balancer, making that the K8s-cluster entrypoint in effect for both control and data planes. 
+    - Set this to either an IPv4 address or FQDN (`k8s.lime.lan`).
+
 
 ### Join programmatically
 

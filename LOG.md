@@ -1,5 +1,52 @@
 # k8s-air-gap-install
 
+
+@ [`scripts/provision-cri.sh`](scripts/provision-cri.sh)
+
+```bash
+ok(){
+    # Install CRI tools (cri-tools) alse fail
+    ver="v1.29.0"
+    arch=${ARCH:-amd64}
+    base="https://github.com/kubernetes-sigs/cri-tools/releases/download/$ver"
+    suffix="${ver}-linux-${arch}.tar.gz"
+    sbin=/usr/local/sbin
+    [[ $(crictl --version 2>&1 |grep $ver) ]] ||
+        curl -sSL "$base/crictl-$suffix" |sudo tar -C $sbin -xz
+    [[ $(critest --version 2>&1 |grep $ver) ]] ||
+        curl -sSL "$base/critest-$suffix" |sudo tar -C $sbin -xz
+
+    # Default behavior is depricated; declare endpoints
+	cat <<-EOH |sudo tee /etc/crictl.yaml
+	runtime-endpoint: unix:///run/containerd/containerd.sock
+	image-endpoint: unix:///run/containerd/containerd.sock
+	timeout: 2
+	debug: false
+	pull-image-on-create: false
+	EOH
+
+    bin=/usr/local/bin
+    [[ $(crictl --version 2>&1 |grep $ver) ]] &&
+        sudo ln -sf $sbin/crictl $bin ||
+            return 60
+
+    [[ $(critest --version 2>&1 |grep $ver) ]] &&
+        sudo ln -sf $sbin/critest $bin ||
+            return 61
+}
+ok || exit $?
+
+```
+
+# Default behavior is depricated; declare endpoints
+cat <<-EOH |sudo tee /etc/crictl.yaml
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 2
+debug: true
+pull-image-on-create: false
+EOH
+
 # 2024-10-04
 
 ## Unnecessary to configure host firewall for CNI's virtual interfaces
