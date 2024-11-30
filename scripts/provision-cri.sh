@@ -72,26 +72,56 @@ ok(){
     conf=/etc/containerd/config.toml
     [[ -f $conf ]] && return 0
     sudo mkdir -p /etc/containerd
-    cat <<-EOH |sudo tee $conf
-	## Configured for K8s : runc, systemd, and registry ($registry) 
-	version = 2
-	[plugins]
-	  [plugins."io.containerd.grpc.v1.cri"]
-	    sandbox_image = "$registry/pause:3.9"
-	    [plugins."io.containerd.grpc.v1.cri".containerd]
-	      discard_unpacked_layers = true
-	      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
-	        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-	          runtime_type = "io.containerd.runc.v2"
-	          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-	            SystemdCgroup = true
-	    [plugins."io.containerd.grpc.v1.cri".registry]
-	      [plugins."io.containerd.grpc.v1.cri".registry.configs]
-	        [plugins."io.containerd.grpc.v1.cri".registry.configs."$registry"]
-	          endpoint = ["http://$registry"]
-	        [plugins."io.containerd.grpc.v1.cri".registry.configs."$registry".tls]
-	          insecure_skip_verify = true
-	EOH
+    
+    # Select : default | minimal | custom
+
+	default(){
+        containerd config default |sudo tee $conf
+    }
+    #default 
+
+    minimal(){
+		cat <<-EOH |sudo tee $conf
+        ## Configured for K8s : runc, systemd cgroup
+		version = 2
+		[plugins]
+		  [plugins."io.containerd.grpc.v1.cri"]
+		    sandbox_image = "registry.k8s.io/pause:3.9"
+		    [plugins."io.containerd.grpc.v1.cri".containerd]
+		      discard_unpacked_layers = true
+		      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+		        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+		          runtime_type = "io.containerd.runc.v2"
+		          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+		            SystemdCgroup = true
+		EOH
+    }
+    #minimal
+
+    custom(){
+        cat <<-EOH |sudo tee $conf
+        ## Configured for K8s : runc, systemd, and registry ($registry) 
+        version = 2
+        [plugins]
+          [plugins."io.containerd.grpc.v1.cri"]
+            sandbox_image = "$registry/pause:3.9"
+            [plugins."io.containerd.grpc.v1.cri".containerd]
+              discard_unpacked_layers = true
+              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+                  runtime_type = "io.containerd.runc.v2"
+                  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+                    SystemdCgroup = true
+            [plugins."io.containerd.grpc.v1.cri".registry]
+              [plugins."io.containerd.grpc.v1.cri".registry.configs]
+                [plugins."io.containerd.grpc.v1.cri".registry.configs."$registry"]
+                  endpoint = ["http://$registry"]
+                  [plugins."io.containerd.grpc.v1.cri".registry.configs."$registry".tls]
+                    insecure_skip_verify = true
+		EOH
+    }
+    custom
+
     [[ $(sudo cat $conf |grep $registry) ]] || return 30
 }
 ok || exit $?

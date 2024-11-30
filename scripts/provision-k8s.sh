@@ -3,11 +3,15 @@
 # Provision tools for a production K8s cluster built of kubeadm
 # https://v1-29.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
 #
-# ARGs: [K8S_VERSION [K8S_REGISTRY]
+# ARGs: [K8S_VERSION [OCI_REGISTRY]
 ###############################################################################
 ################################################
 # >>>  ALIGN apps VERSIONs with K8s version  <<<
 ################################################
+K8S_VERSION=$1
+[[ $K8S_VERSION ]] || K8S_VERSION="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
+[[ $K8S_VERSION ]] || K8S_VERSION=1.29.6
+OCI_REGISTRY=${2:-registry.k8s.io}
 ARCH=$(uname -m)
 [[ $ARCH ]] || ARCH=amd64
 [[ $ARCH = aarch64 ]] && ARCH=arm64
@@ -20,23 +24,23 @@ ok(){
 ok || exit $?
 
 # An undocumented dependency
-sudo dnf install -y conntrack
+sudo dnf install -y conntrack || return 2
 
 ok(){
     # Install CNI Plugins else fail
     # https://github.com/containernetworking/plugins/releases
-    #ver="v1.5.1" # 2024-06-30
-    ver="v1.6.0"  # 2024-06-30 @ K8s v1.29.6, 2024-11-30 @ K8s v1.30.1
+    #ver='v1.5.1' # 2024-06-30
+    ver='v1.6.0'  # 2024-06-30 @ K8s v1.29.6, 2024-11-30 @ K8s v1.30.1
     arch=${ARCH:-amd64}
-    dst=/opt/cni/bin # /etc/cni/net.d content created by CNI (deletable on teardown)
-    [[ -d $dst && $($dst/loopback 2>&1 |grep $ver) ]] && return 0
-    sudo mkdir -p $dst
+    to=/opt/cni/bin # /etc/cni/net.d content created by CNI (deletable on teardown)
+    [[ -d $to && $($to/loopback 2>&1 |grep $ver) ]] && return 0
+    sudo mkdir -p $to
     base="https://github.com/containernetworking/plugins/releases/download/$ver"
     curl -sSL "$base/cni-plugins-linux-${arch}-${ver}.tgz" \
-        |sudo tar -C $dst -xz
+        |sudo tar -C $to -xz
 
     # Verify loopback else fail
-    [[ -d $dst && $($dst/loopback 2>&1 |grep $ver) ]] || return 10
+    [[ -d $to && $($to/loopback 2>&1 |grep $ver) ]] || return 10
 }
 ok || exit $?
 
@@ -49,18 +53,21 @@ ok(){
     # https://www.downloadkubernetes.com/
     # https://v1-29.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
     # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
-    arch=${ARCH:-amd64}
-    ver=$1
-    [[ $ver ]] || ver="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
+    arch="${ARCH:-amd64}"
+    ver="$K8S_VERSION"
     [[ $ver ]] || return 20
     [[ $(type -t kubelet) && $(kubeadm version |grep v$ver) ]] &&
         return 0
+    # Client, server and node, where client and node are subsets of server
     base="https://dl.k8s.io/v${ver}" 
-    tarball=kubernetes-server-linux-${arch}.tar.gz
+    tarball="kubernetes-server-linux-${arch}.tar.gz"
     curl -sSL $base/$tarball |tar -xz ||
         return 22
     src=kubernetes/server/bin 
-    dst=/usr/local/bin # Abide LFS conventions for binary (non-pkg) installs
+    to=/usr/local/bin # Abide LFS conventions for binary (non-pkg) installs
+    # If binary of static pod is installed on host, 
+    # then kubelet launches it too regardless.
+    # So, install this subset only, else dueling processes at host v. container.
     subset='
         kubelet
         kubeadm
@@ -71,19 +78,18 @@ ok(){
         mounter
         apiextensions-apiserver
     '
-    printf "%s\n" $subset |xargs -I{} sudo cp $src/{} $dst/
+    printf "%s\n" $subset |xargs -I{} sudo cp $src/{} $to/
     kubelet --version || return 24
     kubectl version --client=true || return 26
     kubeadm version || return 28
 }
-ok $1 || exit $?
+ok || exit $?
 
 ok(){
     # List all container images required by kubelet (K8s Static Pods)
-    ver=$1
-    [[ $ver ]] ||
-        ver="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
-    reg="${2:-registry.k8s.io}"
+    ver="$K8S_VERSION"
+    [[ $ver ]] || return 20
+    reg="${OCI_REGISTRY:-registry.k8s.io}"
     conf=kubeadm-config-images.yaml
     [[ -f ${conf/.yaml/.log} ]] && return 0
 	cat <<-EOH |tee $conf
@@ -94,7 +100,7 @@ ok(){
 	EOH
     kubeadm config images list --config $conf |tee ${conf/.yaml/.log}
 }
-ok $1 $2 || exit $?
+ok || exit $?
 
 ok(){
     # Configure kubelet as systemd service (kubelet.service) else fail

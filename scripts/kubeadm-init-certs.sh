@@ -9,18 +9,14 @@
 #####################################################################
 
 node=$1
-cfg=${2:-kubeadm-config.yaml}
+conf=${2:-kubeadm-config.yaml}
 host=$(hostname)
-[[ "${node,,}" == "${host,,}" ]] || {
-    echo '=== Run this ONLY on K8S_INIT_NODE'
-    
-    exit 0
-}
+[[ "${node,,}" == "${host,,}" ]] || return 11
 
 # Generate certs (once)
-[[ -f /etc/kubernetes/pki/apiserver.key ]] || {
+[[ -d /etc/kubernetes/pki ]] || {
     echo 'Generating NEW cluster PKI @ /etc/kubernetes/pki/'
-    sudo kubeadm init phase certs all --config $cfg
+    sudo kubeadm init phase certs all --config $conf
 }
 
 key=$(sudo kubeadm certs certificate-key)

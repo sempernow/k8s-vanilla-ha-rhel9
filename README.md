@@ -49,8 +49,7 @@ make init
 
 #### Details
 
-The cluster is managed as a systemd service by [`kubelet.service`](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/)
-). The `kubelet` is configured dynamically by `kubeadm init` and `kubeadm join` at runtime. The command options of `kubelet` can be modified afterward. See `/usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf` for more detail.
+The cluster is managed as a systemd service by [`kubelet.service`](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/). The `kubelet` is configured dynamically by `kubeadm init` and `kubeadm join` at runtime. The command options of `kubelet` can be modified afterward. See `/usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf` for more detail.
 
 - On 1st control node:
     - `sudo kubeadm init ...`
@@ -59,30 +58,6 @@ The cluster is managed as a systemd service by [`kubelet.service`](https://kuber
         - With differring command options for 
           workers versus control nodes.
 
-#### [cgroup drivers](https://kubernetes.io/docs/setup/production-environment/container-runtimes/#cgroup-drivers) : `systemd` or `cgroupfs`
-
-On Linux, control groups constrain resources that are allocated to processes.
-The `kubelet` and the underlying container runtime need to interface with cgroups to enforce resource management for pods and containers which includes cpu/memory requests and limits for containerized workloads. There are **two versions** of cgroups in Linux: cgroup v1 and cgroup v2. cgroup v2 is the new generation of the cgroup API.
-
-Identify the cgroup version on Linux Nodes
-
-```bash
-stat -fc %T /sys/fs/cgroup/
-
-cgroup ()
-{
-    fs=$(stat -fc %T /sys/fs/cgroup/);
-    [[ $fs == 'tmpfs' ]] && printf v1 && return;
-    [[ $fs == 'cgroup2fs' ]] && printf v2 && return;
-    echo unknown
-}
-```
-- `cgroup2fs` is v2; `tmpfs` is v1.
-- Hyper-V / AlamLinux8 : v1
-- Hyper-V / RHEL9 : v2
-
-~~If cgroup v1, then set `kubelet` flag `--cgroup-driver` to `systemd`, else set to `cgroupfs`.~~
-Driver should match the container runtime setting, and if the parent processes are `systemd`, then should use that. 
 
 #### [`kubeadm init`](https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-init/)
 

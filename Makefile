@@ -147,13 +147,14 @@ menu :
 #	@echo "imgpush      : Tag and push container images to local registry (${CNCF_REGISTRY_ENDPOINT})"
 #	@echo "imgcat       : GET /v2/_catalog of local registry (${CNCF_REGISTRY_ENDPOINT})"
 	@echo "============== "
-	@echo "conf-prep    : Generate cluster PKI (if not exist) at K8S_INIT_NODE; update Makefile.settings"
-	@echo "conf-gen     : Generate ${K8S_KUBEADM_CONFIG} from .tpl"
-	@echo "conf-push    : Upload ${K8S_KUBEADM_CONFIG} to all nodes"
-	@echo "conf-pull    : kubeadm config images pull -v${K8S_VERBOSITY} --config ${K8S_KUBEADM_CONFIG}"
-	@echo "init-pre     : kubeadm init phase preflight"
+	@echo "init         : Create 1st control node of the cluster" 
+	@echo "  -pki       : Generate cluster PKI (if not exist) at K8S_INIT_NODE; update Makefile.settings"
+	@echo "  -conf      : Generate ${K8S_KUBEADM_CONFIG} from its template (.yaml.tpl)"
+	@echo "  -push      : Upload ${K8S_KUBEADM_CONFIG} to all nodes"
+	@echo "  -images    : kubeadm config images pull -v${K8S_VERBOSITY} --config ${K8S_KUBEADM_CONFIG}"
+	@echo "  -pre       : kubeadm init phase preflight …"
+	@echo "  -now       : kubeadm init … (${GITOPS_USER}@${K8S_INIT_NODE_SSH})"
 	@echo "============== "
-	@echo "init         : kubeadm init … (${GITOPS_USER}@${K8S_INIT_NODE_SSH})"
 	@echo "upload-certs : Re-upload certificates for joining another control-plane node"
 	@echo "join-command : Print full join command for a control-plane node (includes token and hash)"
 	@echo "join-control : Join all other control-plane nodes into cluster : kubeadm join --control-plane …"
@@ -177,7 +178,7 @@ perms mode :
 	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \+
 	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \+
 
-push : 
+push commit : 
 	gc && git push && gl && gs
 
 #ansibash sudo firewall-cmd --permanent --zone=public --service=k8s-workers --add-interface=cni0
@@ -252,11 +253,14 @@ k8s :
 	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-k8s.log
 
+init : init-certs init-conf init-push init-images init-pre init-now
+
 ## Generate cluster PKI (if not exist) and declare kubeadm-relevant params at Makefile.settings 
-init-certs :
-	ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} /bin/bash -s < \
-		${GITOPS_SRC_DIR}/scripts/kubeadm-init-certs.sh ${K8S_INIT_NODE} ${K8S_KUBEADM_CONFIG} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-certs.log
+init-certs : init-conf
+	cat ${GITOPS_SRC_DIR}/scripts/kubeadm-init-certs.sh \
+		|ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} \
+			/bin/bash -s - ${K8S_INIT_NODE} ${K8S_KUBEADM_CONFIG} \
+			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-certs.log
 	cp -p Makefile.settings Makefile.settings.bak
 	cp -p scripts/_Makefile.settings Makefile.settings
 
@@ -293,7 +297,7 @@ init-pre :
 		--config ${K8S_KUBEADM_CONFIG} \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-pre.log
 
-init :
+init-now :
 	ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init -v${K8S_VERBOSITY} \
 		--upload-certs \
 		--config ${K8S_KUBEADM_CONFIG} \

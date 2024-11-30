@@ -52,7 +52,7 @@ ok || exit $?
 
 ok(){
     # Configure kernel runtime params (sysctl) 
-    conf='/etc/sysctl.d/99-kubernetes.conf'
+    conf=/etc/sysctl.d/99-kubernetes.conf
     [[ $(cat $conf 2>/dev/null |grep 'net.bridge.bridge-nf-call-iptables  = 1') ]] && return 0
 	cat <<-EOH |sudo tee $conf
 	net.bridge.bridge-nf-call-ip6tables = 1
