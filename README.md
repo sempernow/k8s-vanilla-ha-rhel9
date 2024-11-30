@@ -12,74 +12,23 @@ built of HAProxy and Keepalived.
     - Storage: 20GB
     - Network: Eternal (Host)
 
+## Usage
 
-## Prep
-
-### Optionally install useful tools
-
-```bash
-# sysstat contains: iostat vmstat sar
-all='conntrack dnf-plugins-core make iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree htop fio sysstat'
-sudo dnf install -y $all
-
-```
-
-#### The easy way 
+Menu of recipes:
 
 ```bash
-mkdir k8s-air-gap-install
-cd k8s-air-gap-install
-sudo kubeadm config images list |& tee kubeadm.config.images.list.log
-sudo yum -y download --arch x86_64 
-sudo dnf -y download --arch x86_64 kubectl kubeadm kubelet --resolve --alldeps #... See provisioning scripts
-
-# Install an RPM 
-sudo rpm -i $pkg.rpm
-# Upgrade if already installed
-sudo rpm -U $pkg.rpm
-
+make
 ```
-- Includes dependencies already installed on this box, 
-  but attempted install on target does no harm.
 
-#### The hard way
-
-Steps
-
-1. Download/Install all required packages,
-and pull all required Docker images 
-at any (non-target) administrative machine.
-2. Diff the installed RPMs, before versus after K8s-pkgs install,
-   and then download the diff list.
-3. Run `kubeadm config images pull` 
-   to download all required Docker images,
-   and then "`docker save`" each to `.tar`.
-4. Proceed to next step, but modify the commands 
-   regarding RPM package installs 
-   to account for those packages being local.
+## Prepare the target hosts
 
 ```bash
-# List Repos
-yum list installed |awk '{ print $3 }' |sort -u |tee repolist.before.txt
+# Configure the host/kernel for K8s
+make conf
 
-# Before : List installed RPM packages
-rpm -qa |tee rpm.before.k8s
-# install K8s (but don't initialize cluster)
-# After : List installed RPM packages
-rpm -qa |tee rpm.after.k8s
-
-# Muster all K8s RPMs for air-gap installs
-## Generate the list
-comm -13 <(sort rpm.before.k8s) <(sort rpm.after.k8s) |tee rpm.k8s
-## Download them
-$repo='https://repo.almalinux.org/almalinux/8/BaseOS/x86_64/os/Packages'
-cat rpm.k8s |xargs -IX wget $repo/X.rpm
-
-sudo kubeadm config images pull |& tee kubeadm.config.images.pull.log
-
+# Provision hosts with K8s and dependencies
+make provision
 ```
-
-
 
 ## Cluster Initialization 
 
