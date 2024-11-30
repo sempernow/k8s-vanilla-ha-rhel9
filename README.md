@@ -1,4 +1,4 @@
-# [`k8s-vanilla-ha`](https://github.com/sempernow/k8s-vanilla-ha "GitHub : sempernow/k8s-vanilla-ha") | [Kubernetes.io](https://kubernetes.io/docs/) | [Releases](https://github.com/kubernetes/kubernetes/releases)
+# [`k8s-vanilla-ha-rhel9`](https://github.com/sempernow/k8s-vanilla-ha "GitHub : sempernow/k8s-vanilla-ha-rhel9") | [Kubernetes.io](https://kubernetes.io/docs/) | [Releases](https://github.com/kubernetes/kubernetes/releases)
 
 Install an on-prem vanilla K8s cluster.
 Optionally configured behind an HA load balancer  

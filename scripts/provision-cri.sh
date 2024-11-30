@@ -15,7 +15,7 @@ ok(){
     # Install runc (containerd dependency) else fail
     # https://github.com/opencontainers/runc/releases
     # https://github.com/containerd/containerd/blob/main/docs/getting-started.md
-    ver='1.1.13'
+    ver='1.2.2'
     [[ $(runc -v 2>&1 |grep $ver) ]] && return 0 
     arch=${ARCH:-amd64}
     url="https://github.com/opencontainers/runc/releases/download/v${ver}/runc.$arch"
@@ -29,7 +29,7 @@ ok(){
     # Install containerd binaries else fail
     # https://github.com/containerd/containerd/blob/main/docs/getting-started.md
     # https://github.com/containerd/containerd/releases
-    ver='1.7.19'
+    ver='2.0.0'
     arch=${ARCH:-amd64}
     tarball="containerd-${ver}-linux-${arch}.tar.gz"
     [[ $(containerd --version 2>&1 |grep v$ver) ]] && return 0

@@ -3,16 +3,7 @@
 # Disable all swaps 
 # - Idempotent.
 ########################################################
-[[ $(cat /proc/swaps |grep -v Filename) ]] || {
-    echo '== All swaps are already disabled'
-    exit 0
-} 
-
-echo '=== Disable Swap memory'
-
-echo '@ swap : BEFORE'
-sudo swapon --show
-cat /etc/fstab |grep swap
+[[ $(cat /proc/swaps |grep -v Filename) ]] || exit 0
 ## Disable swap now and forever : required by kubelet
 ## To find a particular swap, use lsblk 
 sudo swapoff -a  # Disable all swaps of /proc/swaps
@@ -31,11 +22,8 @@ swap_mounted="$(cat /etc/fstab |grep ' swap' |grep -v '^ *#' |awk '{print $1}')"
 [[ $swap_mounted ]] && {
     device="$(echo $swap_mounted |awk '{print $1}')"
     sudo sed -i "s,$device,#$device," /etc/fstab
-} || { echo '=== swap mount ALREADY commented out'; }
+} 
 
-echo '@ swap : AFTER'
-
-sudo swapon --show
+#sudo swapon --show
 cat /etc/fstab |grep swap
 sudo systemctl daemon-reload
-sudo firewall-cmd --reload

@@ -23,11 +23,11 @@ ok(){
     # Install CNI Plugins else fail
     # https://github.com/containernetworking/plugins/releases
     #ver="v1.5.1" # 2024-06-30
-    ver="v1.3.0"  # 2024-06-30 K8s v1.29.6
+    ver="v1.6.0"  # 2024-06-30 K8s v1.29.6
     arch=${ARCH:-amd64}
     dst=/opt/cni/bin
     [[ -d $dst && $($dst/loopback 2>&1 |grep $ver) ]] && return 0
-    sudo mkdir -p "$dst"
+    sudo mkdir -p $dst
     base="https://github.com/containernetworking/plugins/releases/download/$ver"
     curl -sSL "$base/cni-plugins-linux-${arch}-${ver}.tgz" \
         |sudo tar -C $dst -xz
@@ -36,7 +36,6 @@ ok(){
     [[ -d $dst && $($dst/loopback 2>&1 |grep $ver) ]] || return 10
 }
 ok || exit $?
-
 
 ok(){
     # Install Kubernetes else fail.
@@ -48,26 +47,17 @@ ok(){
     # https://v1-29.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
     # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
     arch=${ARCH:-amd64}
-    #ver=$(curl -sSL https://dl.k8s.io/release/stable.txt) # @ v1.30.2
-    ver=1.29.6
-    [[ $(type -t kubelet) && $(kubeadm version |grep v$ver) ]] && return 0
-    #base="https://dl.k8s.io/release/v${ver}/bin/linux/${arch}" ## Prior scheme
-    ## Current scheme: client, server and node archives, where client and node have subsets of server
+    ver=$1
+    [[ $ver ]] || ver="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
+    [[ $ver ]] || return 20
+    [[ $(type -t kubelet) && $(kubeadm version |grep v$ver) ]] &&
+        return 0
     base="https://dl.k8s.io/v${ver}" 
     tarball=kubernetes-server-linux-${arch}.tar.gz
-    #wget -nv $base/$tarball && tar -xaf $tarball || return 20
-    curl -sSL $base/$tarball |tar -xz || return 20
-
+    curl -sSL $base/$tarball |tar -xz ||
+        return 22
     src=kubernetes/server/bin 
     dst=/usr/local/bin
-    ###############################################
-    # If binary of static pod installed on host, 
-    # then kubelet launches it too regardless.
-    ###############################################
-    # find $src -maxdepth 1 -type f -perm -0755 -printf "%P\n" \
-    #     |xargs -IX /bin/bash -c '
-    #         sudo cp $0/$2 $1/$2 && sudo chmod 0755 $1/$2
-    #     ' $src $dst X \;
     subset='
         kubelet
         kubeadm
@@ -79,20 +69,19 @@ ok(){
         apiextensions-apiserver
     '
     printf "%s\n" $subset |xargs -I{} sudo cp $src/{} $dst/
-
-    kubelet --version || return 21
-    kubectl version --client=true || return 22
-    sudo kubeadm version || return 23
-    #... So, if exit 23, then sudo PATH (secure_path) does *not* contain $dst
+    kubelet --version || return 24
+    kubectl version --client=true || return 26
+    kubeadm version || return 28
 }
-ok || exit $?
+ok $1 || exit $?
 
 ok(){
     # List all container images required by kubelet (K8s Static Pods)
-    ver="${1:-1.29.6}"
-    #reg=registry.local:5000
+    ver=$1
+    [[ $ver ]] ||
+        ver="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
     reg="${2:-registry.k8s.io}"
-    conf="kubeadm-config-images.yaml"
+    conf=kubeadm-config-images.yaml
     [[ -f ${conf/.yaml/.log} ]] && return 0
 	cat <<-EOH |tee $conf
 	apiVersion: kubeadm.k8s.io/v1beta3
@@ -102,7 +91,7 @@ ok(){
 	EOH
     kubeadm config images list --config $conf |tee ${conf/.yaml/.log}
 }
-ok "$@" || exit $?
+ok $1 $2 || exit $?
 
 ok(){
     # Configure kubelet as systemd service (kubelet.service) else fail
@@ -120,16 +109,10 @@ ok(){
         |sed "s:/usr/bin:$bin:g" \
         |sudo tee $sys/kubelet.service.d/10-kubeadm.conf
 
-    [[ $(type -t kubelet) && $(kubeadm version |grep v$ver) ]] || return 1
+    [[ $(type -t kubelet) && $(kubeadm version |grep v$ver) ]] ||
+        return 1
     
-    sudo systemctl enable --now kubelet || return 1
-
-    return 0
+    sudo systemctl enable --now kubelet ||
+        return 1
 }
 ok || exit $?
-
-echo ok
-
-exit 0
-######
-

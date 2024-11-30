@@ -27,7 +27,7 @@ sudo dnf -y makecache  |& tee -a $log
 utils(){
     ## Utilities
     # If use "--arch x86_64" flag, then "No packages available"
-    all='yum-utils dnf-plugins-core gcc make createrepo createrepo_c mkisofs ansible ansible-core iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree'
+    all='conntrack dnf-plugins-core make iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree htop fio iostat'
     # mkisofs is xorriso : The above also installs reposync
     #sudo dnf -y download --nobest --allowerasing --alldeps --resolve $all # 198 packages
     sudo dnf -y download $opts $all |& tee -a $log  
