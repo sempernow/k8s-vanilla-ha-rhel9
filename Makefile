@@ -177,8 +177,8 @@ perms mode :
 	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \+
 	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \+
 
-push :
-	gc && gl && gs && git push
+push : 
+	gc && git push && gl && gs
 
 #ansibash sudo firewall-cmd --permanent --zone=public --service=k8s-workers --add-interface=cni0
 foo :
