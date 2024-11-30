@@ -119,7 +119,6 @@ menu :
 #	@echo "dl           : Download to admin machine all assets; RPMs, binaries, charts, …"
 #	@echo "dl-rpms      : Download to admin machine all RPM packages and all their dependencies"
 #	@echo "dl-bins      : Download to admin machine all non-RPM assets (except container images)"
-#	@echo "push         : Push this project, ${PWD}, to targets @ /tmp/"
 #	@echo "prep         : Pre-install tasks"
 #	@echo "firewalls    : firewalld mods"
 #	@echo "rpms         : Install all RPM packages"
@@ -179,7 +178,7 @@ perms mode :
 	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \+
 
 push :
-	gc && gl && gs 
+	gc && gl && gs && git push
 
 #ansibash sudo firewall-cmd --permanent --zone=public --service=k8s-workers --add-interface=cni0
 foo :
