@@ -30,21 +30,12 @@ make conf
 make provision
 ```
 
-## Cluster Initialization 
+## Cluster Initialization
 
 ### Init programmatically
 
 ```bash
-export node1=a1
-# Idempotent
-export K8S_BOOTSTRAP_TOKEN=$(ssh $node1 kubeadm token generate)
-export K8S_CERTIFICATE_KEY=$(ssh $node1 kubeadm certs certificate-key)
-
-make conf-gen
-make conf-push
-make conf-pull
-make init-pre
-make init
+make init-now
 ```
 
 #### Details
