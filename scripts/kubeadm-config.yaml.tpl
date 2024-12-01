@@ -118,7 +118,7 @@ discovery:
     ## CA certificate @ /etc/kubernetes/pki/ca.crt
     token: K8S_BOOTSTRAP_TOKEN
     # apiServerEndpoint: kube-apiserver:6443
-    #apiServerEndpoint: K8S_CONTROL_PLANE_IP:K8S_CONTROL_PLANE_PORT
+    apiServerEndpoint: K8S_CONTROL_PLANE_IP:K8S_CONTROL_PLANE_PORT
     ## CA-Certificate Hash(es):
     ## See "kubeadm init" output: 
     ## --discovery-token-ca-cert-hash sha256:<hex-encoded-value>

@@ -28,7 +28,7 @@ export PRJ_ROOT   := $(shell pwd)
 export LOG_PREFIX := make.$(shell date '+%Y-%m-%dT%H.%M.%Z')
 
 ##############################################################################
-## Registry
+## Registry : registry.k8s.io
 
 #export CNCF_REGISTRY_IMAGE    ?= registry:2.8.3
 #export CNCF_REGISTRY_HOST     ?= registry.local
@@ -53,9 +53,9 @@ export HALB_CIDR     ?= ${HALB_VIP}/${HALB_MASK}
 #export HALB_CIDR6    ?= ${HALB_VIP6}/${HALB_MASK6}
 #export HALB_PORT     ?= 8443
 export HALB_DEVICE   ?= eth0
-export HALB_FQDN_1   ?= a1.local
-export HALB_FQDN_2   ?= a2.local
-export HALB_FQDN_3   ?= a3.local
+export HALB_FQDN_1   ?= a1
+export HALB_FQDN_2   ?= a2
+export HALB_FQDN_3   ?= a3
 
 #export HALB_ENDPOINT ?= ${HALB_VIP}:${HALB_PORT}
 
@@ -148,7 +148,7 @@ menu :
 #	@echo "imgcat       : GET /v2/_catalog of local registry (${CNCF_REGISTRY_ENDPOINT})"
 	@echo "============== "
 	@echo "init         : Create 1st control node of the cluster" 
-	@echo "  -pki       : Generate cluster PKI (if not exist) at K8S_INIT_NODE; update Makefile.settings"
+	@echo "  -certs     : Generate cluster PKI (once) and pull bootstrap creds"
 	@echo "  -conf      : Generate ${K8S_KUBEADM_CONFIG} from its template (.yaml.tpl)"
 	@echo "  -push      : Upload ${K8S_KUBEADM_CONFIG} to all nodes"
 	@echo "  -images    : kubeadm config images pull -v${K8S_VERBOSITY} --config ${K8S_KUBEADM_CONFIG}"
@@ -256,19 +256,18 @@ k8s :
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-k8s.log
 
 ## K8s cluster creation
-init : init-certs init-conf init-push init-images init-pre init-now
+init : init-pki init-conf init-push init-images init-pre init-now
 
-## Generate cluster PKI (if not exist) and declare kubeadm-relevant params at Makefile.settings 
-init-certs : init-conf
+## Generate cluster PKI (if not exist) and its Makefile.settings 
+init-certs init-pki : init-conf init-push
 	cat ${GITOPS_SRC_DIR}/scripts/kubeadm-init-certs.sh \
-		|ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} \
+		|ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} \
 			/bin/bash -s - ${K8S_INIT_NODE} ${K8S_KUBEADM_CONFIG} \
 			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-certs.log
-	cp -p Makefile.settings Makefile.settings.bak
-	cp -p scripts/_Makefile.settings Makefile.settings
+	scp ${K8S_INIT_NODE_SSH}:Makefile.settings .
 
 init-conf :
-	cat ${GITOPS_SRC_DIR}/${K8S_KUBEADM_CONFIG}.tpl \
+	cat ${GITOPS_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG}.tpl \
 		|sed 's#K8S_VERSION#${K8S_VERSION}#g' \
 		|sed 's#K8S_REGISTRY#${K8S_REGISTRY}#g' \
 		|sed 's#K8S_VERBOSITY#${K8S_VERBOSITY}#g' \
@@ -284,7 +283,7 @@ init-conf :
 		|sed 's#K8S_CERTIFICATE_KEY#${K8S_CERTIFICATE_KEY}#g' \
 		|sed 's#K8S_CA_CERT_HASH#${K8S_CA_CERT_HASH}#g' \
 		|sed '/^ *#/d' |sed '/^\s*$$/d' \
-		|tee ${GITOPS_SRC_DIR}/${K8S_KUBEADM_CONFIG}
+		|tee ${GITOPS_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG}
 
 init-push :
 	ansibash -u ${GITOPS_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG} \
@@ -301,18 +300,23 @@ init-pre :
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-pre.log
 
 init-now :
-	ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init -v${K8S_VERBOSITY} \
+	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init -v${K8S_VERBOSITY} \
 		--upload-certs \
 		--config ${K8S_KUBEADM_CONFIG} \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init.log
 
+join-now :
+	ansibash sudo kubeadm join -v${K8S_VERBOSITY} \
+		--config ${K8S_KUBEADM_CONFIG} \
+		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.join.log
+
 upload-certs : 
-	ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init phase upload-certs \
+	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init phase upload-certs \
 		--upload-certs \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.upload-certs.log
 
 join-command :
-	ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm token create \
+	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm token create \
 		--print-join-command \
 		--certificate-key ${K8S_CERTIFICATE_KEY} \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.print-join-command.log
@@ -356,14 +360,14 @@ conf-kubectl :
 	bash make.recipes.sh conf_kubectl
 
 node nodes get-nodes :
-	ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} kubectl get nodes \
+	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} kubectl get nodes \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.get-nodes.log
 
 kw :
-	ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} kw \
+	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} kw \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.kw.log
 
 cilium :
-	ssh ${GITOPS_USER}@${K8S_INIT_NODE_SSH} cilium status \
+	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} cilium status \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.cilium.status.log
 
