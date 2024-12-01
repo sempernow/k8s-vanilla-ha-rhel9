@@ -128,9 +128,9 @@ menu :
 	@echo "  -selinux   : Configure targets' SELinux : Set to Permissive"
 	@echo "  -swap      : Configure targets' swap : Disable all swap devices"
 	@echo "reboot       : Reboot targets"
-	@echo "provision    : cri k8s : See scripts/provision-*.sh"
-	@echo "  -cri       : Provision targets with CRI tools and services"
-	@echo "  -k8s       : Provision targets with K8s/CNI tools and services"
+	@echo "provision    : Provision K8s and all deps"
+	@echo "  -cri       : Provision CRI and all deps, and tools"
+	@echo "  -k8s       : Provision K8s and CNI plugins"
 #	@echo "post         : Configure host, services, and user (${GITOPS_USER})"
 #	@echo "etcd-test    : Smoke test etcd"
 #	@echo "enforcing    : Set SELinux to Enforcing (reboot targets afterward)"
@@ -172,7 +172,6 @@ env :
 	@env |grep K8S_
 	@env |grep GITOPS_ 
 
-
 perms mode :
 	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \+
 	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \+
@@ -187,6 +186,7 @@ foo :
 
 #echo ${GITOPS_SRC_DIR}
 #echo /tmp/$(shell basename "${GITOPS_SRC_DIR}")
+
 
 ##############################################################################
 ## Recipes : Cluster
@@ -212,8 +212,10 @@ status hello :
 		&& printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
 	'
 
+# Configure bash shell of target hosts using the declared Git project
 home :
-	ansibash 'pushd home && git pull && make user && make all'
+	ansibash 'git clone https://github.com/sempernow/home || echo ok'
+	ansibash 'pushd home && git pull && make sync-user && make user'
 
 # Configure the provisioner (GITOPS_USER) on each node. Final task is manual.
 # See script for details.
@@ -244,7 +246,7 @@ conf-swap :
 	ansibash -s ${GITOPS_SRC_DIR}/scripts/configure-swap.sh \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.conf-swap.log
 
-## CRI and K8s binaries
+## Provision K8s and all deps : RPM(s), binaries, systemd, and other configs
 provision : cri k8s 
 cri :
 	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-cri.sh \
@@ -253,6 +255,7 @@ k8s :
 	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-k8s.log
 
+## K8s cluster creation
 init : init-certs init-conf init-push init-images init-pre init-now
 
 ## Generate cluster PKI (if not exist) and declare kubeadm-relevant params at Makefile.settings 

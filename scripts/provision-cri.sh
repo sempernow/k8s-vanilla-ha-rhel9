@@ -53,27 +53,19 @@ ok(){
 ok || exit $?
 
 ok(){
-    # @ /etc/containerd/config.toml
+    # Configure containerd for K8s CRI @ /etc/containerd/config.toml
     # https://github.com/containerd/containerd/blob/main/docs/cri/config.md
-    # https://github.com/containerd/containerd/blob/main/docs/man/containerd-config.8.md
-    # https://kubernetes.io/docs/setup/production-environment/container-runtimes/#containerd-systemd
-    # Default : 
-        # containerd config default |sudo tee /etc/containerd/config.toml
-    # K8s mods :
-        # https://v1-29.docs.kubernetes.io/docs/setup/production-environment/container-runtimes/#containerd
-        # [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-        #   [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-        #     SystemdCgroup = true
-        # [plugins."io.containerd.grpc.v1.cri"]
-        #   sandbox_image = "registry.k8s.io/pause:3.2"
-    # Local (insecure) registry perhaps :
+    # https://kubernetes.io/docs/setup/production-environment/container-runtimes/#containerd
+
+    ## Local (insecure) registry perhaps :
     registry=${REGISTRY:-k8s.registry.io}
 
     conf=/etc/containerd/config.toml
     [[ -f $conf ]] && return 0
+    disableContainerd
     sudo mkdir -p /etc/containerd
     
-    # Select : default | minimal | custom
+    ## Select : default | minimal | custom
 
 	default(){
         containerd config default |sudo tee $conf
@@ -152,13 +144,16 @@ ok || exit $?
 
 ok(){
     # Install CRI tools (cri-tools) alse fail
-    ver="v1.29.0"
+    # https://github.com/kubernetes-sigs/cri-tools?tab=readme-ov-file#install 
+    ver='v1.29.0'
     arch=${ARCH:-amd64}
     base="https://github.com/kubernetes-sigs/cri-tools/releases/download/$ver"
     suffix="${ver}-linux-${arch}.tar.gz"
+
     sbin=/usr/local/sbin
     [[ $(crictl --version 2>&1 |grep $ver) ]] ||
         curl -sSL "$base/crictl-$suffix" |sudo tar -C $sbin -xz
+
     [[ $(critest --version 2>&1 |grep $ver) ]] ||
         curl -sSL "$base/critest-$suffix" |sudo tar -C $sbin -xz
 
