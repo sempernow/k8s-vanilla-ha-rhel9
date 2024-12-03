@@ -45,6 +45,17 @@ ok || echo '=== FAILed'
 
 ## [Install](https://chatgpt.com/c/6749a5f4-ad00-8009-9166-ad815bc10bfc "ChatGPT")
 
+Both methods are of Helm chart
+
+
+### CLI method
+
+```bash 
+cilium install [flags]
+```
+
+### Helm method
+
 If we want Cilium to use the HA LB (vIP) 
 when communicating with K8s API server:
 
