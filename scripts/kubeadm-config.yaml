@@ -26,6 +26,7 @@ kind: JoinConfiguration
 discovery:
   bootstrapToken:
     token: cjf5w2.4x2vuzwa7u2i5t90
+    apiServerEndpoint: 192.168.28.222:
     caCertHashes: 
     - sha256:sha256:a7c7ffc733300b2727ba82660d8fafde6f9b3f46edcf82592fd987c4de0b3d33
   tlsBootstrapToken: cjf5w2.4x2vuzwa7u2i5t90 

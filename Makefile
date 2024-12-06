@@ -43,7 +43,7 @@ export LOG_PREFIX := make.$(shell date '+%Y-%m-%dT%H.%M.%Z')
 
 ## HAProxy/Keepalived : 
 ### VIP within targets' network mask
-export HALB_VIP      ?= 192.168.28.222
+export HALB_VIP      ?= 192.168.11.22
 ### anet Network is segmented (/27; 5 bit mask) so 30 hosts per (user? program?)
 export HALB_MASK     ?= 24
 #export HALB_MASK6    ?= 64
@@ -83,11 +83,13 @@ export K8S_PROVISIONER_KEY    ?= ${GITIPS_KEY}
 export K8S_REGISTRY           ?= ${CNCF_REGISTRY_ENDPOINT}
 export K8S_VERBOSITY          ?= 5
 export K8S_INIT_NODE_SSH      ?= $(shell echo ${GITOPS_NODES_MASTER} |cut -d' ' -f1)
-export K8S_INIT_NODE          ?= ${HALB_FQDN_1}
+export K8S_INIT_NODE          ?= a0
 export K8S_KUBEADM_CONFIG     ?= kubeadm-config.yaml
 export K8S_IMAGE_REPOSITORY   ?= registry.k8s.io
-export K8S_CONTROL_PLANE_IP   ?= ${HALB_VIP}
-export K8S_CONTROL_PLANE_PORT ?= ${HALB_PORT}
+#export K8S_CONTROL_PLANE_IP   ?= ${HALB_VIP}
+export K8S_CONTROL_PLANE_IP   ?= 192.168.11.101
+#export K8S_CONTROL_PLANE_PORT ?= ${HALB_PORT}
+export K8S_CONTROL_PLANE_PORT ?= 6443
 #export K8S_SERVICE_CIDR       ?= 10.55.0.0/12
 export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
 #export K8S_POD_CIDR           ?= 10.20.0.0/16
@@ -118,6 +120,7 @@ menu :
 #	@echo "pki          : Setup this user's PKI at remote provisioner account"
 #	@echo "pki2         : Same but automated. Requires user having root access sans password"
 	@echo "status       : Print targets' status"
+	@echo "psrss        : Print targets' top memory usage : RSS [MiB]"
 	@echo "home         : Update dotfiles of targets per Git project @ github.com/sempernow/home.git"
 #	@echo "dl           : Download to admin machine all assets; RPMs, binaries, charts, …"
 #	@echo "dl-rpms      : Download to admin machine all RPM packages and all their dependencies"
@@ -214,11 +217,12 @@ status hello :
 		&& printf "%12s: %s\n" containerd $$(systemctl is-active containerd) \
 		&& printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
 	'
+	@ansibash -s scripts/psrss.sh
 
 # Configure bash shell of target hosts using the declared Git project
 home :
-	ansibash 'git clone https://github.com/sempernow/home || echo ok'
-	ansibash 'pushd home && git pull && make sync-user && make user'
+	ansibash 'git clone https://github.com/sempernow/home 2>/dev/null || echo ok'
+	ansibash 'pushd home;git pull;make sync-user && make user'
 
 # Configure the provisioner (GITOPS_USER) on each node. Final task is manual.
 # See script for details.
