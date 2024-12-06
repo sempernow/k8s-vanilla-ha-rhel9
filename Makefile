@@ -112,6 +112,9 @@ export K8S_BOOTSTRAP_TOKEN    ?= nmijxk.irqyzts0x5glr2cr
 menu :
 	$(INFO) 'Install K8s onto all target hosts : RHEL 9 is expected'
 	@echo "env          : Print Makefile environment"
+	@echo "mode         : Fix file mode of this source"
+	@echo "push         : Commit and push this source"
+#	@echo "============== "
 #	@echo "pki          : Setup this user's PKI at remote provisioner account"
 #	@echo "pki2         : Same but automated. Requires user having root access sans password"
 	@echo "status       : Print targets' status"
@@ -367,6 +370,7 @@ kw :
 	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} kw \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.kw.log
 
+#.PHONY: cilium
 cilium :
 	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} cilium status \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.cilium.status.log
