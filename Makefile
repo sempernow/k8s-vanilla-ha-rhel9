@@ -41,24 +41,6 @@ export LOG_PREFIX := make.$(shell date '+%Y-%m-%dT%H.%M.%Z')
 ##############################################################################
 ## Cluster
 
-## HAProxy/Keepalived : 
-### VIP within targets' network mask
-export HALB_VIP      ?= 192.168.11.22
-### anet Network is segmented (/27; 5 bit mask) so 30 hosts per (user? program?)
-export HALB_MASK     ?= 24
-#export HALB_MASK6    ?= 64
-### CIDR: 10.11.111.234/27 : IP Range : 224-255 
-export HALB_CIDR     ?= ${HALB_VIP}/${HALB_MASK}
-#export HALB_VIP6     ?= 0:0:0:0:0:ffff:0aa0:7164
-#export HALB_CIDR6    ?= ${HALB_VIP6}/${HALB_MASK6}
-#export HALB_PORT     ?= 8443
-export HALB_DEVICE   ?= eth0
-export HALB_FQDN_1   ?= a1
-export HALB_FQDN_2   ?= a2
-export HALB_FQDN_3   ?= a3
-
-#export HALB_ENDPOINT ?= ${HALB_VIP}:${HALB_PORT}
-
 ## ansibash 
 ### Public-key string of ssh user must be in ~/.ssh/authorized_keys of GITOPS_USER at all targets.
 #export GITOPS_USER          ?= $(shell id -un)
@@ -83,12 +65,10 @@ export K8S_PROVISIONER_KEY    ?= ${GITIPS_KEY}
 export K8S_REGISTRY           ?= ${CNCF_REGISTRY_ENDPOINT}
 export K8S_VERBOSITY          ?= 5
 export K8S_INIT_NODE_SSH      ?= $(shell echo ${GITOPS_NODES_MASTER} |cut -d' ' -f1)
-export K8S_INIT_NODE          ?= a0
+export K8S_INIT_NODE          ?= a1
 export K8S_KUBEADM_CONFIG     ?= kubeadm-config.yaml
 export K8S_IMAGE_REPOSITORY   ?= registry.k8s.io
-#export K8S_CONTROL_PLANE_IP   ?= ${HALB_VIP}
 export K8S_CONTROL_PLANE_IP   ?= 192.168.11.101
-#export K8S_CONTROL_PLANE_PORT ?= ${HALB_PORT}
 export K8S_CONTROL_PLANE_PORT ?= 6443
 #export K8S_SERVICE_CIDR       ?= 10.55.0.0/12
 export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
@@ -103,7 +83,7 @@ export K8S_CGROUP_DRIVER      ?= systemd
 export K8S_CERTIFICATE_KEY    ?= 991348057d057866f56feabfb1dfe0f3dd06dc848a2dc79b8c51b1e7cde7a612
 ### K8S_CA_CERT_HASH="sha256:$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt |openssl rsa -pubin -outform der 2>/dev/null |openssl dgst -sha256 -hex |sed 's/^.* //')"
 export K8S_CA_CERT_HASH       ?= sha256:212b51ebc405c032152bd9fe8264d88fd876afc971c247562be8da61d6aec3c2
-### K8S_BOOTSTRAP_TOKEN=$(kubeadm token generate)
+### K8S_BOOTSTRAP_TOKEN=$(sudo kubeadm token create)
 export K8S_BOOTSTRAP_TOKEN    ?= nmijxk.irqyzts0x5glr2cr
 
 #export K8S_INSTALL_DIR ?= k8s-air-gap-install
@@ -116,19 +96,12 @@ menu :
 	@echo "env          : Print Makefile environment"
 	@echo "mode         : Fix file mode of this source"
 	@echo "push         : Commit and push this source"
-#	@echo "============== "
-#	@echo "pki          : Setup this user's PKI at remote provisioner account"
-#	@echo "pki2         : Same but automated. Requires user having root access sans password"
+	@echo "============== "
 	@echo "status       : Print targets' status"
+	@echo "net          : Network interfaces"
 	@echo "psrss        : Print targets' top memory usage : RSS [MiB]"
-	@echo "home         : Update dotfiles of targets per Git project @ github.com/sempernow/home.git"
-#	@echo "dl           : Download to admin machine all assets; RPMs, binaries, charts, …"
-#	@echo "dl-rpms      : Download to admin machine all RPM packages and all their dependencies"
-#	@echo "dl-bins      : Download to admin machine all non-RPM assets (except container images)"
-#	@echo "prep         : Pre-install tasks"
-#	@echo "firewalls    : firewalld mods"
-#	@echo "rpms         : Install all RPM packages"
-#	@echo "bins         : Install binaries"
+	@echo "home         : Configure shell using latest @ github.com/sempernow/home.git"
+	@echo "============== "
 	@echo "conf         : kernel selinux swap : See scripts/configure-*"
 	@echo "  -kernel    : Configure kernel for K8s/CNI/CRI : load modules and set runtime params"
 	@echo "  -selinux   : Configure targets' SELinux : Set to Permissive"
@@ -137,21 +110,6 @@ menu :
 	@echo "provision    : Provision K8s and all deps"
 	@echo "  -cri       : Provision CRI and all deps, and tools"
 	@echo "  -k8s       : Provision K8s and CNI plugins"
-#	@echo "post         : Configure host, services, and user (${GITOPS_USER})"
-#	@echo "etcd-test    : Smoke test etcd"
-#	@echo "enforcing    : Set SELinux to Enforcing (reboot targets afterward)"
-#	@echo "proxy        : Restore /etc/environment from ~/etc.environment (uploaded earlier)"
-#	@echo "============== "
-#	@echo "lbmake       : Generate HA-LB configurations from .tpl files"
-#	@echo "lbconf       : Configure HA LB on all control nodes"
-#	@echo "lbverify     : Verify HA-LB dynamics"
-#	@echo "lbshow       : Show HA-LB status"
-#	@echo "============== "
-#	@echo "imghelm      : Build list of all helm-chart images"
-#	@echo "imgload      : Load container images into Docker cache"
-#	@echo "imgreg       : docker run … a CNCF-distribution registry (${CNCF_REGISTRY_ENDPOINT}) on this machine (local)"
-#	@echo "imgpush      : Tag and push container images to local registry (${CNCF_REGISTRY_ENDPOINT})"
-#	@echo "imgcat       : GET /v2/_catalog of local registry (${CNCF_REGISTRY_ENDPOINT})"
 	@echo "============== "
 	@echo "init         : Create 1st control node of the cluster" 
 	@echo "  -certs     : Generate cluster PKI (once) and pull bootstrap creds"
@@ -162,19 +120,21 @@ menu :
 	@echo "  -now       : kubeadm init … (${GITOPS_USER}@${K8S_INIT_NODE_SSH})"
 	@echo "============== "
 	@echo "upload-certs : Re-upload certificates for joining another control-plane node"
+	@echo "join-pre     : Refresh join creds"
 	@echo "join-command : Print full join command for a control-plane node (includes token and hash)"
 	@echo "join-control : Join all other control-plane nodes into cluster : kubeadm join --control-plane …"
 	@echo "join-worker  : Join all worker nodes into the cluster : kubeadm join …"
 	@echo "conf-kubectl : Make ~/.kube/config"
+	@echo "============== "
 	@echo "nodes        : kubectl get nodes"
 	@echo "kw           : kubectl get pods -o wide (current namespace; see kn)"
-	@echo "cilium       : cilium status"
-	@echo "etcd-members : List member nodes of the etcd cluster (expect all control-plane nodes)"
+	@echo "cilium       : cilium install || cilium status"
+	@echo "============== "
+	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 
 env : 
 	$(INFO) 'Environment'
 	@echo "PWD=${PRJ_ROOT}"
-	@env |grep HALB_ 
 	@env |grep K8S_
 	@env |grep GITOPS_ 
 
@@ -185,13 +145,6 @@ perms mode :
 
 push commit : 
 	gc && git push && gl && gs
-
-#ansibash sudo firewall-cmd --permanent --zone=public --service=k8s-workers --add-interface=cni0
-foo :
-	bash foo.sh
-
-#echo ${GITOPS_SRC_DIR}
-#echo /tmp/$(shell basename "${GITOPS_SRC_DIR}")
 
 
 ##############################################################################
@@ -217,6 +170,11 @@ status hello :
 		&& printf "%12s: %s\n" containerd $$(systemctl is-active containerd) \
 		&& printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
 	'
+
+network net :
+	ansibash ip -brief addr
+
+psrss :
 	@ansibash -s scripts/psrss.sh
 
 # Configure bash shell of target hosts using the declared Git project
@@ -263,16 +221,17 @@ k8s :
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-k8s.log
 
 ## K8s cluster creation
-init : init-pki init-conf init-push init-images init-pre init-now
+init : init-certs init-conf init-push init-images init-pre init-now
 
-## Generate cluster PKI (if not exist) and its Makefile.settings 
-init-certs init-pki : init-conf init-push
+## Generate cluster PKI (if not exist) and its Makefile.settings, and pull those settings
+init-certs : init-conf init-push
 	cat ${GITOPS_SRC_DIR}/scripts/kubeadm-init-certs.sh \
 		|ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} \
 			/bin/bash -s - ${K8S_INIT_NODE} ${K8S_KUBEADM_CONFIG} \
 			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-certs.log
 	scp ${K8S_INIT_NODE_SSH}:Makefile.settings .
 
+## Generate kubeadm config file 
 init-conf :
 	cat ${GITOPS_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG}.tpl \
 		|sed 's#K8S_VERSION#${K8S_VERSION}#g' \
@@ -312,15 +271,12 @@ init-now :
 		--config ${K8S_KUBEADM_CONFIG} \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init.log
 
-join-now :
-	ansibash sudo kubeadm join -v${K8S_VERBOSITY} \
-		--config ${K8S_KUBEADM_CONFIG} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.join.log
-
 upload-certs : 
 	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init phase upload-certs \
-		--upload-certs \
+		--upload-certs --config ${K8S_KUBEADM_CONFIG} \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.upload-certs.log
+
+join-pre : init-certs init-conf init-push 
 
 join-command :
 	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm token create \
@@ -341,27 +297,21 @@ join-control :
 			--cri-socket ${K8S_CRI_SOCKET} \
 			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
 
-
-# GITOPS_TARGET_LIST=${GITOPS_NODES_MASTER} \
-# 	&& ansibash sudo kubeadm join -v${K8S_VERBOSITY} \
-# 		--control-plane \
-# 		--config ${K8S_KUBEADM_CONFIG} \
-# 		|& tee ${GITOPS_SRC_DIR}/logs/kubeadm.join-control.log
-
 join-worker :
 	ANSIBASH_TARGET_LIST="${GITOPS_NODES_WORKER}" \
 		&& ansibash sudo kubeadm join -v${K8S_VERBOSITY} \
 			--config ${K8S_KUBEADM_CONFIG} \
 			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.join-worker.log
 
-etcd-members :
-	ANSIBASH_TARGET_LIST='${GITOPS_NODES_MASTER}' \
-		&& ansibash sudo /usr/local/bin/etcdctl member list \
-			--endpoints=https://127.0.0.1:2379 \
-			--cacert=/etc/kubernetes/pki/etcd/ca.crt \
-			--cert=/etc/kubernetes/pki/etcd/server.crt \
-			--key=/etc/kubernetes/pki/etcd/server.key \
-			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.etcd-members.log
+# Do not run etcd on host of any control node having etcd running as Static Pod
+# etcd-members :
+# 	ANSIBASH_TARGET_LIST='${GITOPS_NODES_MASTER}' \
+# 		&& ansibash sudo /usr/local/bin/etcdctl member list \
+# 			--endpoints=https://127.0.0.1:2379 \
+# 			--cacert=/etc/kubernetes/pki/etcd/ca.crt \
+# 			--cert=/etc/kubernetes/pki/etcd/server.crt \
+# 			--key=/etc/kubernetes/pki/etcd/server.key \
+# 			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.etcd-members.log
 
 conf-kubectl :
 	bash make.recipes.sh conf_kubectl
@@ -374,8 +324,17 @@ kw :
 	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} kw \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.kw.log
 
-#.PHONY: cilium
 cilium :
-	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} cilium status \
+	cilium install --kubeconfig ${GITOPS_SRC_DIR}/scripts/kubeadm-config.yaml || cilium status  \
 		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.cilium.status.log
 
+cilium-status :
+	cilium status |& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.cilium.status.log
+
+cilium-install :
+	cilium install --kubeconfig ${GITOPS_SRC_DIR}/scripts/kubeadm-config.yaml \
+		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.cilium-install.log
+
+teardown :
+	ansibash -u ${GITOPS_SRC_DIR}/scripts/teardown.sh
+	ansibash sudo bash teardown.sh

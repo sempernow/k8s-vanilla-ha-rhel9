@@ -66,18 +66,13 @@ halb(){
 
 conf_kubectl(){
     src='/etc/kubernetes/admin.conf'
-    echo "=== Pull $src"
     [[ $K8S_INIT_NODE ]] || { echo 'FAIL : K8S_INIT_NODE is UNSET'; return; }
-    # Pull kubeadm config : /etc/kubernetes/admin.conf
     ssh $K8S_INIT_NODE 'sudo cp -p '"$src"' . && sudo chown $(id -u):$(id -g) admin.conf'
-    scp $K8S_INIT_NODE:admin.conf .
-
-    echo "=== Create ~/.kube/config @ nodes: $ANSIBASH_TARGET_LIST"
-    ansibash -u admin.conf config
-    ansibash '
-        mkdir -p ~/.kube
-        cp -p config ~/.kube/
-    '
+    mkdir -p ~/.kube
+    scp $K8S_INIT_NODE:admin.conf ~/.kube/
+    [[ -f ~/.kube/config ]] || cp -p ~/.kube/admin.conf ~/.kube/config
+    chmod 0600 ~/.kube/*
+    kubectl get no -o wide
 }
 
 "$@"
