@@ -20,16 +20,3 @@ bootstrapTokens:
 nodeRegistration:
   criSocket: unix:///var/run/containerd/containerd.sock
   taints: []    ## No taints on control nodes
----
-apiVersion: kubeadm.k8s.io/v1beta3
-kind: JoinConfiguration
-discovery:
-  bootstrapToken:
-    token: e6fb1a.rbuwqmef7f18knl2
-    apiServerEndpoint: 192.168.11.101:6443
-    caCertHashes: 
-    - sha256:a7c7ffc733300b2727ba82660d8fafde6f9b3f46edcf82592fd987c4de0b3d33
-  tlsBootstrapToken: e6fb1a.rbuwqmef7f18knl2 
-nodeRegistration: 
-  criSocket: unix:///var/run/containerd/containerd.sock 
-  taints: []   ## For no taints

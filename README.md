@@ -142,7 +142,7 @@ kubectl get node
     ```
 - Status of node(s) remains `NotReady` until the "Pod Nework" 
   is configured by installing a CNI-compliant addon such as Calico. 
-  Perform such installs at any Master node. See "Install Pod Network" section.
+  Perform such installs at any control node. See "Install Pod Network" section.
 - `--apiserver-advertise-address $ip_of_this_control_node` : Useful if __this control node__ has more than one interface; bind to stable IP. 
     - Default is `0.0.0.0`, whereof K8s API listens on all interfaces, 
       which is less secure and less stable.
@@ -181,9 +181,9 @@ If after reload (subsequent upload) of certificates
 
 ```bash
 # Generate a NEW join COMMAND for control node (@ certs reload)
-## 1. Re upload certificates in the already working master node:
+## 1. Re upload certificates in the already working control node:
 kubeadm init phase upload-certs --upload-certs # Generate a new certificate key.
-## 2. Print join command in the already working master node:
+## 2. Print join command in the already working control node:
 kubeadm token create --print-join-command
 ## 3. Join a new control plane node:
 $join_command_from_step_2 --control-plane --certificate-key $key_from_step_1

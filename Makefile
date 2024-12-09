@@ -42,29 +42,29 @@ export LOG_PREFIX := make.$(shell date '+%Y-%m-%dT%H.%M.%Z')
 ## Cluster
 
 ## ansibash 
-### Public-key string of ssh user must be in ~/.ssh/authorized_keys of GITOPS_USER at all targets.
-#export GITOPS_USER          ?= $(shell id -un)
-export GITOPS_USER          ?= u1
-export GITOPS_KEY           ?= ${HOME}/.ssh/vm_common
-export GITOPS_NODES_MASTER  ?= a1 a2 a3
-export GITOPS_NODES_WORKER  ?= 
-export GITOPS_TARGET_LIST   ?= ${GITOPS_NODES_MASTER} ${GITOPS_NODES_WORKER}
-export GITOPS_SRC_DIR       ?= $(shell pwd)
-#export GITOPS_DST_DIR       ?= ${GITOPS_SRC_DIR}
-export GITOPS_DST_DIR       ?= /tmp/$(shell basename "${GITOPS_SRC_DIR}")
+### Public-key string of ssh user must be in ~/.ssh/authorized_keys of ADMIN_USER at all targets.
+#export ADMIN_USER          ?= $(shell id -un)
+export ADMIN_USER          ?= u1
+export ADMIN_KEY           ?= ${HOME}/.ssh/vm_common
+export ADMIN_NODES_CONTROL ?= a1 a2 a3
+export ADMIN_NODES_WORKER  ?= 
+export ADMIN_TARGET_LIST   ?= ${ADMIN_NODES_CONTROL} ${ADMIN_NODES_WORKER}
+export ADMIN_SRC_DIR       ?= $(shell pwd)
+#export ADMIN_DST_DIR       ?= ${ADMIN_SRC_DIR}
+export ADMIN_DST_DIR       ?= /tmp/$(shell basename "${ADMIN_SRC_DIR}")
 
-export ANSIBASH_TARGET_LIST ?= ${GITOPS_TARGET_LIST}
-export ANSIBASH_USER        ?= ${GITOPS_USER}
+export ANSIBASH_TARGET_LIST ?= ${ADMIN_TARGET_LIST}
+export ANSIBASH_USER        ?= ${ADMIN_USER}
 
 ## Configurations : https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/
 ## K8s RELEASEs https://kubernetes.io/releases/
 export K8S_VERSION            ?= 1.29.6
-export K8S_PROVISIONER        ?= ${GITOPS_USER}
+export K8S_PROVISIONER        ?= ${ADMIN_USER}
 export K8S_PROVISIONER_KEY    ?= ${GITIPS_KEY}
 #export K8S_REGISTRY           ?= registry.k8s.io
 export K8S_REGISTRY           ?= ${CNCF_REGISTRY_ENDPOINT}
 export K8S_VERBOSITY          ?= 5
-export K8S_INIT_NODE_SSH      ?= $(shell echo ${GITOPS_NODES_MASTER} |cut -d' ' -f1)
+export K8S_INIT_NODE_SSH      ?= $(shell echo ${ADMIN_NODES_CONTROL} |cut -d' ' -f1)
 export K8S_INIT_NODE          ?= a1
 export K8S_KUBEADM_CONFIG     ?= kubeadm-config.yaml
 export K8S_IMAGE_REPOSITORY   ?= registry.k8s.io
@@ -117,7 +117,7 @@ menu :
 	@echo "  -push      : Upload ${K8S_KUBEADM_CONFIG} to all nodes"
 	@echo "  -images    : kubeadm config images pull -v${K8S_VERBOSITY} --config ${K8S_KUBEADM_CONFIG}"
 	@echo "  -pre       : kubeadm init phase preflight …"
-	@echo "  -now       : kubeadm init … (${GITOPS_USER}@${K8S_INIT_NODE_SSH})"
+	@echo "  -now       : kubeadm init … (${ADMIN_USER}@${K8S_INIT_NODE_SSH})"
 	@echo "============== "
 	@echo "upload-certs : Re-upload certificates for joining another control-plane node"
 	@echo "join-pre     : Refresh join creds"
@@ -136,7 +136,7 @@ env :
 	$(INFO) 'Environment'
 	@echo "PWD=${PRJ_ROOT}"
 	@env |grep K8S_
-	@env |grep GITOPS_ 
+	@env |grep ADMIN_ 
 
 perms mode :
 	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \+
@@ -156,9 +156,9 @@ push commit :
 # - Protecting a VIP requires network admin.
 scan :
 	sudo nmap -sn ${HALB_CIDR} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.scan.nmap.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.scan.nmap.log
 #	sudo arp-scan --interface ${HALB_DEVICE} --localnet \
-#		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.scan.arp-scan.log
+#		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.scan.arp-scan.log
 
 # Smoke test this setup
 status hello :
@@ -182,16 +182,16 @@ home :
 	ansibash 'git clone https://github.com/sempernow/home 2>/dev/null || echo ok'
 	ansibash 'pushd home;git pull;make sync-user && make user'
 
-# Configure the provisioner (GITOPS_USER) on each node. Final task is manual.
+# Configure the provisioner (ADMIN_USER) on each node. Final task is manual.
 # See script for details.
 pki :
-	printf "%s\n" ${GITOPS_TARGET_LIST} |xargs -I{} scp ${GITOPS_KEY}.pub {}:. 
-	printf "%s\n" ${GITOPS_TARGET_LIST} |xargs -I{} scp ${GITOPS_SRC_DIR}/scripts/create_provisioner_target_node.sh {}:. 
-	bash ${GITOPS_SRC_DIR}/scripts/create_provisioner_target_node_instruct.sh
+	printf "%s\n" ${ADMIN_TARGET_LIST} |xargs -I{} scp ${ADMIN_KEY}.pub {}:. 
+	printf "%s\n" ${ADMIN_TARGET_LIST} |xargs -I{} scp ${ADMIN_SRC_DIR}/scripts/create_provisioner_target_node.sh {}:. 
+	bash ${ADMIN_SRC_DIR}/scripts/create_provisioner_target_node_instruct.sh
 
-# Configure the provisioner (GITOPS_USER) on each node ONLY IF ssh user ($USER) has NOPASSWD set at /etc/sudoers.d/$USER .
+# Configure the provisioner (ADMIN_USER) on each node ONLY IF ssh user ($USER) has NOPASSWD set at /etc/sudoers.d/$USER .
 pki2 :
-	GITOPS_USER=${USER} ANSIBASH_USER=${USER} ansibash -s ${GITOPS_SRC_DIR}/scripts/create_provisioner_target_node.sh '$(shell cat ${GITOPS_KEY}.pub)'
+	ADMIN_USER=${USER} ANSIBASH_USER=${USER} ansibash -s ${ADMIN_SRC_DIR}/scripts/create_provisioner_target_node.sh '$(shell cat ${ADMIN_KEY}.pub)'
 
 tools :
 	ansibash sudo dnf install -y conntrack dnf-plugins-core make iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree htop fio sysstat
@@ -202,38 +202,38 @@ reboot :
 ## Host config
 conf configure : conf-kernel conf-selinux conf-swap
 conf-kernel :
-	ansibash -s ${GITOPS_SRC_DIR}/scripts/configure-kernel.sh \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.conf-kernel.log
+	ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-kernel.sh \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-kernel.log
 conf-selinux :
-	ansibash -s ${GITOPS_SRC_DIR}/scripts/configure-selinux.sh \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.conf-selinux.log
+	ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-selinux.sh \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-selinux.log
 conf-swap :
-	ansibash -s ${GITOPS_SRC_DIR}/scripts/configure-swap.sh \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.conf-swap.log
+	ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-swap.sh \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-swap.log
 
 ## Provision K8s and all deps : RPM(s), binaries, systemd, and other configs
 provision : cri k8s 
 cri :
-	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-cri.sh \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-cri.log
+	ansibash -s ${ADMIN_SRC_DIR}/scripts/provision-cri.sh \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.provision-cri.log
 k8s :
-	ansibash -s ${GITOPS_SRC_DIR}/scripts/provision-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.provision-k8s.log
+	ansibash -s ${ADMIN_SRC_DIR}/scripts/provision-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.provision-k8s.log
 
 ## K8s cluster creation
 init : init-certs init-conf init-push init-images init-pre init-now
 
 ## Generate cluster PKI (if not exist) and its Makefile.settings, and pull those settings
 init-certs : init-conf init-push
-	cat ${GITOPS_SRC_DIR}/scripts/kubeadm-init-certs.sh \
-		|ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} \
+	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh \
+		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
 			/bin/bash -s - ${K8S_INIT_NODE} ${K8S_KUBEADM_CONFIG} \
-			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-certs.log
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-certs.log
 	scp ${K8S_INIT_NODE_SSH}:Makefile.settings .
 
 ## Generate kubeadm config file 
 init-conf :
-	cat ${GITOPS_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG}.tpl \
+	cat ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG}.tpl \
 		|sed 's#K8S_VERSION#${K8S_VERSION}#g' \
 		|sed 's#K8S_REGISTRY#${K8S_REGISTRY}#g' \
 		|sed 's#K8S_VERBOSITY#${K8S_VERBOSITY}#g' \
@@ -249,45 +249,45 @@ init-conf :
 		|sed 's#K8S_CERTIFICATE_KEY#${K8S_CERTIFICATE_KEY}#g' \
 		|sed 's#K8S_CA_CERT_HASH#${K8S_CA_CERT_HASH}#g' \
 		|sed '/^ *#/d' |sed '/^\s*$$/d' \
-		|tee ${GITOPS_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG}
+		|tee ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG}
 
 init-push :
-	ansibash -u ${GITOPS_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-push.log
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-push.log
 
 init-images :
 	ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
 		--config ${K8S_KUBEADM_CONFIG} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-images.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-images.log
 
 init-pre :
 	ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
 		--config ${K8S_KUBEADM_CONFIG} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init-pre.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-pre.log
 
 init-now :
-	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init -v${K8S_VERBOSITY} \
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init -v${K8S_VERBOSITY} \
 		--upload-certs \
 		--config ${K8S_KUBEADM_CONFIG} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.init.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init.log
 
 upload-certs : 
-	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init phase upload-certs \
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init phase upload-certs \
 		--upload-certs --config ${K8S_KUBEADM_CONFIG} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.upload-certs.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.upload-certs.log
 
 join-pre : init-certs init-conf init-push 
 
 join-command :
-	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm token create \
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm token create \
 		--print-join-command \
 		--certificate-key ${K8S_CERTIFICATE_KEY} \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.print-join-command.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.print-join-command.log
 
 ## TODO : Separate kubeadm-config.yaml for join of control v. worker
 ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinControlPlane
 join-control :
-	ANSIBASH_TARGET_LIST='${GITOPS_NODES_MASTER}' \
+	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
 		&& ansibash sudo kubeadm join ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT} \
 			-v${K8S_VERBOSITY} \
 			--token ${K8S_BOOTSTRAP_TOKEN} \
@@ -295,46 +295,43 @@ join-control :
 			--control-plane \
 			--certificate-key ${K8S_CERTIFICATE_KEY} \
 			--cri-socket ${K8S_CRI_SOCKET} \
-			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
 
 join-worker :
-	ANSIBASH_TARGET_LIST="${GITOPS_NODES_WORKER}" \
+	ANSIBASH_TARGET_LIST="${ADMIN_NODES_WORKER}" \
 		&& ansibash sudo kubeadm join -v${K8S_VERBOSITY} \
 			--config ${K8S_KUBEADM_CONFIG} \
-			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.join-worker.log
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-worker.log
 
 # Do not run etcd on host of any control node having etcd running as Static Pod
 # etcd-members :
-# 	ANSIBASH_TARGET_LIST='${GITOPS_NODES_MASTER}' \
+# 	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
 # 		&& ansibash sudo /usr/local/bin/etcdctl member list \
 # 			--endpoints=https://127.0.0.1:2379 \
 # 			--cacert=/etc/kubernetes/pki/etcd/ca.crt \
 # 			--cert=/etc/kubernetes/pki/etcd/server.crt \
 # 			--key=/etc/kubernetes/pki/etcd/server.key \
-# 			|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.etcd-members.log
+# 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.etcd-members.log
 
 conf-kubectl :
 	bash make.recipes.sh conf_kubectl
 
 node nodes get-nodes :
-	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} kubectl get nodes \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.get-nodes.log
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} kubectl get nodes \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.get-nodes.log
 
 kw :
-	ssh -T ${GITOPS_USER}@${K8S_INIT_NODE_SSH} kw \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.kw.log
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} kw \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kw.log
 
-cilium :
-	cilium install --kubeconfig ${GITOPS_SRC_DIR}/scripts/kubeadm-config.yaml || cilium status  \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.cilium.status.log
 
 cilium-status :
-	cilium status |& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.cilium.status.log
+	cilium status |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium.status.log
 
 cilium-install :
-	cilium install --kubeconfig ${GITOPS_SRC_DIR}/scripts/kubeadm-config.yaml \
-		|& tee ${GITOPS_SRC_DIR}/logs/${LOG_PREFIX}.cilium-install.log
+	cilium install --kubeconfig ${ADMIN_SRC_DIR}/scripts/kubeadm-config.yaml \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-install.log
 
 teardown :
-	ansibash -u ${GITOPS_SRC_DIR}/scripts/teardown.sh
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ansibash sudo bash teardown.sh

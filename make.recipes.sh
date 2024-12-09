@@ -70,8 +70,10 @@ conf_kubectl(){
     ssh $K8S_INIT_NODE 'sudo cp -p '"$src"' . && sudo chown $(id -u):$(id -g) admin.conf'
     mkdir -p ~/.kube
     scp $K8S_INIT_NODE:admin.conf ~/.kube/
-    [[ -f ~/.kube/config ]] || cp -p ~/.kube/admin.conf ~/.kube/config
+    [[ -f ~/.kube/config ]] && mv ~/.kube/cofig ~/.kube/config.old
+    cp -p ~/.kube/admin.conf ~/.kube/config
     chmod 0600 ~/.kube/*
+    [[ -d ~/.kube/cache ]] && sudo rm -rf ~/.kube/cache
     kubectl get no -o wide
 }
 

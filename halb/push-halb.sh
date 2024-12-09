@@ -10,9 +10,9 @@
 # This script requires its PWD to be its own directory.
 cd "${BASH_SOURCE%/*}"
 
-[[ $GITOPS_NODES_MASTER ]] || { echo '=== Environment is NOT CONFIGURED';exit; } 
+[[ $ADMIN_NODES_CONTROL ]] || { echo '=== Environment is NOT CONFIGURED';exit; } 
 
-printf "%s\n" $GITOPS_NODES_MASTER |xargs -IX /bin/bash -c '
+printf "%s\n" $ADMIN_NODES_CONTROL |xargs -IX /bin/bash -c '
     echo "=== @ $1"
     scp keepalived-${1}.local.conf ${1}:keepalived.conf
     scp keepalived-check_apiserver.sh ${1}:keepalived-check_apiserver.sh

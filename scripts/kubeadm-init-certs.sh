@@ -40,7 +40,3 @@ export K8S_CERTIFICATE_KEY := $key
 export K8S_CA_CERT_HASH    := sha256:$hash
 export K8S_BOOTSTRAP_TOKEN := $tkn
 EOH
-
-cat Makefile.settings
-
-
