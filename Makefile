@@ -316,20 +316,11 @@ join-worker :
 conf-kubectl :
 	bash make.recipes.sh conf_kubectl
 
-node nodes get-nodes :
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} kubectl get nodes \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.get-nodes.log
-
-kw :
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} kw \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kw.log
-
-
-cilium-status :
+cilium cilium-status :
 	cilium status |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium.status.log
 
 cilium-install :
-	cilium install --kubeconfig ${ADMIN_SRC_DIR}/scripts/kubeadm-config.yaml \
+	cilium install --kubeconfig ~/.kube/config \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-install.log
 
 teardown :

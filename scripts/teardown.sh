@@ -2,6 +2,20 @@
 
 [[ "$(whoami)" == 'root' ]] || exit 11
 
+chmod 644 /etc/kubernetes/admin.conf &&
+    export KUBECONFIG=/etc/kubernetes/admin.conf &&
+        kubectl get no |cut -d' ' -f1 |xargs -n1 /bin/bash -c '
+                kubectl drain $1 --ignore-daemonsets --force
+            ' _ 
+            
+[[ $KUBECONFIG ]] &&
+    find /etc/kubernetes/manifests -type f -exec rm {} \; &&
+        sleep 33
+
+crictl rm -a -f 
+crictl rmp -a -f
+sleep 3
+
 # Stop kubelet and all Kubernetes related processes
 systemctl stop kubelet || exit 22
 [[ $(type -t docker) ]] && systemctl stop docker
@@ -52,7 +66,7 @@ rm -rf /var/lib/kubelet
 rm -rf /var/lib/docker
 rm -rf /var/lib/containerd
 
-[[ $(type -t docker) ]] && systemctl start docker
 systemctl start containerd
+[[ $(type -t docker) ]] && systemctl start docker
 systemctl start kubelet
 
