@@ -155,7 +155,7 @@ html :
 	md2html.exe LOG.md
 	md2html.exe README.md
 
-push commit : mode html
+push commit : html mode
 	gc && git push && gl && gs
 
 
