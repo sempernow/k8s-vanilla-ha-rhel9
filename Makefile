@@ -70,8 +70,9 @@ export K8S_KUBEADM_CONFIG     ?= kubeadm-config.yaml
 export K8S_IMAGE_REPOSITORY   ?= registry.k8s.io
 export K8S_CONTROL_PLANE_IP   ?= 192.168.11.101
 export K8S_CONTROL_PLANE_PORT ?= 6443
+export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
 #export K8S_SERVICE_CIDR       ?= 10.55.0.0/12
-export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
+export K8S_SERVICE_CIDR       ?= 10.96.0.0/16
 #export K8S_POD_CIDR           ?= 10.20.0.0/16
 export K8S_POD_CIDR           ?= 10.244.0.0/24
 export K8S_CRI_SOCKET         ?= unix:///var/run/containerd/containerd.sock
@@ -118,18 +119,25 @@ menu :
 	@echo "  -images    : kubeadm config images pull -v${K8S_VERBOSITY} --config ${K8S_KUBEADM_CONFIG}"
 	@echo "  -pre       : kubeadm init phase preflight …"
 	@echo "  -now       : kubeadm init … (${ADMIN_USER}@${K8S_INIT_NODE_SSH})"
+	@echo "psk          : ps of K8s processes"
+	@echo "psrss        : ps sorted by RSS usage"
 	@echo "============== "
 	@echo "upload-certs : Re-upload certificates for joining another control-plane node"
 	@echo "join-pre     : Refresh join creds"
 	@echo "join-command : Print full join command for a control-plane node (includes token and hash)"
 	@echo "join-control : Join all other control-plane nodes into cluster : kubeadm join --control-plane …"
 	@echo "join-worker  : Join all worker nodes into the cluster : kubeadm join …"
-	@echo "conf-kubectl : Make ~/.kube/config"
+	@echo "kubeconfig 	: Make ~/.kube/config"
 	@echo "============== "
 	@echo "nodes        : kubectl get nodes"
 	@echo "kw           : kubectl get pods -o wide (current namespace; see kn)"
-	@echo "cilium       : cilium install || cilium status"
+	@echo "cilium-cli   : Install Cilium CNI by cilium CLI"
+	@echo "cilium-helm  : Install Cilium CNI by Helm"
+	@echo "calico       : Install calico CNI"
+	@echo "kuberouter-install  : kube-router install"
+	@echo "kuberouter-teardown : kube-router teardown"
 	@echo "============== "
+	@echo "crictl       : CRI status"
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 
 env : 
@@ -171,7 +179,7 @@ status hello :
 		&& printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
 	'
 
-network net :
+network net ip:
 	ansibash ip -brief addr
 
 psrss :
@@ -221,7 +229,15 @@ k8s :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.provision-k8s.log
 
 ## K8s cluster creation
-init : init-certs init-conf init-push init-images init-pre init-now
+init :
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
+		sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
+			--upload-certs \
+			--pod-network-cidr=${K8S_POD_CIDR} \
+			--apiserver-advertise-address=${K8S_CONTROL_PLANE_IP} \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kubeadm.init.log
+
+init-zzzz : init-certs init-conf init-push init-images init-pre init-now
 
 ## Generate cluster PKI (if not exist) and its Makefile.settings, and pull those settings
 init-certs : init-conf init-push
@@ -265,11 +281,48 @@ init-pre :
 		--config ${K8S_KUBEADM_CONFIG} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-pre.log
 
+# If CNI is to replace kube-procy, then add --skip-phases=addon/kube-proxy
 init-now :
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init -v${K8S_VERBOSITY} \
 		--upload-certs \
 		--config ${K8S_KUBEADM_CONFIG} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init.log
+
+kubeconfig :
+	bash make.recipes.sh kubeconfig
+
+kuberouter-install :
+	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _install pod_ntwk_only \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-install.log
+kuberouter-teardown :
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo /bin/bash -s < ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _teardown \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-teardown.log
+
+cilium-cli :
+	cilium install --kubeconfig ~/.kube/config --values ${ADMIN_SRC_DIR}/cni/cilium/values.yaml \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-cli.log
+
+cilium-helm :
+	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium-helm.sh _install \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-helm-install.log
+cilium-helm-teardown :
+	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium-helm.sh _teardown \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-helm-teardown.log
+
+calico-operator :
+	kubectl create -f ${ADMIN_SRC_DIR}/cni/calico/operator-method/tigera-operator.yaml
+	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/operator-method/custom-resources-bgp.yaml
+
+calico :
+	kubectl create -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
+	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.calico.log
+calico-teardown :
+	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.calico.log
+	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
 
 upload-certs : 
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init phase upload-certs \
@@ -279,16 +332,16 @@ upload-certs :
 join-pre : init-certs init-conf init-push 
 
 join-command :
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm token create \
-		--print-join-command \
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
+		sudo kubeadm --print-join-command \
 		--certificate-key ${K8S_CERTIFICATE_KEY} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.print-join-command.log
 
 ## TODO : Separate kubeadm-config.yaml for join of control v. worker
 ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinControlPlane
-join-control :
+join-control-imperative :
 	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
-		&& ansibash sudo kubeadm join ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT} \
+		&& ansibash sudo kubeadm join "${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}" \
 			-v${K8S_VERBOSITY} \
 			--token ${K8S_BOOTSTRAP_TOKEN} \
 			--discovery-token-ca-cert-hash ${K8S_CA_CERT_HASH} \
@@ -297,32 +350,30 @@ join-control :
 			--cri-socket ${K8S_CRI_SOCKET} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
 
+join-control :
+	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
+		&& ansibash sudo kubeadm join --config ${K8S_KUBEADM_CONFIG} \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
+
 join-worker :
 	ANSIBASH_TARGET_LIST="${ADMIN_NODES_WORKER}" \
 		&& ansibash sudo kubeadm join -v${K8S_VERBOSITY} \
 			--config ${K8S_KUBEADM_CONFIG} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-worker.log
 
-# Do not run etcd on host of any control node having etcd running as Static Pod
-# etcd-members :
-# 	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
-# 		&& ansibash sudo /usr/local/bin/etcdctl member list \
-# 			--endpoints=https://127.0.0.1:2379 \
-# 			--cacert=/etc/kubernetes/pki/etcd/ca.crt \
-# 			--cert=/etc/kubernetes/pki/etcd/server.crt \
-# 			--key=/etc/kubernetes/pki/etcd/server.key \
-# 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.etcd-members.log
+psk :
+	ansibash psk
 
-conf-kubectl :
-	bash make.recipes.sh conf_kubectl
-
-cilium cilium-status :
-	cilium status |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium.status.log
-
-cilium-install :
-	cilium install --kubeconfig ~/.kube/config \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-install.log
+crictl : crictl-ps crictl-pods crictl-images
+crictl-ps crictl-ctnr :
+	ansibash sudo crictl ps 
+crictl-pods :
+	ansibash sudo crictl pods 
+crictl-images :
+	ansibash sudo crictl images
 
 teardown :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ansibash sudo bash teardown.sh
+	tar -caf kube.tgz ~/.kube && rm -rf ~/.kube/*
+

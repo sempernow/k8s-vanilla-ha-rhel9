@@ -59,6 +59,9 @@ sudo firewall-cmd $at --add-rich-rule='rule family="ipv4" destination address="2
 sudo firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -p vrrp -j ACCEPT
 sudo firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 0 -p vrrp -j ACCEPT
 
+# TODO : Add rules to allow Multicast mode (Currently, keeplaived is operating in Unicast mode):
+# VRRP Multicast Address: The VRRP specification defines the use of a specific multicast address, 224.0.0.18, for IPv4 VRRP communication (or ff02::12 for IPv6). This address is reserved for VRRP routers, and only routers participating in VRRP join this multicast group. This allows them to efficiently receive advertisements while other devices ignore them.
+
 # Update firewalld.service sans restart 
 sudo firewall-cmd --reload
 

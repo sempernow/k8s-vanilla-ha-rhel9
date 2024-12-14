@@ -18,11 +18,11 @@ kubernetesVersion: K8S_VERSION
 #     dataDir: /var/lib/etcd
 ## HA LB Endpoint
 # controlPlaneEndpoint: K8S_CONTROL_PLANE_IP:K8S_CONTROL_PLANE_PORT
-# networking:
+networking:
 #   ## Services subnet CIDR : 10.96.0.0/12 (default)
-#   serviceSubnet: K8S_SERVICE_CIDR
+  serviceSubnet: K8S_SERVICE_CIDR
 #   ## Pod subnet CIDR : 172.16.0.0/16 (default)
-#   podSubnet: K8S_POD_CIDR 
+  podSubnet: K8S_POD_CIDR
 #   dnsDomain: cluster.local
 # scheduler: {}
 ---
@@ -108,48 +108,48 @@ nodeRegistration:
   #   v: "5" 
   #   pod-cidr: K8S_POD_CIDR 
   #   cgroup-driver: K8S_CGROUP_DRIVER 
-# ---
-# apiVersion: kubeadm.k8s.io/v1beta3
-# kind: JoinConfiguration
-# ## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinConfiguration
-# discovery:
-#   bootstrapToken:
-#     ## Generate token and CA certificate : kubeadm token generate
-#     ## CA certificate @ /etc/kubernetes/pki/ca.crt
-#     token: K8S_BOOTSTRAP_TOKEN
-#     # apiServerEndpoint: kube-apiserver:6443
-#     apiServerEndpoint: K8S_CONTROL_PLANE_IP:K8S_CONTROL_PLANE_PORT
-#     ## CA-Certificate Hash(es):
-#     ## See "kubeadm init" output: 
-#     ## --discovery-token-ca-cert-hash sha256:<hex-encoded-value>
-#     ## Is hash of "Subject Public Key Info" (SPKI) object
-#     ## Is DISABLED (Unsafe) if empty.
-#     ## Create a caCertHash
-#     ## (The SHA-256 hash of the public key extracted from ca.crt)
-#     ## --ca-cert-hashes="sha256:$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt |openssl rsa -pubin -outform der 2>/dev/null |openssl dgst -sha256 -hex |sed 's/^.* //')"
-#     #caCertHashes: []
-#     caCertHashes: 
-#     - K8S_CA_CERT_HASH
-#     # unsafeSkipCAVerification: false  ## true (default)
-#   # timeout: 5m
-#   tlsBootstrapToken: K8S_BOOTSTRAP_TOKEN 
-# ## Required if a control node
-# # controlPlane:
-# #   localAPIEndpoint:
-# #     advertiseAddress: 
-# #     bindPort: 
-# nodeRegistration: 
-#   #ignorePreflightErrors:
-#   #- Mem
-#   # imagePullPolicy: IfNotPresent ## Always|Never|IfNotPresent (default)
-#   criSocket: K8S_CRI_SOCKET 
-#   # name: node
-#   # taints: null ## For default taints
-#   taints: []   ## For no taints
-#   # kubeletExtraArgs: 
-#   ## See kubelet --help
-#   ## Some kubeletExtraArgs are exclusive to Standalone mode,
-#   ## which is enabled by `kubelet --kubeconfig ...`
-#     # v: K8S_VERBOSITY            
-#     # pod-cidr: K8S_POD_CIDR 
-#     # cgroup-driver: K8S_CGROUP_DRIVER
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinConfiguration
+discovery:
+  bootstrapToken:
+    ## Generate token and CA certificate : kubeadm token generate
+    ## CA certificate @ /etc/kubernetes/pki/ca.crt
+    token: K8S_BOOTSTRAP_TOKEN
+    # apiServerEndpoint: kube-apiserver:6443
+    apiServerEndpoint: K8S_CONTROL_PLANE_IP:K8S_CONTROL_PLANE_PORT
+    ## CA-Certificate Hash(es):
+    ## See "kubeadm init" output: 
+    ## --discovery-token-ca-cert-hash sha256:<hex-encoded-value>
+    ## Is hash of "Subject Public Key Info" (SPKI) object
+    ## Is DISABLED (Unsafe) if empty.
+    ## Create a caCertHash
+    ## (The SHA-256 hash of the public key extracted from ca.crt)
+    ## --ca-cert-hashes="sha256:$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt |openssl rsa -pubin -outform der 2>/dev/null |openssl dgst -sha256 -hex |sed 's/^.* //')"
+    #caCertHashes: []
+    caCertHashes: 
+    - K8S_CA_CERT_HASH
+    # unsafeSkipCAVerification: false  ## true (default)
+  # timeout: 5m
+  tlsBootstrapToken: K8S_BOOTSTRAP_TOKEN 
+## Required if a control node
+# controlPlane:
+#   localAPIEndpoint:
+#     advertiseAddress: 
+#     bindPort: 
+nodeRegistration: 
+  #ignorePreflightErrors:
+  #- Mem
+  # imagePullPolicy: IfNotPresent ## Always|Never|IfNotPresent (default)
+  criSocket: K8S_CRI_SOCKET 
+  # name: node
+  # taints: null ## For default taints
+  taints: []   ## For no taints
+  # kubeletExtraArgs: 
+  ## See kubelet --help
+  ## Some kubeletExtraArgs are exclusive to Standalone mode,
+  ## which is enabled by `kubelet --kubeconfig ...`
+    # v: K8S_VERBOSITY            
+    # pod-cidr: K8S_POD_CIDR 
+    # cgroup-driver: K8S_CGROUP_DRIVER

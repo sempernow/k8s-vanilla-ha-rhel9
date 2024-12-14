@@ -2,34 +2,24 @@
 
 [[ "$(whoami)" == 'root' ]] || exit 11
 
-chmod 644 /etc/kubernetes/admin.conf &&
-    export KUBECONFIG=/etc/kubernetes/admin.conf &&
-        kubectl get no |cut -d' ' -f1 |xargs -n1 /bin/bash -c '
-                kubectl drain $1 --ignore-daemonsets --force
-            ' _ 
-            
-[[ $KUBECONFIG ]] &&
-    find /etc/kubernetes/manifests -type f -exec rm {} \; &&
-        sleep 33
-
-crictl rm -a -f 
-crictl rmp -a -f
-sleep 3
+# Reset kubeadm installed state
+kubeadm reset -f
 
 # Stop kubelet and all Kubernetes related processes
 systemctl stop kubelet || exit 22
 [[ $(type -t docker) ]] && systemctl stop docker
 systemctl stop containerd || exit 33
 
-# Reset kubeadm installed state
-kubeadm reset -f
+# Last resort to kill pods is to delete entirety of containerd state (images too)
+[[ $(crictl pods -q 2>/dev/null) ]] && rm -rf /var/lib/containerd
 
 # If using etcd in a dedicated directory (for external etcd)
 rm -rf /var/lib/etcd
 
 # Remove virtual network interfaces
-dev='lxc cni flann cali cili'
+dev='lxc cni flann cali cili kube tunl'
 rem(){
+    unalias ip 2>/dev/null
     ip -brief link |grep $1 |cut -d' ' -f1 |cut -d'@' -f1 \
         |xargs -n1 /bin/bash -c '
             [[ $1 ]] || exit
@@ -37,7 +27,6 @@ rem(){
             ip link delete $1
         ' _
 }
-unalias ip 2>/dev/null
 export -f rem
 printf "%s\n" $dev |xargs -n1 /bin/bash -c 'rem $1 2>/dev/null' _
 
@@ -56,15 +45,16 @@ iptables -t mangle --delete-chain
 
 # Clear CNI configuration
 rm -rf /etc/cni/net.d
-rm -rf /var/lib/cni
+rm -rf /var/lib/cni/
+rm -rf /var/run/cni/
 
 # Clear remaining kubelet files
 rm -rf /var/lib/kubelet
 
 # Optionally, remove all docker/containerd storage
 # Warning: This will remove all containers, including their data volumes
-rm -rf /var/lib/docker
-rm -rf /var/lib/containerd
+# rm -rf /var/lib/docker
+# rm -rf /var/lib/containerd
 
 systemctl start containerd
 [[ $(type -t docker) ]] && systemctl start docker

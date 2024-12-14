@@ -77,7 +77,9 @@ sudo mv calico $bin &&
 
 ### CNI by Operator Method
 
-The `tigera-operator` helm chart was failing last attempted (2024-08); failing at the template stage according to helm error messages.
+Though the advised method, `tigera-operator` fails regardless of helm chart or manifest method. 
+Operator method has zero configuration, and so every k-v setting for a given set of options, (BGP, VXLAN, ...) 
+must be found and properly set, with zero system-level information.
 
 ```bash
 operator=tigera-operator.yaml
@@ -87,4 +89,10 @@ kubectl create -f $operator
 # Install CRDs
 kubectl create -f $crds
 
+```
+
+### by Manifest method
+
+```bash
+kubectl apply -f calico.yaml
 ```

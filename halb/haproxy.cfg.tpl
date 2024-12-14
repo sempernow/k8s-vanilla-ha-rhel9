@@ -47,8 +47,6 @@ defaults
     #timeout         http-request    10s
     #timeout         http-keep-alive 10s
     timeout         check           10s
-    # @ send-proxy (mode: tcp or http) : Adds header: 
-    # PROXY TCP4 <client-ip> <vip> <ephemeral-port> <frontend-port>
     default-server check inter 10s downinter 5s rise 2 fall 2 slowstart 60s maxconn 250 maxqueue 256 weight 100
 
 ## Frontend for K8s API Server
@@ -78,6 +76,8 @@ backend k8s-ingress-http
     #http-check  expect status 200
     #option      ssl-hello-chk
     balance     leastconn
+    # @ send-proxy (mode: tcp or http) : Adds header: 
+    # PROXY TCP4 <client-ip> <vip> <ephemeral-port> <frontend-port>
     server      LB_1_FQDN LB_1_IPV4:30080 send-proxy
     server      LB_2_FQDN LB_2_IPV4:30080 send-proxy
     server      LB_3_FQDN LB_3_IPV4:30080 send-proxy

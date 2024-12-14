@@ -13,6 +13,7 @@ node=$1
 conf=${2:-kubeadm-config.yaml}
 host=$(hostname)
 
+
 # Generate PKI on one (the init) node *only* 
 [[ "${host,,}" =~ "${node,,}" ]] || exit 11
 
@@ -31,7 +32,7 @@ hash=$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt \
 )
 # Create bootstrap tkn for init/join : "[a-z0-9]{6}.[a-z0-9]{16}"
 # Unlike `kubeadm token generate`, "create" pushes the token to control-plane store.
-tkn="$(sudo kubeadm token create --ttl 4h)"
+tkn="$(sudo kubeadm token create --config $conf || kubeadm token generate)"
 
 # Store these creds in local file for its subsequent pull from the admin host
 cat <<-EOH |tee Makefile.settings
@@ -40,3 +41,5 @@ export K8S_CERTIFICATE_KEY := $key
 export K8S_CA_CERT_HASH    := sha256:$hash
 export K8S_BOOTSTRAP_TOKEN := $tkn
 EOH
+
+kubeadm token list
