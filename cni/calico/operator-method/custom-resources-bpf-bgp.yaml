@@ -1,0 +1,44 @@
+# This section includes base Calico installation configuration.
+# For more information, see: https://docs.tigera.io/calico/latest/reference/installation/api#operator.tigera.io/v1.Installation
+# watch kubectl get tigerastatus
+# Disable kube-proxy by adding a node selector that matches no nodes:
+# kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico": "true"}}}}}'
+
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  variant: Calico
+  calicoNetwork:
+    # Enable the eBPF DataPlane
+    linuxDataplane: BPF
+    bgp: Enabled
+
+    ## Install Calico Open Source
+
+    ## Optionally specifies a custom path for FlexVolume. 
+    # The default is based on the kubernetesProvider.
+    # flexVolumePath: none # Disables it
+    # flexVolumePath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
+
+    ipPools:
+    - cidr: 10.244.0.0/24   # Pod CIDR
+      encapsulation: None   # "IPIPCrossSubnet", "IPIP", "VXLAN", "VXLANCrossSubnet", "None"
+      natOutgoing: Enabled  # Enable NAT for outbound traffic.
+      nodeSelector: all()   # Apply to all nodes.
+
+  # Enable BGP configuration for DirectPath.
+  nodeUpdateStrategy:
+    rollingUpdate:
+      maxUnavailable: 25%   # Configure rolling updates.
+
+---
+# This section configures the Calico API server.
+# For more information, see: https://docs.tigera.io/calico/latest/reference/installation/api#operator.tigera.io/v1.APIServer
+apiVersion: operator.tigera.io/v1
+kind: APIServer
+metadata:
+  name: default
+spec: {}
+

@@ -11,9 +11,9 @@ cgroupDriver: systemd
 ---
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
-certificateKey: 1c73b10b779a4c06d66c90faac7887e13dd9db092c59c32302f81a88b4496891 
+certificateKey: cbb21d9849cd61c5a476681e5683d69e5dd0c46673843ec1341ffd56428800fb 
 bootstrapTokens:
-- token: 8qtze5.moex6ee7ubu6fqm1
+- token: 1b4ks2.oq3x7r69im2115fp
   ttl: 24h
   usages:
   - authentication
@@ -28,11 +28,15 @@ apiVersion: kubeadm.k8s.io/v1beta3
 kind: JoinConfiguration
 discovery:
   bootstrapToken:
-    token: 8qtze5.moex6ee7ubu6fqm1
+    token: 1b4ks2.oq3x7r69im2115fp
     apiServerEndpoint: 192.168.11.101:6443
     caCertHashes: 
-    - sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-  tlsBootstrapToken: 8qtze5.moex6ee7ubu6fqm1 
+    - sha256:9174931d5090103dfe61aec7b143d0b9f06f743cb3769571e1c32d45a93a2997
+  tlsBootstrapToken: 1b4ks2.oq3x7r69im2115fp 
+controlPlane:
+  localAPIEndpoint: 
+    advertiseAddress: THIS_NODE_IP
+    bindPort: 6443
 nodeRegistration: 
   criSocket: unix:///var/run/containerd/containerd.sock 
   taints: []   ## For no taints

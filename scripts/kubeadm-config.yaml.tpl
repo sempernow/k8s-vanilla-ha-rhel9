@@ -16,8 +16,8 @@ kubernetesVersion: K8S_VERSION
 # etcd:
 #   local:
 #     dataDir: /var/lib/etcd
-## HA LB Endpoint
-# controlPlaneEndpoint: K8S_CONTROL_PLANE_IP:K8S_CONTROL_PLANE_PORT
+## HA LB endpoint else that of init node
+controlPlaneEndpoint: K8S_ENDPOINT
 networking:
 #   ## Services subnet CIDR : 10.96.0.0/12 (default)
   serviceSubnet: K8S_SERVICE_CIDR
@@ -134,10 +134,10 @@ discovery:
   # timeout: 5m
   tlsBootstrapToken: K8S_BOOTSTRAP_TOKEN 
 ## Required if a control node
-# controlPlane:
-#   localAPIEndpoint:
-#     advertiseAddress: 
-#     bindPort: 
+controlPlane:
+  localAPIEndpoint: 
+    advertiseAddress: THIS_NODE_IP
+    bindPort: K8S_CONTROL_PLANE_PORT
 nodeRegistration: 
   #ignorePreflightErrors:
   #- Mem

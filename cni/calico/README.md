@@ -49,12 +49,13 @@ ok(){
         # https://docs.tigera.io/calico/latest/operations/calicoctl/install
         dir="$DIR/cli"
         url=https://github.com/projectcalico/calico/releases/download/$VER/calicoctl-linux-amd64 
-        file=calicocli
+        file=calicoctl
         [[ -f $dir/$file ]] && return 0
         mkdir -p $dir
         pushd $dir
-        curl -sSL -o $file $url || return 400
+        curl -sSL -o $file $url 
         popd
+        chmod 0755 $dir/$file && $dir/$file version |grep $VER || return 404
     }
     ok || return $?
 }
@@ -83,7 +84,7 @@ must be found and properly set, with zero system-level information.
 
 ```bash
 operator=tigera-operator.yaml
-crds=custom-resources.yaml
+crds=custom-resources-bpf-bgp.yaml
 # Install the operator
 kubectl create -f $operator 
 # Install CRDs
@@ -91,8 +92,68 @@ kubectl create -f $crds
 
 ```
 
+```bash
+☩ k api-resources |grep calico |wc -l
+37
+
+☩ k get tigerastatuses
+NAME        AVAILABLE   PROGRESSING   DEGRADED   SINCE
+apiserver   True        False         False      57m
+calico      True        False         False      22m
+ippools     True        False         False      58m
+
+
+```
 ### by Manifest method
 
 ```bash
 kubectl apply -f calico.yaml
+```
+
+## [Enable __eBPF__ dataplane](https://docs.tigera.io/calico/latest/operations/ebpf/enabling-ebpf)
+
+- [Configure Calico to talk directly to K8s API server](https://docs.tigera.io/calico/latest/operations/ebpf/enabling-ebpf#configure-calico-to-talk-directly-to-the-api-server)
+
+@ Operator method
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubernetes-services-endpoint
+  namespace: tigera-operator
+data:
+  KUBERNETES_SERVICE_HOST: 'K8S_CONTROL_PLANE_IP'
+  KUBERNETES_SERVICE_PORT: 'K8S_CONTROL_PLANE_PORT'
+```
+
+@ Manifest method
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubernetes-services-endpoint
+  namespace: kube-system
+data:
+  KUBERNETES_SERVICE_HOST: 'K8S_CONTROL_PLANE_IP'
+  KUBERNETES_SERVICE_PORT: 'K8S_CONTROL_PLANE_PORT'
+```
+
+```bash
+sed -i "s,K8S_CONTROL_PLANE_IP,$K8S_CONTROL_PLANE_IP,g" $cm
+sed -i "s,K8S_CONTROL_PLANE_PORT,$K8S_CONTROL_PLANE_PORT,g" $cm
+kubectl apply -f $cm
+kubectl delete pod -n kube-system -l k8s-app=calico-node
+kubectl delete pod -n kube-system -l k8s-app=calico-kube-controllers
+```
+
+
+In eBPF mode Calico __replaces `kube-proxy`__, 
+so disable it by adding a node selector to `kube-proxy`'s DaemonSet 
+that matches no nodes:
+
+```bash
+kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico": "true"}}}}}'
+
 ```

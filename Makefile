@@ -70,6 +70,7 @@ export K8S_KUBEADM_CONFIG     ?= kubeadm-config.yaml
 export K8S_IMAGE_REPOSITORY   ?= registry.k8s.io
 export K8S_CONTROL_PLANE_IP   ?= 192.168.11.101
 export K8S_CONTROL_PLANE_PORT ?= 6443
+export K8S_NETWORK_DEVICE     ?= eth0
 export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
 #export K8S_SERVICE_CIDR       ?= 10.55.0.0/12
 export K8S_SERVICE_CIDR       ?= 10.96.0.0/16
@@ -93,7 +94,7 @@ export K8S_BOOTSTRAP_TOKEN    ?= nmijxk.irqyzts0x5glr2cr
 ## Recipes : Meta
 
 menu :
-	$(INFO) 'Install K8s onto all target hosts : RHEL 9 is expected'
+	$(INFO) 'Install K8s onto all target hosts : RHEL9 is expected'
 	@echo "env          : Print Makefile environment"
 	@echo "mode         : Fix file mode of this source"
 	@echo "push         : Commit and push this source"
@@ -119,25 +120,24 @@ menu :
 	@echo "  -images    : kubeadm config images pull -v${K8S_VERBOSITY} --config ${K8S_KUBEADM_CONFIG}"
 	@echo "  -pre       : kubeadm init phase preflight …"
 	@echo "  -now       : kubeadm init … (${ADMIN_USER}@${K8S_INIT_NODE_SSH})"
-	@echo "psk          : ps of K8s processes"
-	@echo "psrss        : ps sorted by RSS usage"
 	@echo "============== "
-	@echo "upload-certs : Re-upload certificates for joining another control-plane node"
-	@echo "join-pre     : Refresh join creds"
-	@echo "join-command : Print full join command for a control-plane node (includes token and hash)"
-	@echo "join-control : Join all other control-plane nodes into cluster : kubeadm join --control-plane …"
-	@echo "join-worker  : Join all worker nodes into the cluster : kubeadm join …"
-	@echo "kubeconfig 	: Make ~/.kube/config"
+	@echo "kubeconfig 	: Configure the client"
 	@echo "============== "
-	@echo "nodes        : kubectl get nodes"
-	@echo "kw           : kubectl get pods -o wide (current namespace; see kn)"
-	@echo "cilium-cli   : Install Cilium CNI by cilium CLI"
-	@echo "cilium-helm  : Install Cilium CNI by Helm"
-	@echo "calico       : Install calico CNI"
+	@echo "cilium       : Install Cilium CNI for Pod Network "
+	@echo "calico       : Install Calico CNI for Pod Network"
 	@echo "kuberouter-install  : kube-router install"
 	@echo "kuberouter-teardown : kube-router teardown"
 	@echo "============== "
+	@echo "join-control : Join all other control-plane nodes into cluster"
+	@echo "upload-certs : Re-upload certificates for joining another control-plane node"
+	@echo "join-pre     : Refresh join creds"
+	@echo "join-command : Print full join command for a control-plane node (includes token and hash)"
+	@echo "join-worker  : Join all worker nodes into the cluster : kubeadm join …"
+	@echo "============== "
+	@echo "psk          : ps of K8s processes"
+	@echo "psrss        : ps sorted by RSS usage"
 	@echo "crictl       : CRI status"
+	@echo "============== "
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 
 env : 
@@ -151,7 +151,11 @@ perms mode :
 	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \+
 	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \+
 
-push commit : 
+html :
+	md2html.exe LOG.md
+	md2html.exe README.md
+
+push commit : mode html
 	gc && git push && gl && gs
 
 
@@ -170,7 +174,8 @@ scan :
 
 # Smoke test this setup
 status hello :
-	@ansibash 'printf "%12s: %s\n" Host $$(hostname) \
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash 'printf "%12s: %s\n" Host $$(hostname) \
 		&& printf "%12s: %s\n" User $$(id -un) \
 		&& printf "%12s: %s\n" Kernel $$(uname -r) \
 		&& printf "%12s: %s\n" firewalld $$(systemctl is-active firewalld.service) \
@@ -180,15 +185,19 @@ status hello :
 	'
 
 network net ip:
-	ansibash ip -brief addr
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash ip -brief addr
 
 psrss :
-	@ansibash -s scripts/psrss.sh
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -s scripts/psrss.sh
 
 # Configure bash shell of target hosts using the declared Git project
 home :
-	ansibash 'git clone https://github.com/sempernow/home 2>/dev/null || echo ok'
-	ansibash 'pushd home;git pull;make sync-user && make user'
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash 'git clone https://github.com/sempernow/home 2>/dev/null || echo ok'
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash 'pushd home;git pull;make sync-user && make user'
 
 # Configure the provisioner (ADMIN_USER) on each node. Final task is manual.
 # See script for details.
@@ -202,44 +211,63 @@ pki2 :
 	ADMIN_USER=${USER} ANSIBASH_USER=${USER} ansibash -s ${ADMIN_SRC_DIR}/scripts/create_provisioner_target_node.sh '$(shell cat ${ADMIN_KEY}.pub)'
 
 tools :
-	ansibash sudo dnf install -y conntrack dnf-plugins-core make iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree htop fio sysstat
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash sudo dnf install -y conntrack dnf-plugins-core make iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree htop fio sysstat
 
 reboot :
-	ansibash sudo reboot
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash sudo reboot
 
 ## Host config
-conf configure : conf-kernel conf-selinux conf-swap
+conf : conf-kernel conf-selinux conf-swap
 conf-kernel :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-kernel.sh \
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-kernel.sh \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-kernel.log
 conf-selinux :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-selinux.sh \
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-selinux.sh \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-selinux.log
 conf-swap :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-swap.sh \
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-swap.sh \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-swap.log
 
 ## Provision K8s and all deps : RPM(s), binaries, systemd, and other configs
 provision : cri k8s 
 cri :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/provision-cri.sh \
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/provision-cri.sh \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.provision-cri.log
 k8s :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/provision-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/provision-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.provision-k8s.log
 
+
 ## K8s cluster creation
-init :
+init : init-images init-certs init-conf init-push init-pre init-now 
+
+init-zz : init-images init-pre
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
 		sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
+			--kubernetes-version ${K8S_VERSION} \
 			--upload-certs \
 			--pod-network-cidr=${K8S_POD_CIDR} \
+			--service-cidr=${K8S_SERVICE_CIDR} \
 			--apiserver-advertise-address=${K8S_CONTROL_PLANE_IP} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kubeadm.init.log
 
 init-zzzz : init-certs init-conf init-push init-images init-pre init-now
 
-## Generate cluster PKI (if not exist) and its Makefile.settings, and pull those settings
+## Catch any CRI registry issues 
+init-images :
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
+		--config ${K8S_KUBEADM_CONFIG} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-images.log
+
+## Generate cluster PKI (if not exist) and pull the related init/join params
 init-certs : init-conf init-push
 	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh \
 		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
@@ -257,6 +285,7 @@ init-conf :
 		|sed 's#K8S_IMAGE_REPOSITORY#${K8S_IMAGE_REPOSITORY}#g' \
 		|sed 's#K8S_CONTROL_PLANE_IP#${K8S_CONTROL_PLANE_IP}#g' \
 		|sed 's#K8S_CONTROL_PLANE_PORT#${K8S_CONTROL_PLANE_PORT}#g' \
+		|sed 's#K8S_ENDPOINT#${K8S_ENDPOINT}#g' \
 		|sed 's#K8S_SERVICE_CIDR#${K8S_SERVICE_CIDR}#g' \
 		|sed 's#K8S_POD_CIDR#${K8S_POD_CIDR}#g' \
 		|sed 's#K8S_CRI_SOCKET#${K8S_CRI_SOCKET}#g' \
@@ -266,22 +295,17 @@ init-conf :
 		|sed 's#K8S_CA_CERT_HASH#${K8S_CA_CERT_HASH}#g' \
 		|sed '/^ *#/d' |sed '/^\s*$$/d' \
 		|tee ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG}
-
 init-push :
-	ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG} \
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-push.log
 
-init-images :
-	ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
-		--config ${K8S_KUBEADM_CONFIG} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-images.log
-
 init-pre :
-	ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
-		--config ${K8S_KUBEADM_CONFIG} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-pre.log
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
+			--config ${K8S_KUBEADM_CONFIG} \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-pre.log
 
-# If CNI is to replace kube-procy, then add --skip-phases=addon/kube-proxy
 init-now :
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init -v${K8S_VERBOSITY} \
 		--upload-certs \
@@ -298,10 +322,10 @@ kuberouter-teardown :
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo /bin/bash -s < ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-teardown.log
 
+cilium : cilium-helm
 cilium-cli :
 	cilium install --kubeconfig ~/.kube/config --values ${ADMIN_SRC_DIR}/cni/cilium/values.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-cli.log
-
 cilium-helm :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium-helm.sh _install \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-helm-install.log
@@ -309,11 +333,11 @@ cilium-helm-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium-helm.sh _teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-helm-teardown.log
 
+calico : calico-operator
 calico-operator :
 	kubectl create -f ${ADMIN_SRC_DIR}/cni/calico/operator-method/tigera-operator.yaml
-	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/operator-method/custom-resources-bgp.yaml
-
-calico :
+	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/operator-method/custom-resources-bpf-bgp.yaml
+calico-manifest :
 	kubectl create -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
 	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
@@ -333,7 +357,7 @@ join-pre : init-certs init-conf init-push
 
 join-command :
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
-		sudo kubeadm --print-join-command \
+		sudo kubeadm token create --print-join-command \
 		--certificate-key ${K8S_CERTIFICATE_KEY} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.print-join-command.log
 
@@ -351,9 +375,14 @@ join-control-imperative :
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
 
 join-control :
-	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
-		&& ansibash sudo kubeadm join --config ${K8S_KUBEADM_CONFIG} \
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh \
+		&& ansibash sudo bash join-control.sh ${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONFIG} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
+# ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+# 	&& ansibash sudo kubeadm join --config ${K8S_KUBEADM_CONFIG} \
+# 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
+
 
 join-worker :
 	ANSIBASH_TARGET_LIST="${ADMIN_NODES_WORKER}" \
@@ -361,9 +390,10 @@ join-worker :
 			--config ${K8S_KUBEADM_CONFIG} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-worker.log
 
+watch : 
+	watch kubectl get pod -A -o wide
 psk :
 	ansibash psk
-
 crictl : crictl-ps crictl-pods crictl-images
 crictl-ps crictl-ctnr :
 	ansibash sudo crictl ps 
@@ -373,7 +403,9 @@ crictl-images :
 	ansibash sudo crictl images
 
 teardown :
-	ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
-	ansibash sudo bash teardown.sh
+	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
+		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
+	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
+		&& ansibash sudo bash teardown.sh
 	tar -caf kube.tgz ~/.kube && rm -rf ~/.kube/*
 

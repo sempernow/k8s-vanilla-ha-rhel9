@@ -17,7 +17,7 @@ systemctl stop containerd || exit 33
 rm -rf /var/lib/etcd
 
 # Remove virtual network interfaces
-dev='lxc cni flann cali cili kube tunl'
+dev='lxc cni flann cali cili kube tunl bpf'
 rem(){
     unalias ip 2>/dev/null
     ip -brief link |grep $1 |cut -d' ' -f1 |cut -d'@' -f1 \
@@ -30,7 +30,7 @@ rem(){
 export -f rem
 printf "%s\n" $dev |xargs -n1 /bin/bash -c 'rem $1 2>/dev/null' _
 
-# Flush iptables
+# Flush iptables : filter, nat, and mangle
 iptables --flush
 iptables --delete-chain
 iptables -t nat --flush

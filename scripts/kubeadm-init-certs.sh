@@ -18,7 +18,7 @@ host=$(hostname)
 [[ "${host,,}" =~ "${node,,}" ]] || exit 11
 
 # Generate PKI (once) : mTLS certs & keys of control plane
-[[ -d /etc/kubernetes/pki ]] || {
+[[ -d /etc/kubernetes/pki/etcd ]] || {
     echo 'Generating NEW cluster PKI @ /etc/kubernetes/pki/'
     sudo kubeadm init phase certs all --config $conf
 }
@@ -42,4 +42,3 @@ export K8S_CA_CERT_HASH    := sha256:$hash
 export K8S_BOOTSTRAP_TOKEN := $tkn
 EOH
 
-kubeadm token list
