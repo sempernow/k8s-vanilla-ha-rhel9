@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
 ###############################################################################
-# Provision tools for a production K8s cluster built of kubeadm
+# Install and configure K8s for production cluster by kubeadm (idempotent)
 # https://v1-29.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
 #
 # ARGs: [K8S_VERSION [OCI_REGISTRY]
 ###############################################################################
-################################################
-# >>>  ALIGN apps VERSIONs with K8s version  <<<
-################################################
 K8S_VERSION=$1
 [[ $K8S_VERSION ]] || K8S_VERSION="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
 [[ $K8S_VERSION ]] || K8S_VERSION=1.29.6
@@ -25,24 +22,6 @@ ok || exit $?
 
 # An undocumented dependency
 sudo dnf install -y conntrack || return 2
-
-ok(){
-    # Install CNI Plugins else fail
-    # https://github.com/containernetworking/plugins/releases
-    #ver='v1.5.1' # 2024-06-30
-    ver='v1.6.0'  # 2024-06-30 @ K8s v1.29.6, 2024-11-30 @ K8s v1.30.1
-    arch=${ARCH:-amd64}
-    to=/opt/cni/bin # /etc/cni/net.d content created by CNI (deletable on teardown)
-    [[ -d $to && $($to/loopback 2>&1 |grep $ver) ]] && return 0
-    sudo mkdir -p $to
-    base="https://github.com/containernetworking/plugins/releases/download/$ver"
-    curl -sSL "$base/cni-plugins-linux-${arch}-${ver}.tgz" \
-        |sudo tar -C $to -xz
-
-    # Verify loopback else fail
-    [[ -d $to && $($to/loopback 2>&1 |grep $ver) ]] || return 10
-}
-ok || exit $?
 
 ok(){
     # Install Kubernetes else fail.
@@ -133,3 +112,4 @@ ok(){
         return 49
 }
 ok || exit $?
+

@@ -109,9 +109,10 @@ menu :
 	@echo "  -selinux   : Configure targets' SELinux : Set to Permissive"
 	@echo "  -swap      : Configure targets' swap : Disable all swap devices"
 	@echo "reboot       : Reboot targets"
-	@echo "provision    : Provision K8s and all deps"
-	@echo "  -cri       : Provision CRI and all deps, and tools"
-	@echo "  -k8s       : Provision K8s and CNI plugins"
+	@echo "install      : Install K8s and all deps"
+	@echo "  -cni       : Install K8s CNI Pod network providers"
+	@echo "  -cri       : Install K8s CRI and all deps, and tools"
+	@echo "  -k8s       : Install K8s and CNI plugins"
 	@echo "============== "
 	@echo "init         : Create 1st control node of the cluster" 
 	@echo "  -certs     : Generate cluster PKI (once) and pull bootstrap creds"
@@ -199,7 +200,7 @@ home :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash 'pushd home;git pull;make sync-user && make user'
 
-# Configure the provisioner (ADMIN_USER) on each node. Final task is manual.
+# Configure the installer (ADMIN_USER) on each node. Final task is manual.
 # See script for details.
 pki :
 	printf "%s\n" ${ADMIN_TARGET_LIST} |xargs -I{} scp ${ADMIN_KEY}.pub {}:. 
@@ -233,17 +234,20 @@ conf-swap :
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-swap.sh \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-swap.log
 
-## Provision K8s and all deps : RPM(s), binaries, systemd, and other configs
-provision : cri k8s 
-cri :
+## Install K8s and all deps : RPM(s), binaries, systemd, and other configs
+install : install-cri install-cni install-k8s
+install-cri :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/provision-cri.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.provision-cri.log
-k8s :
+		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cri.sh \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.install-cri.log
+install-cni :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/provision-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.provision-k8s.log
-
+		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cni.sh eBPF \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.install-cni.log
+install-k8s :
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.install-k8s.log
 
 ## K8s cluster creation
 init : init-images init-certs init-conf init-push init-pre init-now 
@@ -379,10 +383,14 @@ join-control :
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh \
 		&& ansibash sudo bash join-control.sh ${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONFIG} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
+
 # ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 # 	&& ansibash sudo kubeadm join --config ${K8S_KUBEADM_CONFIG} \
 # 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
 
+join-control-discovery-file :
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash sudo kubeadm join --discovery-file discovery.yaml --control-plane --certificate-key ${K8S_CERTIFICATE_KEY}
 
 join-worker :
 	ANSIBASH_TARGET_LIST="${ADMIN_NODES_WORKER}" \

@@ -14,7 +14,5 @@
 ip="$(command ip -4 -brief addr show dev $1 |awk '{print $3}' |cut -d'/' -f1)"
 [[ $ip ]] && sed -i "s,THIS_NODE_IP,$ip,g" $2 || exit 22
 
-#cat $2
-
 # Join this host into the cluster as a control node
 kubeadm join -v5 --config $2

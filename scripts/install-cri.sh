@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ################################################
-# Provision CRI for K8s (idempotent)
+# Install K8s CRI (idempotent)
 ################################################
 # >>>  ALIGN apps VERSIONs with K8s version  <<<
 ################################################
