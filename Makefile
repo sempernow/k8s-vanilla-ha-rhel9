@@ -409,6 +409,8 @@ crictl-pods :
 	ansibash sudo crictl pods 
 crictl-images :
 	ansibash sudo crictl images
+images :
+	kubectl get pod -A -o yaml |yq .items[].spec.containers[].image |sort -u 
 
 teardown :
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
