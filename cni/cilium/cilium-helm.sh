@@ -17,7 +17,8 @@ _install(){
 }
 
 _teardown(){
-    helm uninstall $APP
+    helm -n kube-system uninstall $APP
+    $APP uninstall
 }
 
 "$@"

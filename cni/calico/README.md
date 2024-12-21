@@ -65,7 +65,7 @@ ok || echo "ERR: $?"
 
 ## Install 
 
-### CLI
+### `calicoctl` CLI on Host
 
 ```bash
 bin=/usr/local/bin/calicoctl
@@ -112,21 +112,41 @@ Attributes:
 
 ```
 
-### CNI by Operator Method
+### `calicoctl` CLI as `kubctl` plugin 
 
-~~Though the advised method, `tigera-operator` fails regardless of helm chart or manifest method. 
-Operator method has zero configuration, and so every k-v setting for a given set of options, (BGP, VXLAN, ...) 
-must be found and properly set, with zero system-level information.~~
-
-___Success!___
+At admin node:
 
 ```bash
-operator=tigera-operator.yaml
-cni=custom-resources-bpf-bgp.yaml
-# Install the operator
-kubectl create -f $operator 
-# Install Calico CNI 
-kubectl apply -f $cni
+# Install
+sudo curl -sSL https://github.com/projectcalico/calico/releases/download/v3.29.1/calicoctl-linux-amd64 -o /usr/local/bin/kubectl-calico
+
+# Use
+kubectl calico -h
+kubectl calico get node
+kubectl calico get ippool
+kubectl calico ipam check
+
+```
+
+### CNI by Operator Method
+
+` calico/node` runs three daemons:
+
+1. Felix : the Calico per-node daemon
+2. BIRD : speaks the BGP protocol to distribute 
+   routing information to other nodes
+3. confd : watches the Calico datastore 
+   for config changes and updates BIRD's config files
+
+[__Install/Configure for On-prem deployments__](https://docs.tigera.io/calico/latest/getting-started/kubernetes/self-managed-onprem/onpremises)
+
+#### 1. Intall CRDs and then CRs
+
+```bash
+crd=tigera-operator.yaml
+cr=custom-resources-bpf-bgp.yaml
+kubectl create -f $crd
+kubectl apply -f $cr
 
 ```
 
@@ -142,19 +162,34 @@ ippools     True        False         False      58m
 
 ☩ kubectl logs -n calico-system -l k8s-app=calico-node
 ```
-```plaintext
-Defaulted container "calico-node" out of: calico-node, flexvol-driver (init), mount-bpffs (init), install-cni (init)
+
+```bash
+☩ ansibash sudo calicoctl node status
+=== u1@a1
+Connection to 192.168.11.101 closed.
+Calico process is running.
+
+IPv4 BGP status
++----------------+-------------------+-------+----------+-------------+
+|  PEER ADDRESS  |     PEER TYPE     | STATE |  SINCE   |    INFO     |
++----------------+-------------------+-------+----------+-------------+
+| 192.168.11.102 | node-to-node mesh | up    | 11:35:46 | Established |
+| 192.168.11.100 | node-to-node mesh | up    | 11:35:41 | Established |
++----------------+-------------------+-------+----------+-------------+
+
+IPv6 BGP status
+No IPv6 peers found.
 ...
-2024-12-14 21:44:09.100 [INFO][43] felix/syncer.go 580: Applying new state, 6 service
-2024-12-14 21:44:09.100 [INFO][43] felix/syncer.go 696: new state written
-...
-2024-12-14 21:44:49.042 [INFO][48] felix/summary.go 100: Summarising 12 dataplane reconciliation loops over 1m11.6s: avg=7ms longest=30ms (resync-filter-v4,update-bpf-routes,update-filter-v4,update-workload-iface)
-2024-12-14 21:45:58.776 [INFO][48] felix/summary.go 100: Summarising 6 dataplane reconciliation loops over 1m9.7s: avg=4ms longest=6ms (resync-raw-v4)
-2024-12-14 21:47:21.444 [INFO][48] felix/summary.go 100: Summarising 3 dataplane reconciliation loops over 1m22.7s: avg=3ms longest=6ms (resync-filter-v4)
-2024-12-14 21:48:32.271 [INFO][48] felix/summary.go 100: Summarising 3 dataplane reconciliation loops over 1m10.8s: avg=4ms longest=6ms (resync-raw-v4)
-2024-12-14 21:50:02.656 [INFO][48] felix/summary.go 100: Summarising 4 dataplane reconciliation loops over 1m30.4s: avg=4ms longest=6ms (resync-filter-v4)
-2024-12-14 21:51:07.958 [INFO][48] felix/summary.go 100: Summarising 2 dataplane reconciliation loops over 1m5.3s: avg=4ms longest=5ms (resync-mangle-v4)
 ```
+#### 2. [Configure BGP peering](https://docs.tigera.io/calico/latest/networking/configuring/bgp)
+
+This is advised as best of [__Networking Options__](https://docs.tigera.io/calico/latest/networking/determine-best-networking#on-prem) for __On-prem__
+
+>The most common network setup for Calico on-prem is non-overlay mode using BGP to peer with the physical network ... to make pod IPs routable outside of the cluster. ...This setup provides a rich range of advanced Calico features, including the ability to advertise Kubernetes service IPs (cluster IPs or external IPs), and the ability to control IP address management at the pod, namespace, or node level, to support a wide range of possibilities for integrating with existing enterprise network and security requirements.
+
+___Fantasically tedious configuration___.
+
+Calico offers no single or few manifests having the supposedly-advised configuration. Instead, it's an almost key-by-key configuration.
 
 ### by Manifest method
 

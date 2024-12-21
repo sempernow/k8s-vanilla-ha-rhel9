@@ -38,119 +38,52 @@ make provision
 make init-now
 ```
 
-#### Details
-
-The cluster is managed as a systemd service by [`kubelet.service`](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/). The `kubelet` is configured dynamically by `kubeadm init` and `kubeadm join` at runtime. The command options of `kubelet` can be modified afterward. See `/usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf` for more detail.
-
-- On 1st control node:
-    - `sudo kubeadm init ...`
-- On all other nodes:
-    - `sudo kubeadm join ...`
-        - With differring command options for 
-          workers versus control nodes.
-
-
 #### [`kubeadm init`](https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-init/)
 
 ```bash
 kubeadm init -v 5 --control-plane-endpoint $LOAD_BALANCER_IP:$LOAD_BALANCER_PORT --upload-certs --ignore-preflight-errors=Mem
 ```
-- Certificate Upload: The `--upload-certs` option uploads the certificates and keys generated during the initialization to the `kubeadm-certs` Secret in the `kube-system` namespace. This allows other control-plane nodes to retrieve these certificates and join the cluster as control-plane members. In a high-availability setup, each control-plane node needs access to these certificates to securely communicate with other control-plane nodes. Absent this option, certificates would have to be manually copied to other control-plane nodes. (Those uploaded certs are deleted after 2 hours.)
-
-
-In our case, on the 1st control-plane node:
-
-```bash
-# Pull images
-## Delcare registry and K8s version
-ver='1.28.5'
-reg=registry.k8s.io
-conf=kubeadm-config-images.yaml
-cat <<EOH |tee $conf
-apiVersion: kubeadm.k8s.io/v1beta3
-kind: ClusterConfiguration
-kubernetesVersion: $ver
-imageRepository: $reg
-EOH
-
-export ANSIBASH_TARGET_LIST='a1 a3'
-
-## Pull
-ansibash sudo kubeadm config images pull -v5 --config $conf \
-    |& tee kubeadm.config.images.pull.log
-
-# Preflight phase only
-ansibash sudo kubeadm init phase preflight -v5 \
-    --ignore-preflight-errors=Mem \
-    |& tee kubeadm.init.phase.preflight.log
-
-# Initialize an HA cluster imperatively : Delete `--dry-run` line when ready.
-## All CIDRs are in the Private Address Space (RFC-1918)
-ver='1.28.5'
-ep='192.168.0.100:8443' # Or by FQDN : k8s.lime.lan
-pnet='10.10.0.0/16'
-snet='10.55.0.0/16'
-tkn=$(kubeadm token generate)
-key=$(kubeadm certs certificate-key)
-
-sudo kubeadm init -v5 --kubernetes-version $ver \
-    --token $tkn \
-    --certificate-key=$key \
-    --upload-certs \
-    --ignore-preflight-errors=Mem \
-    --control-plane-endpoint "$ep" \
-    --pod-network-cidr "$pnet" \
-    --service-cidr "$snet" \
-    |& tee kubeadm.init.$(hostname).log
-
-# Configure the client (kubectl)
-sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
-# Verify
-## Status of kubelet.service (systemd unit)
-systemctl status kubelet.service
-
-## Make request to kube-apiserver  
-## Expect node "NotReady" due to lack of CNI addon 
-kubectl get node
-# NAME       STATUS     ROLES           AGE   VERSION
-# a0.local   NotReady   control-plane   16h   v1.28.3
-
-```
-- Running `sudo kubeadm init phase preflight` reveals preflight error(s) by name that must be overridden, each error `NAME` having with its own `--ignore-preflight-errors=NAME`, else error must be fixed out-of-band, else `kubeadm init` fails. 
-    - In our case, using Hyper-V machines for cluster nodes, its dynamic-memory allocation interfered with `kubeadm init` memory-requirements check, causing initialization failure due to a bogus insufficient-memory finding, reporting error name: "`Mem`".
-    ```text
+- `--upload-certs` option uploads the certificates and keys generated during the initialization to the `kubeadm-certs` Secret in the `kube-system` namespace. This allows other control-plane nodes to retrieve these certificates and join the cluster as control-plane members. In a high-availability setup, each control-plane node needs access to these certificates to securely communicate with other control-plane nodes. Absent this option, certificates would have to be manually copied to other control-plane nodes. (Those uploaded certs are deleted after 2 hours.)
+- `kubeadm init phase preflight` reveals preflight error(s) by name that must be overridden, each error `NAME` having with its own `--ignore-preflight-errors=NAME`, else error must be fixed out-of-band, else `kubeadm init` fails. 
+    - In our case, using Hyper-V machines for cluster nodes, its dynamic-memory allocation interferes with memory-requirements check of "`kubeadm init`", causing initialization failure due to a bogus insufficient-memory finding, reporting error name: "`Mem`".
+    ```plaintext
     [preflight] Some fatal errors occurred:
         [ERROR Mem]: the system RAM (844 MB) is less than the minimum 1700 MB
     ```
-- All K8s-core pods are Static Pods. Each is assigned the IP address of their node, 
-  unlike all other Pods that are created during or after the Pod Network (CIDR) 
-  is installed by whatever CNI-compliant network plugin is applied. (Ours is Calico).
-  Each Static Pod is managed directly by the `kubelet` running on its node; 
-  they are not of the control plane; not stored in etcd.  
+- All K8s-core pods are Static Pods that run on the host network. Pods created during or after installing the CNI-compliant (Pod network) plugin are assigned IP address(es) within that Pod network CIDR.
+    - Each Static Pod is managed directly by the `kubelet` running on its node; 
+  they are not of the control plane; not stored in etcd; not by `kube-apiserver`.  
     - Location of Static Pod manifests (YAML):  
       `/etc/kubernetes/manifests/`
 - Certs upload is good for 2hrs. After that, the certs are deleted, 
-  and must be regenerated at an existing control node.
+  and must be regenerated at an existing control node:
     ```bash
     sudo kubeadm init phase upload-certs --upload-certs
     ```
-    - Requires a new join command
+    - That requires a new join command:
     ```bash
     sudo kubeadm token create --print-join-command
     ```
 - Status of node(s) remains `NotReady` until the "Pod Nework" 
-  is configured by installing a CNI-compliant addon such as Calico. 
-  Perform such installs at any control node. See "Install Pod Network" section.
+  is configured by installing a CNI-compliant add-on such as Calico. 
+  Perform such installs at the init node prior to joining any other node into the cluster. See "Install Pod Network" section.
 - `--apiserver-advertise-address $ip_of_this_control_node` : Useful if __this control node__ has more than one interface; bind to stable IP. 
-    - Default is `0.0.0.0`, whereof K8s API listens on all interfaces, 
-      which is less secure and less stable.
+    - __Default__ is `0.0.0.0`, whereof K8s API listens on all interfaces, 
+      which is __less secure__ and __less stable__.
 - `--control-plane-endpoint` : Useful to set single (shared) endpoint __for all nodes of the control plane__. This is typically the entrypoint to an external (HA) load balancer, making that the K8s-cluster entrypoint in effect for both control and data planes. 
     - Set this to either an IPv4 address or FQDN (`k8s.lime.lan`).
 
+## `kubeconfig` : Configure client(s) on the admin node
 
-### Join programmatically
+By default, clients of K8s API server use the kubeconfig of path declared at environment variable `KUBECONFIG`, else default to `~/.kube/config` :
+
+```bash
+make conf-kubectl
+```
+
+## Cluster Join 
+
+### Programmatically
 
 >`Makefile` recipe `join-workers` REQUIREs `K8S_CA_CERT_HASH` captured after `init` recipe, and then `conf-gen` and `conf-push` recipes
 
@@ -163,11 +96,6 @@ make join-workers
 
 ```
 
-Configure client on all nodes
-
-```bash
-make conf-kubectl
-```
 
 #### Details
 

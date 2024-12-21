@@ -61,6 +61,10 @@ ok(){
         sudo chmod 0755 $dir/$file &&
             sudo KUBECONFIG=$KUBECONFIG $file version |grep $ver ||
                 return 404
+
+    # Configure 'kubectl calico' plugin
+    # https://docs.tigera.io/calico/latest/operations/calicoctl/install#install-calicoctl-as-a-kubectl-plugin-on-a-single-host
+    sudo ln -sT /usr/local/bin/calicoctl /usr/local/bin/kubectl-calico
 }
 ok || exit $?
 

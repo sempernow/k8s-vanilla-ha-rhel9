@@ -1,0 +1,17 @@
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    token: fer7um.5ogo9dg9sh45rp80
+    apiServerEndpoint: 192.168.11.101:6443
+    caCertHashes: 
+    - sha256:80009c3b303dba837656594fe7647231a256700e28b7f55a8d97f6d0f74861e7
+  tlsBootstrapToken: fer7um.5ogo9dg9sh45rp80 
+controlPlane:
+  localAPIEndpoint: 
+    advertiseAddress: THIS_NODE_IP
+    bindPort: 6443
+nodeRegistration: 
+  criSocket: unix:///var/run/containerd/containerd.sock 
+  taints: []   ## For no taints

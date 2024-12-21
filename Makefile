@@ -66,16 +66,16 @@ export K8S_REGISTRY           ?= ${CNCF_REGISTRY_ENDPOINT}
 export K8S_VERBOSITY          ?= 5
 export K8S_INIT_NODE_SSH      ?= $(shell echo ${ADMIN_NODES_CONTROL} |cut -d' ' -f1)
 export K8S_INIT_NODE          ?= a1
-export K8S_KUBEADM_CONFIG     ?= kubeadm-config.yaml
+export K8S_KUBEADM_CONFIG     ?= kubeadm-config-init.yaml
 export K8S_IMAGE_REPOSITORY   ?= registry.k8s.io
 export K8S_CONTROL_PLANE_IP   ?= 192.168.11.101
 export K8S_CONTROL_PLANE_PORT ?= 6443
 export K8S_NETWORK_DEVICE     ?= eth0
 export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
-#export K8S_SERVICE_CIDR       ?= 10.55.0.0/12
-export K8S_SERVICE_CIDR       ?= 10.96.0.0/16
-#export K8S_POD_CIDR           ?= 10.20.0.0/16
-export K8S_POD_CIDR           ?= 10.244.0.0/24
+export K8S_SERVICE_CIDR       ?= 10.33.0.0/12
+#export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
+export K8S_POD_CIDR           ?= 10.22.0.0/16
+#export K8S_POD_CIDR           ?= 10.244.0.0/16
 export K8S_CRI_SOCKET         ?= unix:///var/run/containerd/containerd.sock
 export K8S_CGROUP_DRIVER      ?= systemd
 ## PKI : These values are overridden by those at Makefile.settings 
@@ -116,7 +116,7 @@ menu :
 	@echo "============== "
 	@echo "init         : Create 1st control node of the cluster" 
 	@echo "  -certs     : Generate cluster PKI (once) and pull bootstrap creds"
-	@echo "  -conf      : Generate ${K8S_KUBEADM_CONFIG} from its template (.yaml.tpl)"
+	@echo "  -gen       : Generate ${K8S_KUBEADM_CONFIG} from template (.yaml.tpl)"
 	@echo "  -push      : Upload ${K8S_KUBEADM_CONFIG} to all nodes"
 	@echo "  -images    : kubeadm config images pull -v${K8S_VERBOSITY} --config ${K8S_KUBEADM_CONFIG}"
 	@echo "  -pre       : kubeadm init phase preflight …"
@@ -250,19 +250,34 @@ install-k8s :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.install-k8s.log
 
 ## K8s cluster creation
-init : init-images init-certs init-conf init-push init-pre init-now 
 
-init-zz : init-images init-pre
+init : init-images init-pre
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
 		sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
 			--kubernetes-version ${K8S_VERSION} \
 			--upload-certs \
-			--pod-network-cidr=${K8S_POD_CIDR} \
-			--service-cidr=${K8S_SERVICE_CIDR} \
-			--apiserver-advertise-address=${K8S_CONTROL_PLANE_IP} \
+			--pod-network-cidr "${K8S_POD_CIDR}" \
+			--service-cidr "${K8S_SERVICE_CIDR}" \
+			--apiserver-advertise-address ${K8S_CONTROL_PLANE_IP} \
+			--node-name ${K8S_INIT_NODE} \
+			--cri-socket "${K8S_CRI_SOCKET}" \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kubeadm.init.log
 
-init-zzzz : init-certs init-conf init-push init-images init-pre init-now
+kubeconfig :
+	bash make.recipes.sh kubeconfig
+
+join-control-imperative :
+	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
+		&& ansibash sudo kubeadm join "${K8S_ENDPOINT}" \
+			-v${K8S_VERBOSITY} \
+			--token ${K8S_BOOTSTRAP_TOKEN} \
+			--discovery-token-ca-cert-hash ${K8S_CA_CERT_HASH} \
+			--control-plane \
+			--certificate-key ${K8S_CERTIFICATE_KEY} \
+			--cri-socket "${K8S_CRI_SOCKET}" \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
+
+init-declarative : init-images init-certs init-gen init-push init-pre init-now 
 
 ## Catch any CRI registry issues 
 init-images :
@@ -272,39 +287,23 @@ init-images :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-images.log
 
 ## Generate cluster PKI (if not exist) and pull the related init/join params
-init-certs : init-conf init-push
+init-certs : init-gen init-push
 	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh \
 		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
-			/bin/bash -s - ${K8S_INIT_NODE} ${K8S_KUBEADM_CONFIG} \
+			/bin/bash -s - ${K8S_KUBEADM_CONFIG} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-certs.log
 	scp ${K8S_INIT_NODE_SSH}:Makefile.settings .
 
 ## Generate kubeadm config file 
-init-conf :
-	cat ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG}.tpl \
-		|sed 's#K8S_VERSION#${K8S_VERSION}#g' \
-		|sed 's#K8S_REGISTRY#${K8S_REGISTRY}#g' \
-		|sed 's#K8S_VERBOSITY#${K8S_VERBOSITY}#g' \
-		|sed 's#K8S_INIT_NODE#${K8S_INIT_NODE}#g' \
-		|sed 's#K8S_IMAGE_REPOSITORY#${K8S_IMAGE_REPOSITORY}#g' \
-		|sed 's#K8S_CONTROL_PLANE_IP#${K8S_CONTROL_PLANE_IP}#g' \
-		|sed 's#K8S_CONTROL_PLANE_PORT#${K8S_CONTROL_PLANE_PORT}#g' \
-		|sed 's#K8S_ENDPOINT#${K8S_ENDPOINT}#g' \
-		|sed 's#K8S_SERVICE_CIDR#${K8S_SERVICE_CIDR}#g' \
-		|sed 's#K8S_POD_CIDR#${K8S_POD_CIDR}#g' \
-		|sed 's#K8S_CRI_SOCKET#${K8S_CRI_SOCKET}#g' \
-		|sed 's#K8S_CGROUP_DRIVER#${K8S_CGROUP_DRIVER}#g' \
-		|sed 's#K8S_BOOTSTRAP_TOKEN#${K8S_BOOTSTRAP_TOKEN}#g' \
-		|sed 's#K8S_CERTIFICATE_KEY#${K8S_CERTIFICATE_KEY}#g' \
-		|sed 's#K8S_CA_CERT_HASH#${K8S_CA_CERT_HASH}#g' \
-		|sed '/^ *#/d' |sed '/^\s*$$/d' \
-		|tee ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG}
+init-gen :
+	bash ${ADMIN_SRC_DIR}/scripts/kubeadm-conf-gen.sh kubeadm-config-init.yaml
+
 init-push :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONFIG} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-push.log
 
-init-pre :
+init-pre : 
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
 			--config ${K8S_KUBEADM_CONFIG} \
@@ -316,17 +315,22 @@ init-now :
 		--config ${K8S_KUBEADM_CONFIG} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init.log
 
-kubeconfig :
-	bash make.recipes.sh kubeconfig
+## Only after init
+upload-certs : 
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init phase upload-certs \
+		--upload-certs --config ${K8S_KUBEADM_CONFIG} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.upload-certs.log
 
+## _install [replace_kube_proxy|pod_ntwk_only] : Default is replace else pod on fail
 kuberouter-install :
-	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _install pod_ntwk_only \
+	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _install replace_kube_proxy \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-install.log
 kuberouter-teardown :
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo /bin/bash -s < ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _teardown \
+	kubectl delete -f ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-teardown.log
 
 cilium : cilium-helm
+cilium-teardown : cilium-helm-teardown
 cilium-cli :
 	cilium install --kubeconfig ~/.kube/config --values ${ADMIN_SRC_DIR}/cni/cilium/values.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-cli.log
@@ -352,12 +356,21 @@ calico-teardown :
 	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
 
-upload-certs : 
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} sudo kubeadm init phase upload-certs \
-		--upload-certs --config ${K8S_KUBEADM_CONFIG} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.upload-certs.log
+join-control : join-certs join-gen join-push
 
-join-pre : init-certs init-conf init-push 
+join-certs : 
+	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-join-certs.sh \
+		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
+			/bin/bash -s - kubeadm-config-init.yaml \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-certs.log
+	scp ${K8S_INIT_NODE_SSH}:Makefile.settings .
+
+join-gen :
+	bash ${ADMIN_SRC_DIR}/scripts/kubeadm-conf-gen.sh kubeadm-config-join.yaml
+join-push :
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/kubeadm-config-join.yaml \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-push.log
 
 join-command :
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
@@ -381,22 +394,12 @@ join-control-imperative :
 join-control :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh \
-		&& ansibash sudo bash join-control.sh ${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONFIG} \
+		&& ansibash sudo bash join-control.sh ${K8S_NETWORK_DEVICE} kubeadm-config-join.yaml \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
-
-# ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-# 	&& ansibash sudo kubeadm join --config ${K8S_KUBEADM_CONFIG} \
-# 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
 
 join-control-discovery-file :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash sudo kubeadm join --discovery-file discovery.yaml --control-plane --certificate-key ${K8S_CERTIFICATE_KEY}
-
-join-worker :
-	ANSIBASH_TARGET_LIST="${ADMIN_NODES_WORKER}" \
-		&& ansibash sudo kubeadm join -v${K8S_VERBOSITY} \
-			--config ${K8S_KUBEADM_CONFIG} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-worker.log
 
 watch : 
 	watch kubectl get pod -A -o wide
@@ -412,7 +415,7 @@ crictl-images :
 images :
 	kubectl get pod -A -o yaml |yq .items[].spec.containers[].image |sort -u 
 
-teardown :
+teardown : calico-teardown cilium-teardown kuberouter-teardown 
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
