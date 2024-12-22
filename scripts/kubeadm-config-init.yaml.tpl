@@ -4,11 +4,11 @@ kind: ClusterConfiguration
 ## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ClusterConfiguration
 ## RELEASEs https://kubernetes.io/releases/
 kubernetesVersion: K8S_VERSION
-# imageRepository: K8S_IMAGE_REPOSITORY
+# imageRepository: K8S_REGISTRY
 # apiServer:
 #   timeoutForControlPlane: 4m
 # certificatesDir: /etc/kubernetes/pki
-clusterName: sbx
+clusterName: K8S_CLUSTER_NAME
 # controllerManager: ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ControlPlaneComponent
 #   extraArgs: {} # map[string]string of flag name(s) sans leading dash(es)
 #   extraVolumes: []

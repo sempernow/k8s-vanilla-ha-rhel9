@@ -1,17 +1,51 @@
+## kubeadm-config @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/ 
 ---
+## The JoinConfiguration is IGNORED on init
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: JoinConfiguration
+## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinConfiguration
 discovery:
-  bootstrapToken:
-    token: a6nthk.oxv0fglyyg40lf5h
-    apiServerEndpoint: 192.168.11.101:6443
-    caCertHashes: 
-    - sha256:595ae9b21091ff782d88cce76526ef2318c8f4ea8eaf0166d56052019bf6c618
-  tlsBootstrapToken: a6nthk.oxv0fglyyg40lf5h 
+  # file XOR bootstrapToken
+  file:
+    kubeConfigPath: admin.yaml
+  # bootstrapToken:
+  #   ## Generate token and CA certificate : kubeadm token generate
+  #   ## CA certificate @ /etc/kubernetes/pki/ca.crt
+  #   token: 2js3lj.7n5sx9cz0vuwgrs1
+  #   # apiServerEndpoint: kube-apiserver:6443
+  #   apiServerEndpoint: 192.168.11.101:6443
+  #   ## CA-Certificate Hash(es):
+  #   ## See "kubeadm init" output: 
+  #   ## --discovery-token-ca-cert-hash sha256:<hex-encoded-value>
+  #   ## Is hash of "Subject Public Key Info" (SPKI) object
+  #   ## Is DISABLED (Unsafe) if empty.
+  #   ## Create a caCertHash
+  #   ## (The SHA-256 hash of the public key extracted from ca.crt)
+  #   ## --ca-cert-hashes="sha256:$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt |openssl rsa -pubin -outform der 2>/dev/null |openssl dgst -sha256 -hex |sed 's/^.* //')"
+  #   #caCertHashes: []
+  #   caCertHashes: 
+  #   - sha256:8637092691a8fe0672f9598e722da3e1400fb219bfc1ecf380f9a436183e38b0
+  #   # unsafeSkipCAVerification: false  ## true (default)
+  # # timeout: 5m
+  # tlsBootstrapToken: 2js3lj.7n5sx9cz0vuwgrs1 
+nodeRegistration: 
+  #ignorePreflightErrors:
+  #- Mem
+  # imagePullPolicy: IfNotPresent ## Always|Never|IfNotPresent (default)
+  criSocket: unix:///var/run/containerd/containerd.sock 
+  name: THIS_NODE_NAME
+  # taints: null ## For default taints
+  taints: []   ## For no taints
+  # kubeletExtraArgs: 
+  ## See kubelet --help
+  ## Some kubeletExtraArgs are exclusive to Standalone mode,
+  ## which is enabled by `kubelet --kubeconfig ...`
+    # v: 5            
+    # pod-cidr: 10.22.0.0/16 
+    # cgroup-driver: systemd
+## REQUIRED @ CONTROL node
 controlPlane:
   localAPIEndpoint: 
     advertiseAddress: THIS_NODE_IP
     bindPort: 6443
-nodeRegistration: 
-  criSocket: unix:///var/run/containerd/containerd.sock 
-  taints: []   ## For no taints
+  certificateKey: 167fe213f106dcd9b3fd983ea3f5dee5d6daf37b0b598826631026450f2532e9

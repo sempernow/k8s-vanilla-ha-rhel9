@@ -1,23 +1,19 @@
 #!/usr/bin/env bash
-#############################################################
-# Join THIS HOST into cluster as control node declared 
-# at JoinConfiguration (YAML) at KUBEADM_CONFIG_PATH
+##################################################################
+# Join THIS HOST into cluster as control node
 #
-# ARGs: THIS_NODE_INTERFACE  KUBEADM_CONFIG_PATH K8S_CERTIFICATE_KEY
-#############################################################
-[[ $3 ]] || exit 1
+# ARGs: THIS_NODE_INTERFACE K8S_KUBEADM_CONF_JOIN
+##################################################################
+[[ -r $2 ]] || exit 99
 
 # Must run `kubeadm join` as root 
 [[ "$(whoami)" == 'root' ]] || exit 11
 
-# See JoinConfiguration.controlPlane.localAPIEndpoint (set per node)
+sed -i "s,THIS_NODE_NAME,$(hostname),g" $2 || exit 22
 ip="$(command ip -4 -brief addr show dev $1 |awk '{print $3}' |cut -d'/' -f1)"
 [[ $ip ]] && sed -i "s,THIS_NODE_IP,$ip,g" $2 || exit 22
 
-[[ -r $2 ]] || exit 99
-
-cat $2
+cat $3
 
 # Join requires valid (ephemeral) PKI.
-kubeadm join -v5 --config $2  #--certificate-key $3
-
+kubeadm join -v5 --config $2
