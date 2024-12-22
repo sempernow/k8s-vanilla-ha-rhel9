@@ -3,11 +3,11 @@ apiVersion: kubeadm.k8s.io/v1beta3
 kind: JoinConfiguration
 discovery:
   bootstrapToken:
-    token: 7olvnr.flwoezw8dgdb60h3
+    token: a6nthk.oxv0fglyyg40lf5h
     apiServerEndpoint: 192.168.11.101:6443
     caCertHashes: 
-    - sha256:80009c3b303dba837656594fe7647231a256700e28b7f55a8d97f6d0f74861e7
-  tlsBootstrapToken: 7olvnr.flwoezw8dgdb60h3 
+    - sha256:595ae9b21091ff782d88cce76526ef2318c8f4ea8eaf0166d56052019bf6c618
+  tlsBootstrapToken: a6nthk.oxv0fglyyg40lf5h 
 controlPlane:
   localAPIEndpoint: 
     advertiseAddress: THIS_NODE_IP

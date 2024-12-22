@@ -18,19 +18,19 @@ kubectl get no |grep -v NAME |cut -d' ' -f1 \
 manifests=/etc/kubernetes/manifests
 rm $manifests/kube-apiserver.yaml &&
     find $manifests -type f -exec rm {} \; &&
-        sleep 55
+        sleep 10
 
 # Delete residual Pods
 obj="$(sudo crictl pods -q)"
 echo "$obj" |xargs -I{} crictl stopp {}
 echo "$obj" |xargs -I{} crictl rmp {}
-[[ $obj ]] && echo 'RESIDUAL Pods' && sleep 22
+[[ $obj ]] && echo 'RESIDUAL Pods' && sleep 10
 
 # Delete residual containers
 obj="$(sudo crictl ps -q)"
 echo "$obj" |xargs -I{} crictl stop {}
 echo "$obj" |xargs -I{} crictl rm {}
-[[ $obj ]] && echo 'RESIDUAL containers' && sleep 22
+[[ $obj ]] && echo 'RESIDUAL containers' && sleep 10
 
 # Delete CRDs
 kubectl get crds |grep -v NAME |cut -d' ' -f1 \

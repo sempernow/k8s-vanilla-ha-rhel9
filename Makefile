@@ -265,7 +265,7 @@ init-imperative : init-images init-pre
 
 init : init-gen init-push init-images init-pre
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
-		sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
+		sudo kubeadm init \
 			--upload-certs \
 			--config ${K8S_KUBEADM_CONFIG} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kubeadm.init.log
@@ -363,6 +363,10 @@ calico-teardown :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
 
 join-control : join-certs join-gen join-push
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh \
+		&& ansibash sudo bash join-control.sh ${K8S_NETWORK_DEVICE} kubeadm-config-join.yaml ${K8S_CERTIFICATE_KEY} \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
 
 join-certs : 
 	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-join-certs.sh \
@@ -397,9 +401,6 @@ join-control-imperative :
 			--cri-socket ${K8S_CRI_SOCKET} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
 
-foo :
-	ansibash echo '$$(hostname) and ${K8S_INIT_NODE_SSH}'
-
 join-control-discovery :
 	ANSIBASH_TARGET_LIST='a2' \
 		&& ansibash -u ${ADMIN_SRC_DIR}/discovery.yaml \
@@ -407,12 +408,6 @@ join-control-discovery :
 			--discovery-file discovery.yaml \
 			--control-plane \
 			--node-name '$$(hostname)' \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
-
-join-control :
-	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh \
-		&& ansibash sudo bash join-control.sh ${K8S_NETWORK_DEVICE} kubeadm-config-join.yaml \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
 
 join-control-discovery-file :
