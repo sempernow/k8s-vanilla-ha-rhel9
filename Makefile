@@ -251,7 +251,7 @@ install-k8s :
 
 ## K8s cluster creation
 
-init : init-images init-pre
+init-imperative : init-images init-pre
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
 		sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
 			--kubernetes-version ${K8S_VERSION} \
@@ -261,6 +261,13 @@ init : init-images init-pre
 			--apiserver-advertise-address ${K8S_CONTROL_PLANE_IP} \
 			--node-name ${K8S_INIT_NODE} \
 			--cri-socket "${K8S_CRI_SOCKET}" \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kubeadm.init.log
+
+init : init-gen init-push init-images init-pre
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
+		sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
+			--upload-certs \
+			--config ${K8S_KUBEADM_CONFIG} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kubeadm.init.log
 
 kubeconfig :
@@ -292,7 +299,6 @@ init-certs : init-gen init-push
 		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} \
 			/bin/bash -s - ${K8S_KUBEADM_CONFIG} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-certs.log
-	scp ${K8S_INIT_NODE_SSH}:Makefile.settings .
 
 ## Generate kubeadm config file 
 init-gen :
@@ -389,6 +395,18 @@ join-control-imperative :
 			--control-plane \
 			--certificate-key ${K8S_CERTIFICATE_KEY} \
 			--cri-socket ${K8S_CRI_SOCKET} \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
+
+foo :
+	ansibash echo '$$(hostname) and ${K8S_INIT_NODE_SSH}'
+
+join-control-discovery :
+	ANSIBASH_TARGET_LIST='a2' \
+		&& ansibash -u ${ADMIN_SRC_DIR}/discovery.yaml \
+		&& ansibash sudo kubeadm join \
+			--discovery-file discovery.yaml \
+			--control-plane \
+			--node-name '$$(hostname)' \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
 
 join-control :

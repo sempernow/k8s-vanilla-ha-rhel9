@@ -15,6 +15,11 @@ kubectl get no |grep -v NAME |cut -d' ' -f1 \
 kubectl get no |grep -v NAME |cut -d' ' -f1 \
     |xargs -I{} kubectl cordon {}
 
+manifests=/etc/kubernetes/manifests
+rm $manifests/kube-apiserver.yaml &&
+    find $manifests -type f -exec rm {} \; &&
+        sleep 55
+
 # Delete residual Pods
 obj="$(sudo crictl pods -q)"
 echo "$obj" |xargs -I{} crictl stopp {}
