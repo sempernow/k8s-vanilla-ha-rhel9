@@ -7,4 +7,3 @@
 # See deploy.metrics-server.yaml : A modified components.yaml
 kubectl apply -f deploy.metrics-server.yaml
 
-

@@ -72,6 +72,18 @@ Session ended, resume using 'kubectl attach nbox2 -c nbox2 -i -t' command when t
 pod "nbox2" deleted
 ```
 
+## Observability
+
+- `metrics-server` : [__`deploy.metrics-server.yaml`__](observability/metrics-server/deploy.metrics-server.yaml) 
+    ```bash
+    k top node
+    k top pod
+    ```
+- [`kubernetes-dashboard`](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/) : See [`README`](observability/dashboard/README.html)
+    - Web UI @ [http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/](http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/)
+        - Auth by token (okay) or KUBECONFIG (fail)
+
+
 ## Background 
 
 ### [`kubeadm init`](https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-init/)

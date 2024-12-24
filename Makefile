@@ -384,6 +384,11 @@ crictl-images :
 images :
 	kubectl get po -A -o jsonpath='{range .items[*]}{.spec.containers[*].image}{"\n"}{end}' |sort -u
 
+metrics-server :
+	bash observability/metrics-server/metrics-server.sh
+dashboard :
+	kubectl apply -f observability/dashboard/recommended.yaml 
+
 teardown : calico-teardown cilium-teardown kuberouter-teardown 
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
