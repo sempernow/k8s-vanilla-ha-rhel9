@@ -1,4 +1,4 @@
-# [Kubernetes Dashboard](https://chatgpt.com/share/6769c50f-b62c-8009-bb86-46472b9251d1) | [Setup/Debug](https://chatgpt.com/share/6769c50f-b62c-8009-bb86-46472b9251d1 "ChatGPT")
+# [Kubernetes Dashboard](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/) | [Setup/Debug](https://chatgpt.com/share/6769c50f-b62c-8009-bb86-46472b9251d1 "ChatGPT")
 
 Web UI
 
