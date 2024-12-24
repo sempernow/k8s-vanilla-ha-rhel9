@@ -135,6 +135,9 @@ menu :
 	@echo "psrss        : ps sorted by RSS usage"
 	@echo "crictl       : CRI status"
 	@echo "============== "
+	@echo "metrics-server : Install for `kubectl top ...`"
+	@echo "dashboard    : Web UI for K8s API"
+	@echo "============== "
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 
 env : 
