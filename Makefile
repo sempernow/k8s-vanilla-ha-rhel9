@@ -135,7 +135,7 @@ menu :
 	@echo "psrss        : ps sorted by RSS usage"
 	@echo "crictl       : CRI status"
 	@echo "============== "
-	@echo "metrics-server : Install for : kubectl top ..."
+	@echo "metrics      : Install metrics-server, enabling: kubectl top ..."
 	@echo "dashboard    : Install K8s Dashboard : Web UI for K8s API"
 	@echo "trivy        : Install Trivy Operator by Helm"
 	@echo "============== "
@@ -388,7 +388,7 @@ crictl-images :
 images :
 	kubectl get po -A -o jsonpath='{range .items[*]}{.spec.containers[*].image}{"\n"}{end}' |sort -u
 
-metrics-server :
+metrics :
 	bash observability/metrics-server/metrics-server.sh
 dashboard :
 	kubectl apply -f observability/dashboard/recommended.yaml 
