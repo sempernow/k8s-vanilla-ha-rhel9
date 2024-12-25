@@ -135,8 +135,9 @@ menu :
 	@echo "psrss        : ps sorted by RSS usage"
 	@echo "crictl       : CRI status"
 	@echo "============== "
-	@echo "metrics-server : Install for kubectl top ..."
-	@echo "dashboard    : Web UI for K8s API"
+	@echo "metrics-server : Install for : kubectl top ..."
+	@echo "dashboard    : Install K8s Dashboard : Web UI for K8s API"
+	@echo "trivy        : Install Trivy Operator by Helm"
 	@echo "============== "
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 
@@ -391,6 +392,8 @@ metrics-server :
 	bash observability/metrics-server/metrics-server.sh
 dashboard :
 	kubectl apply -f observability/dashboard/recommended.yaml 
+trivy :
+	bash security/trivy/trivy-operator-install.sh 
 
 teardown : calico-teardown cilium-teardown kuberouter-teardown 
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \

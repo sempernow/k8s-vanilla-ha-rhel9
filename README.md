@@ -29,6 +29,27 @@ make join-control
 
 ```
 
+__Remove taint `NoSchedule`__ from joined control nodes
+
+
+```bash
+k taint nodes a2 node-role.kubernetes.io/control-plane:NoSchedule-
+k taint nodes a3 node-role.kubernetes.io/control-plane:NoSchedule-
+```
+- Ref:
+    ```bash
+    # taints : get : spec.taints: [{key: <str>, value: <str>, effect: <str>}, ...]
+    k get node $name -o jsonpath='{.spec.taints}'
+    # taints : get keys, e.g., "node-role.kubernetes.io/control-plane"
+    k get node a2 -o jsonpath='{.spec.taints[*].key}'
+    # taints : remove
+    # - remove if value (key) exist
+    kubectl taint nodes $name $key1=$value1:$effect-
+    # - remove if value (key) not exist
+    kubectl taint nodes $name $key1:$effect-
+
+    ```
+
 ## Bandwidth test
 
 ### `iperf3` : [`nicolaka/netshoot`](https://github.com/nicolaka/netshoot)
@@ -82,6 +103,16 @@ pod "nbox2" deleted
 - [`kubernetes-dashboard`](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/) : See [`README`](observability/dashboard/README.html)
     - Web UI @ [http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/](http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/)
         - Auth by token (okay) or KUBECONFIG (fail)
+
+
+## Security
+
+### [`trivy-operator-install.sh`](security/trivy/trivy-operator-install.sh)
+
+```bash
+make trivy
+```
+
 
 
 ## Background 

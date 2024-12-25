@@ -1,6 +1,6 @@
 # [Kubernetes Dashboard](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/) | [Setup/Debug](https://chatgpt.com/share/6769c50f-b62c-8009-bb86-46472b9251d1 "ChatGPT")
 
-Web UI
+Web UI @ [http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/](http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
 
 ```bash
 # Download the dashboard's manifest
@@ -23,7 +23,8 @@ Token auth:
 sa=kubernetes-dashboard
 ns=$sa
 cr=cluster-admin
-kubectl create clusterrolebinding $sa-admin \
+kubectl get clusterrolebinding $sa-admin || 
+    kubectl create clusterrolebinding $sa-admin \
     --clusterrole=$cr \
     --serviceaccount=$ns:$sa
 
