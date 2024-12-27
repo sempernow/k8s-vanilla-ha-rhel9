@@ -45,10 +45,8 @@ _teardown(){
     kubectl delete -f $POD
 }
 
-[[ -r ~/.kube/config || -r $KUBECONFIG ]] || exit 90
-pushd "${ADMIN_SRC_DIR}/cni/kube-router" || exit 91
+pushd ${BASH_SOURCE%/*} || exit 1
 "$@" || code=$?
 popd
-
-[[ $code ]] && echo " ERR : $code"
+[[ $code ]] && echo " ERR : $code" || echo
 exit $code

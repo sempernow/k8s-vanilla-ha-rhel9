@@ -393,11 +393,18 @@ crictl-images :
 	ansibash sudo crictl images
 images :
 	kubectl get po -A -o jsonpath='{range .items[*]}{.spec.containers[*].image}{"\n"}{end}' |sort -u
- 
+
 metrics :
-	bash observability/metrics/metrics-server/metrics-server.sh
+	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh
+
 dashboard :
-	bash observability/metrics/dashboard/dashboard.sh
+	bash ${ADMIN_SRC_DIR}/observability/metrics/dashboard/dashboard.sh
+
+# k apply -f observability/metrics/dashboard/recommended.yaml
+# k -n kubernetes-dashboard create token kubernetes-dashboard
+# printf "\n  %s\n" Access @ http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
+# k proxy
+
 trivy :
 	bash security/trivy/trivy-operator-install.sh 
 
