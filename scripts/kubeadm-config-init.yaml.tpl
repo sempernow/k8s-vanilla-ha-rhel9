@@ -36,7 +36,6 @@ kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
 ## ConfigMaps, kubelet-config-1, exist PER NODE.
 ## Restart kubelet.service on any change to its --config CONFIG
 # enableServer: true 
-# cgroupDriver: systemd # systemd || cgroupfs
 # imageGCHighThresholdPercent: 85
 # imageGCLowThresholdPercent: 80 
 ## TLS Params : See https://pkg.go.dev/crypto/tls#pkg-constants
@@ -60,10 +59,25 @@ kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
 ## + https://www.mirantis.com/blog/the-future-of-dockershim-is-cri-dockerd/
 ## + https://mirantis.github.io/cri-dockerd/usage/install/
 #containerRuntimeEndpoint: /var/run/cri-docker.sock                   
-cgroupDriver: K8S_CGROUP_DRIVER 
+cgroupDriver: K8S_CGROUP_DRIVER # systemd || cgroupfs
 # containerLogMaxSize: 10Mi 
 # containerLogMaxFiles: 5
 # localStorageCapacityIsolation: true
+## Reserve ample resources for control plane, especially if node is dual use.
+## https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/ 
+systemReserved: # For host
+  cpu: "500m"
+  memory: "1Gi"
+kubeReserved:   # For K8s
+  cpu: "500m"
+  memory: "1Gi"
+enforceNodeAllocatable:
+  - "pods"
+  - "system-reserved"
+  - "kube-reserved"
+evictionHard:
+  memory.available: "200Mi"
+  nodefs.available: "10%"
 # ---
 # apiVersion: kubeproxy.config.k8s.io/v1alpha1
 # kind: KubeProxyConfiguration

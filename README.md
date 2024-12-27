@@ -29,7 +29,9 @@ make join-control
 
 ```
 
-__Remove taint `NoSchedule`__ from joined control nodes
+## Remove taint 
+
+Remove __`NoSchedule`__ from joined control nodes
 
 
 ```bash
@@ -49,6 +51,167 @@ k taint nodes a3 node-role.kubernetes.io/control-plane:NoSchedule-
     kubectl taint nodes $name $key1:$effect-
 
     ```
+
+## Modify `kubelet` 
+
+
+Various methods:
+
+See 
+
+```bash
+sudo systemctl cat kubelet
+
+```
+
+View current config
+
+@ Server terminal 
+
+```bash
+kubectl proxy
+```
+
+@ Client terminal
+
+```bash
+no=a1
+curl -X GET http://127.0.0.1:8001/api/v1/nodes/$no/proxy/configz |jq .
+
+```
+
+### Method 1. Directly declcare in its `--config` file (`KubeletConfiguration`)
+
+@ `/var/lib/kubelet/config.yaml/`
+
+```yaml
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+authentication:
+  anonymous:
+    enabled: false
+  webhook:
+    cacheTTL: 0s
+    enabled: true
+  x509:
+    clientCAFile: /etc/kubernetes/pki/ca.crt
+authorization:
+  mode: Webhook
+...
+cgroupDriver: systemd
+clusterDNS:
+- 10.32.0.10
+clusterDomain: cluster.local
+...
+healthzBindAddress: 127.0.0.1
+healthzPort: 10248
+...
+staticPodPath: /etc/kubernetes/manifests
+...
+```
+
+### Method 2. Use systemd drop-in file (preferred)
+
+@ `/etc/systemd/system/kubelet.service.d/10-reserved-resources.conf`
+
+```bash
+file=etc.systemd.system.kubelet.service.10-reserved-resources.conf
+cat <<EOH |tee scripts/$file
+[Service]
+Environment="KUBELET_EXTRA_ARGS=--system-reserved=cpu=500m,memory=1Gi --kube-reserved=cpu=500m,memory=1Gi --eviction-hard=memory.available<200Mi,nodefs.available<10% --enforce-node-allocatable=pods,system-reserved,kube-reserved"
+EOH
+
+file=10-reserved-resources.conf
+ansibash -u scripts/etc.systemd.system.kubelet.service.$file $file
+
+cat <<'EOH' |tee scripts/kubelet.drop-in.sh
+#!/usr/bin/env bash
+file=10-reserved-resources.conf
+dir=/etc/systemd/system/kubelet.service.d
+sudo mkdir -p $dir &&
+    sudo cp -p $file $dir/$file &&
+        sudo chown 0:0 $dir/$file &&
+            sudo chmod 644 $dir/$file &&
+                sudo ls -hl $dir/$file &&
+                    sudo cat $dir/$file
+EOH
+
+ansibash -s scripts/kubelet.drop-in.sh
+```
+```bash
+ssh u1@a1 sudo systemctl daemon-reload
+ssh u1@a1 psk kubelet
+ssh u1@a1 sudo systemctl restart kubelet
+```
+
+Failing 
+
+```bash
+journalctl --no-pager -eu kubelet 
+
+Dec 26 18:32:38 a1 kubelet[8640]: E1226 18:32:38.265597    8640 run.go:74] "command failed" err="failed to validate kubelet configuration, error: [invalid configuration: systemReservedCgroup (--system-reserved-cgroup) must be specified when \"system-reserved\" contained in enforceNodeAllocatable (--enforce-node-allocatable), invalid configuration: kubeReservedCgroup (--kube-reserved-cgroup) must be specified when \"kube-reserved\" contained in enforceNodeAllocatable (--enforce-node-allocatable)], path: &TypeMeta{Kind:,APIVersion:,}" 
+Dec 26 18:32:38 a1 systemd[1]: kubelet.service: Main process exited, code=exited, status=1/FAILURE
+Dec 26 18:32:38 a1 systemd[1]: kubelet.service: Failed with result 'exit-code'.
+```
+
+The error indicates that you are enforcing `--enforce-node-allocatable` with `system-reserved` and `kube-reserved`, but __the corresponding cgroups are unspecified__ (`--system-reserved-cgroup` and `--kube-reserved-cgroup`). The kubelet requires these cgroups to enforce resource reservations properly.
+
+Those flags specify the Linux cgroups where system and Kubernetes-reserved resources will be applied. If they are not set, the kubelet cannot enforce the reservations.
+
+Find cgroup
+
+```bash
+☩ ssh u1@a1 'mount | grep cgroup'
+cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,seclabel)
+```
+
+Create 
+
+```bash
+sudo mkdir -p /sys/fs/cgroup/system.slice/system-reserved.slice
+sudo mkdir -p /sys/fs/cgroup/system.slice/kube-reserved.slice
+
+sudo systemd-run --unit=system-reserved.slice --slice=system.slice sleep infinity
+sudo systemd-run --unit=kube-reserved.slice --slice=system.slice sleep infinity
+
+```
+- https://chatgpt.com/c/676dd065-0de0-8009-a960-cd50c1003f9f
+
+Add to drop-in
+
+```conf
+[Service]
+Environment="KUBELET_EXTRA_ARGS=--system-reserved=cpu=500m,memory=1Gi --kube-reserved=cpu=500m,memory=1Gi --enforce-node-allocatable=pods,system-reserved,kube-reserved --system-reserved-cgroup=/sys/fs/cgroup/system-reserved --kube-reserved-cgroup=/sys/fs/cgroup/kube-reserved"
+
+
+```
+
+
+FYI, future kubeadm init, @ KubeletConfiguration
+
+```yaml
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+...
+systemReserved:
+  cpu: "500m"
+  memory: "1Gi"
+kubeReserved:
+  cpu: "500m"
+  memory: "1Gi"
+enforceNodeAllocatable:
+  - "pods"
+  - "system-reserved"
+  - "kube-reserved"
+evictionHard:
+  memory.available: "200Mi"
+  nodefs.available: "10%"
+systemReservedCgroup: "/sys/fs/cgroup/system-reserved"
+kubeReservedCgroup: "/sys/fs/cgroup/kube-reserved"
+
+```
+- https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration
 
 ## Bandwidth test
 

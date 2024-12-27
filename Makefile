@@ -387,13 +387,18 @@ crictl-images :
 	ansibash sudo crictl images
 images :
 	kubectl get po -A -o jsonpath='{range .items[*]}{.spec.containers[*].image}{"\n"}{end}' |sort -u
-
+ 
 metrics :
-	bash observability/metrics-server/metrics-server.sh
+	bash observability/metrics/metrics-server/metrics-server.sh
 dashboard :
-	kubectl apply -f observability/dashboard/recommended.yaml 
+	bash observability/metrics/dashboard/dashboard.sh
 trivy :
 	bash security/trivy/trivy-operator-install.sh 
+
+rook-up :
+	bash csi/rook/rook.sh up
+rook-down :
+	bash csi/rook/rook.sh down
 
 teardown : calico-teardown cilium-teardown kuberouter-teardown 
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
