@@ -15,10 +15,10 @@ _kubeproxy_cleanup(){
     [[ $(echo $img |grep 'kube-proxy') ]] ||
         img=k8s.gcr.io/kube-proxy-amd64:v1.28.2
     type -t ctr || return $?
-    sudo ctr images pull $image &&
+    sudo ctr images pull $img &&
         sudo ctr run --rm --privileged --net-host \
             --mount type=bind,src=/lib/modules,dst=/lib/modules,options=rbind:ro \
-            $image kube-proxy-cleanup kube-proxy --cleanup || return $?
+            $img kube-proxy-cleanup kube-proxy --cleanup || return $?
 }
 _install(){
     type -t kubectl || return $?

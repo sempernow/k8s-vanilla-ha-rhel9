@@ -29,6 +29,87 @@ make join-control
 
 ```
 
+### `kubeadm init`/`join` : Imperatively
+
+@ `Ubuntu (master) [15:01:51] [1] [#0] /s/DEV/devops/infra/kubernetes/k8s-vanilla-ha-rhel9`
+
+```bash
+make init-imperative
+make kubeconfig
+make kuberouter-install
+
+# Get join command from most recent
+# @ logs/*.kubeadm.init-imperative.log
+
+ssh u1@a2 sudo kubeadm join 192.168.11.101:6443 \
+    --token 7qcbau.yzvu84puzgih4u31 \
+    --discovery-token-ca-cert-hash sha256:c8cce296aefee5e04133ebc7a60668b1c0053728238e67e0b656a6b9e8f65014 \
+    --control-plane \
+    --certificate-key f079cbf44605ff545156fc79726e35c49e717c22c64d12171f1258003e37338a \
+    --node-name a2 # Append this last flag for hostname override (stability)
+
+ssh u1@a3 sudo kubeadm join 192.168.11.101:6443 \
+    --token 7qcbau.yzvu84puzgih4u31 \
+    --discovery-token-ca-cert-hash sha256:c8cce296aefee5e04133ebc7a60668b1c0053728238e67e0b656a6b9e8f65014 \
+    --control-plane \
+    --certificate-key f079cbf44605ff545156fc79726e35c49e717c22c64d12171f1258003e37338a \
+    --node-name a3 # Append this last flag for hostname override (stability)
+```
+
+Untaint 
+
+```bash
+k get node a1 -o yaml |yq .spec.taints
+```
+```yaml
+- effect: NoSchedule
+  key: node-role.kubernetes.io/control-plane
+```
+```bash
+k taint node a1 node-role.kubernetes.io/control-plane:NoSchedule-
+node/a1 untainted
+
+k taint node a2 node-role.kubernetes.io/control-plane:NoSchedule-
+node/a2 untainted
+
+k taint node a3 node-role.kubernetes.io/control-plane:NoSchedule-
+node/a3 untainted
+```
+Delete one of the CoreDNS pods, 
+so control plane rechedules it 
+onto another (newly untainted) node:
+
+```bash
+k delete pod coredns-76f75df574-lwlnr
+pod "coredns-76f75df574-lwlnr" deleted
+```
+
+Expected status:
+
+```bash
+☩ kw
+=== a1 : 6/6
+coredns-76f75df574-sqxsb     1/1     Running   0          18m   10.22.0.3        a1     <none>           <none>
+etcd-a1                      1/1     Running   17         18m   192.168.11.101   a1     <none>           <none>
+kube-apiserver-a1            1/1     Running   0          18m   192.168.11.101   a1     <none>           <none>
+kube-controller-manager-a1   1/1     Running   0          18m   192.168.11.101   a1     <none>           <none>
+kube-router-z9hct            1/1     Running   0          17m   192.168.11.101   a1     <none>           <none>
+kube-scheduler-a1            1/1     Running   29         18m   192.168.11.101   a1     <none>           <none>
+=== a2 : 5/5
+etcd-a2                      1/1     Running   0          16m   192.168.11.102   a2     <none>           <none>
+kube-apiserver-a2            1/1     Running   0          16m   192.168.11.102   a2     <none>           <none>
+kube-controller-manager-a2   1/1     Running   0          16m   192.168.11.102   a2     <none>           <none>
+kube-router-gphvl            1/1     Running   0          16m   192.168.11.102   a2     <none>           <none>
+kube-scheduler-a2            1/1     Running   29         16m   192.168.11.102   a2     <none>           <none>
+=== a3 : 6/6
+coredns-76f75df574-f7p42     1/1     Running   0          8s    10.22.2.2        a3     <none>           <none>
+etcd-a3                      1/1     Running   0          16m   192.168.11.100   a3     <none>           <none>
+kube-apiserver-a3            1/1     Running   0          16m   192.168.11.100   a3     <none>           <none>
+kube-controller-manager-a3   1/1     Running   0          16m   192.168.11.100   a3     <none>           <none>
+kube-router-2cjd8            1/1     Running   0          16m   192.168.11.100   a3     <none>           <none>
+kube-scheduler-a3            1/1     Running   34         16m   192.168.11.100   a3     <none>           <none>
+```
+
 ## Remove taint 
 
 Remove __`NoSchedule`__ from joined control nodes
@@ -52,19 +133,19 @@ k taint nodes a3 node-role.kubernetes.io/control-plane:NoSchedule-
 
     ```
 
-## Modify `kubelet` 
+## Modify `kubelet` Configuration 
 
+UPDATE : Not a viable option for reserving resources; [Node Allocatable](https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable) (cgroup) settings. Requires many kernel-level modifications and systemd unit files and reconfigurations. Better to destroy the cluster and start again.
 
-Various methods:
-
-See 
+__View__ current configuration files
 
 ```bash
+# Reveal all of its sources
 sudo systemctl cat kubelet
 
 ```
 
-View current config
+__Reveal the sum total effect__ of all those configuration sources
 
 @ Server terminal 
 
@@ -80,34 +161,45 @@ curl -X GET http://127.0.0.1:8001/api/v1/nodes/$no/proxy/configz |jq .
 
 ```
 
+__Modify__
+
 ### Method 1. Directly declcare in its `--config` file (`KubeletConfiguration`)
 
 @ `/var/lib/kubelet/config.yaml/`
 
+
 ```yaml
+---
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
-authentication:
-  anonymous:
-    enabled: false
-  webhook:
-    cacheTTL: 0s
-    enabled: true
-  x509:
-    clientCAFile: /etc/kubernetes/pki/ca.crt
-authorization:
-  mode: Webhook
 ...
 cgroupDriver: systemd
-clusterDNS:
-- 10.32.0.10
-clusterDomain: cluster.local
+systemReserved:
+  cpu: "500m"
+  memory: "1Gi"
+kubeReserved:
+  cpu: "500m"
+  memory: "1Gi"
+enforceNodeAllocatable:
+  - "pods"
+  - "system-reserved"
+  - "kube-reserved"
+evictionHard:
+  memory.available: "200Mi"
+  nodefs.available: "10%"
+systemReservedCgroup: "/sys/fs/cgroup/system.slice/system-reserved.slice"
+                       /sys/fs/cgroup/system.slice/system-reserved.slice
+kubeReservedCgroup: "/sys/fs/cgroup/system.slice/kube-reserved.slice"
+```
+- [`KubeletConfiguration`](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration)
+
+
+```bash
+☩ sudo systemctl daemon-reload
+☩ sudo systemctl restart kubelet
+☩ sudo journalctl --no-pager -eu kubelet
 ...
-healthzBindAddress: 127.0.0.1
-healthzPort: 10248
-...
-staticPodPath: /etc/kubernetes/manifests
-...
+Dec 27 09:05:44 a1 kubelet[24102]: E1227 09:05:44.189933   24102 kubelet.go:1542] "Failed to start ContainerManager" err="invalid Node Allocatable configuration. Resource \"memory\" has an allocatable of {{2357198848 0} {<nil>}  BinarySI}, capacity of {{-168800256 0} {<nil>}  BinarySI}"
 ```
 
 ### Method 2. Use systemd drop-in file (preferred)
@@ -165,17 +257,15 @@ Find cgroup
 cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,seclabel)
 ```
 
-Create 
+Create cgroup resources
 
 ```bash
+
+# Manual method
 sudo mkdir -p /sys/fs/cgroup/system.slice/system-reserved.slice
 sudo mkdir -p /sys/fs/cgroup/system.slice/kube-reserved.slice
 
-sudo systemd-run --unit=system-reserved.slice --slice=system.slice sleep infinity
-sudo systemd-run --unit=kube-reserved.slice --slice=system.slice sleep infinity
-
 ```
-- https://chatgpt.com/c/676dd065-0de0-8009-a960-cd50c1003f9f
 
 Add to drop-in
 
@@ -187,31 +277,6 @@ Environment="KUBELET_EXTRA_ARGS=--system-reserved=cpu=500m,memory=1Gi --kube-res
 ```
 
 
-FYI, future kubeadm init, @ KubeletConfiguration
-
-```yaml
----
-apiVersion: kubelet.config.k8s.io/v1beta1
-kind: KubeletConfiguration
-...
-systemReserved:
-  cpu: "500m"
-  memory: "1Gi"
-kubeReserved:
-  cpu: "500m"
-  memory: "1Gi"
-enforceNodeAllocatable:
-  - "pods"
-  - "system-reserved"
-  - "kube-reserved"
-evictionHard:
-  memory.available: "200Mi"
-  nodefs.available: "10%"
-systemReservedCgroup: "/sys/fs/cgroup/system-reserved"
-kubeReservedCgroup: "/sys/fs/cgroup/kube-reserved"
-
-```
-- https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration
 
 ## Bandwidth test
 

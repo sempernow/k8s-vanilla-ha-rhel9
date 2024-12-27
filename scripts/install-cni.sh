@@ -64,7 +64,7 @@ ok(){
 
     # Configure 'kubectl calico' plugin
     # https://docs.tigera.io/calico/latest/operations/calicoctl/install#install-calicoctl-as-a-kubectl-plugin-on-a-single-host
-    sudo ln -sT /usr/local/bin/calicoctl /usr/local/bin/kubectl-calico
+    sudo ln -fsT /usr/local/bin/calicoctl /usr/local/bin/kubectl-calico
 }
 ok || exit $?
 

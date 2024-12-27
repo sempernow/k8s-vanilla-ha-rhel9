@@ -16,7 +16,7 @@ clusterName: K8S_CLUSTER_NAME
 # etcd:
 #   local:
 #     dataDir: /var/lib/etcd
-## HA LB endpoint else that of init node
+## External LB endpoint else that of init node
 controlPlaneEndpoint: K8S_ENDPOINT
 networking:
 #   ## Services subnet CIDR : 10.96.0.0/12 (default)
@@ -29,7 +29,7 @@ networking:
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
 ## @ https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration
-## PER NODE
+## Kubelet is PER NODE
 ## See kubelet -h
 ## kubeadm config print init-defaults --component-configs KubeletConfiguration
 ## kubectl get configmap kubelet-config-1 -n kube-system -o json |jq -Mr .data.kubelet |base64 -d 
@@ -40,44 +40,48 @@ kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
 # imageGCLowThresholdPercent: 80 
 ## TLS Params : See https://pkg.go.dev/crypto/tls#pkg-constants
 # tlsCipherSuites: []
-# tlsMinVersion: VersionTLS12 #... VersionTLS12 || VersionTLS13 
-# authentication:                                        
-#   anonymous:                                           
-#     enabled: false                                     
-#   webhook:                                             
-#     cacheTTL: 0s                                       
-#     enabled: true                                      
-#   x509:                                                
-#     clientCAFile: /etc/kubernetes/pki/ca.crt           
-# authorization:                                         
-#   mode: Webhook                                        
-#   webhook:                                             
-#     cacheAuthorizedTTL: 0s                             
-#     cacheUnauthorizedTTL: 0s    
+# tlsMinVersion: VersionTLS12 #... VersionTLS12|VersionTLS13 
+# authentication:
+#   anonymous:
+#     enabled: false
+#   webhook:
+#     cacheTTL: 0s
+#     enabled: true
+#   x509:
+#     clientCAFile: /etc/kubernetes/pki/ca.crt
+# authorization: 
+#   mode: Webhook
+#   webhook:
+#     cacheAuthorizedTTL: 0s
+#     cacheUnauthorizedTTL: 0s
 ## Docker-K8s shim : /var/run/cri-docker.sock
 ## See https://github.com/mirantis/cri-dockerd 
 ## + https://www.mirantis.com/blog/the-future-of-dockershim-is-cri-dockerd/
 ## + https://mirantis.github.io/cri-dockerd/usage/install/
 #containerRuntimeEndpoint: /var/run/cri-docker.sock                   
-cgroupDriver: K8S_CGROUP_DRIVER # systemd || cgroupfs
+cgroupDriver: K8S_CGROUP_DRIVER # systemd|cgroupfs
 # containerLogMaxSize: 10Mi 
 # containerLogMaxFiles: 5
 # localStorageCapacityIsolation: true
-## Reserve ample resources for control plane, especially if node is dual use.
+## Node Allocatable
 ## https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/ 
-systemReserved: # For host
-  cpu: "500m"
-  memory: "1Gi"
-kubeReserved:   # For K8s
-  cpu: "500m"
-  memory: "1Gi"
-enforceNodeAllocatable:
-  - "pods"
-  - "system-reserved"
-  - "kube-reserved"
-evictionHard:
-  memory.available: "200Mi"
-  nodefs.available: "10%"
+## Reserve ample resources for control plane, especially if node is dual use.
+## https://unofficial-kubernetes.readthedocs.io/en/latest/tasks/administer-cluster/reserve-compute-resources/
+## Rather than Node Allocatable scheme, rely on Pod QoS : Guaranteed 
+## https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/#create-a-pod-that-gets-assigned-a-qos-class-of-guaranteed
+# systemReserved: # For host
+#   cpu: "500m"
+#   memory: "1Gi"
+# kubeReserved:   # For K8s
+#   cpu: "500m"
+#   memory: "1Gi"
+# enforceNodeAllocatable:
+#   - "pods"
+#   - "system-reserved"
+#   - "kube-reserved"
+# evictionHard:
+#   memory.available: "200Mi"
+#   nodefs.available: "10%"
 # ---
 # apiVersion: kubeproxy.config.k8s.io/v1alpha1
 # kind: KubeProxyConfiguration
@@ -100,7 +104,7 @@ kind: InitConfiguration
 #   - signing
 #   groups:
 #   - system:bootstrappers:kubeadm:default-node-token
-## Local API Endpoint is NOT the cluster (HA-LB) endpoint
+## Local API Endpoint is *not* the cluster (External LB) endpoint
 # localAPIEndpoint:
 #   advertiseAddress: 1.2.3.4  # IP address of this control node
 #   bindPort: 6443             # 6443 (default)
@@ -108,9 +112,9 @@ nodeRegistration:
   name: K8S_INIT_NODE ## Default to hostname
   # imagePullPolicy: IfNotPresent ## Always|Never|IfNotPresent (default)
   criSocket: K8S_CRI_SOCKET
-  # taints: null  ## Default taints on control nodes
-  taints: []    ## No taints on control nodes
-  # taints:       ## []core/v1.Taint
+  # taints: null   ## Default taints on control nodes
+  taints: []      ## No taints on control nodes
+  # taints:        ## []core/v1.Taint
   # - key: "kubeadmNode"
   #   value: "someValue"
   #   effect: "NoSchedule"

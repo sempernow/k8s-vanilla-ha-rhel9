@@ -4,14 +4,15 @@
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: JoinConfiguration
 ## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinConfiguration
-discovery:
-  # file XOR bootstrapToken
-  file:
-    kubeConfigPath: admin.yaml
+## Discovery file conflicts with JoinConfiguration yet lacks keys to configure.
+# discovery:
+#   # file XOR bootstrapToken
+#   file:
+#     kubeConfigPath: discovery.yaml
   # bootstrapToken:
   #   ## Generate token and CA certificate : kubeadm token generate
   #   ## CA certificate @ /etc/kubernetes/pki/ca.crt
-  #   token: 2js3lj.7n5sx9cz0vuwgrs1
+  #   token: duednm.do7e306d70pjzie1
   #   # apiServerEndpoint: kube-apiserver:6443
   #   apiServerEndpoint: 192.168.11.101:6443
   #   ## CA-Certificate Hash(es):
@@ -24,10 +25,10 @@ discovery:
   #   ## --ca-cert-hashes="sha256:$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt |openssl rsa -pubin -outform der 2>/dev/null |openssl dgst -sha256 -hex |sed 's/^.* //')"
   #   #caCertHashes: []
   #   caCertHashes: 
-  #   - sha256:8637092691a8fe0672f9598e722da3e1400fb219bfc1ecf380f9a436183e38b0
+  #   - sha256:sha256:80edaee5eee656f18d90b2943f7d948380439974b1950efd6385a50c209d332d
   #   # unsafeSkipCAVerification: false  ## true (default)
   # # timeout: 5m
-  # tlsBootstrapToken: 2js3lj.7n5sx9cz0vuwgrs1 
+  # tlsBootstrapToken: duednm.do7e306d70pjzie1 
 nodeRegistration: 
   #ignorePreflightErrors:
   #- Mem
@@ -48,4 +49,4 @@ controlPlane:
   localAPIEndpoint: 
     advertiseAddress: THIS_NODE_IP
     bindPort: 6443
-  certificateKey: 167fe213f106dcd9b3fd983ea3f5dee5d6daf37b0b598826631026450f2532e9
+  certificateKey: eff6aace1e22ac5f0eccb1fd113b1b292660ba27006cc0e72d518e774baea869

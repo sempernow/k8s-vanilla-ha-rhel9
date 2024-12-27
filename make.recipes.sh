@@ -67,13 +67,13 @@ halb(){
 kubeconfig(){
     src='/etc/kubernetes/admin.conf'
     [[ $K8S_INIT_NODE ]] || { echo 'FAIL : K8S_INIT_NODE is UNSET'; return; }
-    ssh -T ${ADMIN_USER}@${K8S_INIT_NODE_SSH} 'sudo cp -p '"$src"' . && sudo chown $(id -u):$(id -g) admin.conf'
+    ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} 'sudo cp -p '"$src"' . && sudo chown $(id -u):$(id -g) admin.conf'
     mkdir -p ~/.kube
     scp -p $K8S_INIT_NODE:admin.conf ~/.kube/
     [[ -f ~/.kube/config ]] && mv ~/.kube/cofig ~/.kube/config.old
     cp -p ~/.kube/admin.conf ~/.kube/config
-    chmod 0600 ~/.kube/*
-    [[ -d ~/.kube/cache ]] && rm -rf ~/.kube/cache
+    chmod 0600 ~/.kube/conf*
+    [[ -d ~/.kube/cache ]] && sudo rm -rf ~/.kube/cache
     kubectl config set-context --current --namespace kube-system
     kubectl get no -o wide
     kubectl get po -o wide

@@ -8,7 +8,7 @@ kubernetesVersion: 1.29.6
 # apiServer:
 #   timeoutForControlPlane: 4m
 # certificatesDir: /etc/kubernetes/pki
-clusterName: sbx
+clusterName: lime3
 # controllerManager: ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ControlPlaneComponent
 #   extraArgs: {} # map[string]string of flag name(s) sans leading dash(es)
 #   extraVolumes: []
@@ -16,7 +16,7 @@ clusterName: sbx
 # etcd:
 #   local:
 #     dataDir: /var/lib/etcd
-## HA LB endpoint else that of init node
+## External LB endpoint else that of init node
 controlPlaneEndpoint: 192.168.11.101:6443
 networking:
 #   ## Services subnet CIDR : 10.96.0.0/12 (default)
@@ -29,41 +29,59 @@ networking:
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
 ## @ https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration
-## PER NODE
+## Kubelet is PER NODE
 ## See kubelet -h
 ## kubeadm config print init-defaults --component-configs KubeletConfiguration
 ## kubectl get configmap kubelet-config-1 -n kube-system -o json |jq -Mr .data.kubelet |base64 -d 
 ## ConfigMaps, kubelet-config-1, exist PER NODE.
 ## Restart kubelet.service on any change to its --config CONFIG
 # enableServer: true 
-# cgroupDriver: systemd # systemd || cgroupfs
 # imageGCHighThresholdPercent: 85
 # imageGCLowThresholdPercent: 80 
 ## TLS Params : See https://pkg.go.dev/crypto/tls#pkg-constants
 # tlsCipherSuites: []
-# tlsMinVersion: VersionTLS12 #... VersionTLS12 || VersionTLS13 
-# authentication:                                        
-#   anonymous:                                           
-#     enabled: false                                     
-#   webhook:                                             
-#     cacheTTL: 0s                                       
-#     enabled: true                                      
-#   x509:                                                
-#     clientCAFile: /etc/kubernetes/pki/ca.crt           
-# authorization:                                         
-#   mode: Webhook                                        
-#   webhook:                                             
-#     cacheAuthorizedTTL: 0s                             
-#     cacheUnauthorizedTTL: 0s    
+# tlsMinVersion: VersionTLS12 #... VersionTLS12|VersionTLS13 
+# authentication:
+#   anonymous:
+#     enabled: false
+#   webhook:
+#     cacheTTL: 0s
+#     enabled: true
+#   x509:
+#     clientCAFile: /etc/kubernetes/pki/ca.crt
+# authorization: 
+#   mode: Webhook
+#   webhook:
+#     cacheAuthorizedTTL: 0s
+#     cacheUnauthorizedTTL: 0s
 ## Docker-K8s shim : /var/run/cri-docker.sock
 ## See https://github.com/mirantis/cri-dockerd 
 ## + https://www.mirantis.com/blog/the-future-of-dockershim-is-cri-dockerd/
 ## + https://mirantis.github.io/cri-dockerd/usage/install/
 #containerRuntimeEndpoint: /var/run/cri-docker.sock                   
-cgroupDriver: systemd 
+cgroupDriver: systemd # systemd|cgroupfs
 # containerLogMaxSize: 10Mi 
 # containerLogMaxFiles: 5
 # localStorageCapacityIsolation: true
+## Node Allocatable
+## https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/ 
+## Reserve ample resources for control plane, especially if node is dual use.
+## https://unofficial-kubernetes.readthedocs.io/en/latest/tasks/administer-cluster/reserve-compute-resources/
+## Rather than Node Allocatable scheme, rely on Pod QoS : Guaranteed 
+## https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/#create-a-pod-that-gets-assigned-a-qos-class-of-guaranteed
+# systemReserved: # For host
+#   cpu: "500m"
+#   memory: "1Gi"
+# kubeReserved:   # For K8s
+#   cpu: "500m"
+#   memory: "1Gi"
+# enforceNodeAllocatable:
+#   - "pods"
+#   - "system-reserved"
+#   - "kube-reserved"
+# evictionHard:
+#   memory.available: "200Mi"
+#   nodefs.available: "10%"
 # ---
 # apiVersion: kubeproxy.config.k8s.io/v1alpha1
 # kind: KubeProxyConfiguration
@@ -76,17 +94,17 @@ kind: InitConfiguration
 ## Certificate Key:
 ## See "kubeadm init" output : ... --certificate-key <KEY>
 ## --certificate-key=$(kubeadm certs certificate-key)
-# certificateKey: 991348057d057866f56feabfb1dfe0f3dd06dc848a2dc79b8c51b1e7cde7a612 
+# certificateKey: eff6aace1e22ac5f0eccb1fd113b1b292660ba27006cc0e72d518e774baea869 
 # bootstrapTokens:
 # ## --token=$(kubeadm token generate)
-# - token: nmijxk.irqyzts0x5glr2cr
+# - token: i6x6x7.lkc02l2wiqi28tzj
 #   ttl: 24h
 #   usages:
 #   - authentication
 #   - signing
 #   groups:
 #   - system:bootstrappers:kubeadm:default-node-token
-## Local API Endpoint is NOT the cluster (HA-LB) endpoint
+## Local API Endpoint is *not* the cluster (External LB) endpoint
 # localAPIEndpoint:
 #   advertiseAddress: 1.2.3.4  # IP address of this control node
 #   bindPort: 6443             # 6443 (default)
@@ -94,9 +112,9 @@ nodeRegistration:
   name: a1 ## Default to hostname
   # imagePullPolicy: IfNotPresent ## Always|Never|IfNotPresent (default)
   criSocket: unix:///var/run/containerd/containerd.sock
-  # taints: null  ## Default taints on control nodes
-  taints: []    ## No taints on control nodes
-  # taints:       ## []core/v1.Taint
+  # taints: null   ## Default taints on control nodes
+  taints: []      ## No taints on control nodes
+  # taints:        ## []core/v1.Taint
   # - key: "kubeadmNode"
   #   value: "someValue"
   #   effect: "NoSchedule"
