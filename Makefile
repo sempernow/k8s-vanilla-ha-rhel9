@@ -139,6 +139,10 @@ menu :
 	@echo "dashboard    : Install K8s Dashboard : Web UI for K8s API"
 	@echo "trivy        : Install Trivy Operator by Helm"
 	@echo "============== "
+	@echo "csi-local    : Install local-path-provisioner"
+	@echo "csi-rook-up  : Install Rook Operator / Ceph "
+	@echo "csi-rook-down: Teardown Rook Operator / Ceph "
+	@echo "============== "
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 
 env : 
@@ -394,8 +398,11 @@ crictl-images :
 images :
 	kubectl get po -A -o jsonpath='{range .items[*]}{.spec.containers[*].image}{"\n"}{end}' |sort -u
 
-metrics :
-	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh
+metrics metrics-up :
+	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh apply
+metrics-down:
+	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh delete
+
 
 dashboard :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/dashboard/dashboard.sh
@@ -406,12 +413,15 @@ dashboard :
 # k proxy
 
 trivy :
-	bash security/trivy/trivy-operator-install.sh 
+	bash ${ADMIN_SRC_DIR}/security/trivy/trivy-operator-install.sh 
 
-rook-up :
-	bash csi/rook/rook.sh up
-rook-down :
-	bash csi/rook/rook.sh down
+csi-local :
+	bash ${ADMIN_SRC_DIR}/csi/local-path-provisioner/local-path-provisioner.sh 
+
+csi-rook-up :
+	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh up
+csi-rook-down :
+	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh down
 
 teardown : calico-teardown cilium-teardown kuberouter-teardown 
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
