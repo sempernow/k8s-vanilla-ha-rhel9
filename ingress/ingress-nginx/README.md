@@ -1,4 +1,4 @@
-# [Ingress-NGINX Controller](https://kubernetes.github.io/ingress-nginx/deploy/ "kubernetes.github.io") | [Releases](https://github.com/kubernetes/ingress-nginx/releases)
+# [Ingress-NGINX Controller](https://kubernetes.github.io/ingress-nginx/deploy/#bare-metal-clusters "kubernetes.github.io") | [Releases](https://github.com/kubernetes/ingress-nginx/releases)
 
 
 ## `Ingress` : Rewrite ([`rewrite-target`](https://github.com/kubernetes/ingress-nginx/blob/main/docs/examples/rewrite/README.md "github.com/kubernetes/ingress-nginx")) Syntax
@@ -90,9 +90,13 @@ __before it is sent upstream__.
     - Code: `302 Moved Temporarily`
     - Header: `Location: http://foo.lime.lan/a`
 
-## Deploy : Baremetal config
+## Deploy (DaemonSet) : Baremetal (On-prem) Configuration
+
 
 @ [__`deploy-ingress-nginx-baremetal.yaml`__](deploy-ingress-nginx-baremetal.yaml)
+
+Use this configuration __for on-prem clusters__, 
+whether the hosts are "baremetal" (physical sever) or on a hypervisor. 
 
 ```bash
 # https://github.com/kubernetes/ingress-nginx/releases
@@ -104,8 +108,43 @@ curl -sSL -o $manifest $url
 kubectl apply -f $manifest
 ```
 
-The baremetal configuration Service `ingress-nginx-controller` wires each service port (names: `http`/`https`) to a `nodePort`. 
-See [`deploy-ingress-nginx-baremetal.yaml`](deploy-ingress-nginx-baremetal.yaml)
+Else by Helm chart (untested) :
+
+```bash
+v=4.11.3
+release=ingress-nginx
+chart=$release
+repo=https://kubernetes.github.io/$chart
+values=values.yaml
+
+# Using remote chart
+helm show values $chart --repo $repo |tee $values
+vi $values # Edit to fit environment
+helm upgrade \
+    --install \   
+    --repo $repo \
+    --version $v \
+    --values $values \
+    --namespace $release \
+    --create-namespace \
+    $release $chart
+
+# Using local chart
+helm pull $chart --repo $repo --version $v
+tar -xaf ${chart}-${v}.tgz
+cp $chart/$values .
+vi $values # Edit to fit environment
+helm upgrade \
+    --install \
+    --values $values \  
+    --namespace $release \
+    --create-namespace \
+    $release $chart
+
+```
+
+The baremetal configuration Service `ingress-nginx-controller` 
+wires each service port (names: `http`/`https`) to a `nodePort`. 
 
 ```yaml
 apiVersion: v1
@@ -131,6 +170,21 @@ spec:
     targetPort: https
   ...
 ```
+
+[Modify the `ConfigMap.data`](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/) to fit environmnet. 
+E.g., [if external (downstream) LB utilizes PROXY protocol](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#use-proxy-protocol)
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+data:
+  allow-snippet-annotations: "false"
+  use-proxy-protocol: "false" # "true" if LB upstreams using PROXY protocol
+  ...
+...
+```
+
+
 ```bash
 ☩ k get node a1 -o wide
 NAME   STATUS   ROLES           AGE   VERSION   INTERNAL-IP      EXTERNAL-IP ...
@@ -139,7 +193,11 @@ a1     Ready    control-plane   17h   v1.29.6   192.168.11.101   <none>      ...
 ☩ kubectl -n ingress-nginx get svc ingress-nginx-controller
 NAME                       TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)                     
 ingress-nginx-controller   NodePort   10.37.30.17   <none>        80:30409/TCP,443:32390/TCP
+```
 
+@ [`ingress-nginx-usage.yaml`](ingress-nginx-usage.yaml)
+
+```bash
 ☩ curl http://192.168.11.101:30409/foo/hostname
 foo
 ```
@@ -147,7 +205,11 @@ foo
 - HTTPS @ `32390`
 
 We would declare these if connecting to an external (HA) load balancer (LB).
-Those service ports would be the cluter's data-plane upstreams proxied by that LB.
+Those service ports of this Ingress controller would be 
+the cluster's data-plane upstreams proxied by that HA LB. 
 
+Typically, a single external loadbalancer (HA LB) 
+is configured to proxy both the control and data planes, 
+providing a single, stable (HA) entrypoint to the (multi-node) cluster.
 
 ### &nbsp;

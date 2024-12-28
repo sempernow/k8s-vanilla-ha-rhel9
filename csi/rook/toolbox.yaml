@@ -1,4 +1,5 @@
 ---
+## https://rook.github.io/docs/rook/latest-release/Troubleshooting/ceph-toolbox/
 ## curl -sSLO https://raw.githubusercontent.com/rook/rook/master/deploy/examples/toolbox.yaml
 ## kubectl apply -f toolbox.yaml
 apiVersion: apps/v1
