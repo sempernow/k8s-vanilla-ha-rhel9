@@ -420,8 +420,14 @@ csi-local :
 
 csi-rook-up :
 	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh up
+
+# Reboot after teardown 
+export rbd := sdb
 csi-rook-down :
 	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh down
+	ansibash -u ${ADMIN_SRC_DIR}/csi/rook/rook.sh
+	ansibash sudo bash ./rook.sh host_teardown
+	ansibash 'sudo wipefs --all /dev/sdb && sudo dd if=/dev/zero of=/dev/${rbd} bs=1M count=10'
 
 teardown : calico-teardown cilium-teardown kuberouter-teardown 
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
