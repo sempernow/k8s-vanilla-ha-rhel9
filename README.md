@@ -56,7 +56,29 @@ ssh u1@a3 sudo kubeadm join 192.168.11.101:6443 \
     --node-name a3 # Append this last flag for hostname override (stability)
 ```
 
-Untaint 
+```bash
+kubectl proxy # K8s API @ http://127.0.0.1:8001 (Blocks) 
+```
+```bash
+curl http://127.0.0.1:8001/healthz #> ok
+```
+
+## Remove taint 
+
+```bash
+# taints : get : spec.taints: [{key: <str>, value: <str>, effect: <str>}, ...]
+k get node $name -o jsonpath='{.spec.taints}'
+# taints : get keys, e.g., "node-role.kubernetes.io/control-plane"
+k get node a2 -o jsonpath='{.spec.taints[*].key}'
+# taints : remove
+# - remove if value (key) exist
+kubectl taint nodes $name $key1=$value1:$effect-
+# - remove if value (key) not exist
+kubectl taint nodes $name $key1:$effect-
+
+```
+
+Remove __`NoSchedule`__ from joined control nodes
 
 ```bash
 k get node a1 -o yaml |yq .spec.taints
@@ -75,7 +97,8 @@ node/a2 untainted
 k taint node a3 node-role.kubernetes.io/control-plane:NoSchedule-
 node/a3 untainted
 ```
-Delete one of the CoreDNS pods, 
+
+Now delete one of the CoreDNS pods, 
 so control plane rechedules it 
 onto another (newly untainted) node:
 
@@ -84,7 +107,7 @@ k delete pod coredns-76f75df574-lwlnr
 pod "coredns-76f75df574-lwlnr" deleted
 ```
 
-Expected status:
+Expect :
 
 ```bash
 ☩ kw
@@ -110,32 +133,10 @@ kube-router-2cjd8            1/1     Running   0          16m   192.168.11.100  
 kube-scheduler-a3            1/1     Running   34         16m   192.168.11.100   a3     <none>           <none>
 ```
 
-## Remove taint 
-
-Remove __`NoSchedule`__ from joined control nodes
-
-
-```bash
-k taint nodes a2 node-role.kubernetes.io/control-plane:NoSchedule-
-k taint nodes a3 node-role.kubernetes.io/control-plane:NoSchedule-
-```
-- Ref:
-    ```bash
-    # taints : get : spec.taints: [{key: <str>, value: <str>, effect: <str>}, ...]
-    k get node $name -o jsonpath='{.spec.taints}'
-    # taints : get keys, e.g., "node-role.kubernetes.io/control-plane"
-    k get node a2 -o jsonpath='{.spec.taints[*].key}'
-    # taints : remove
-    # - remove if value (key) exist
-    kubectl taint nodes $name $key1=$value1:$effect-
-    # - remove if value (key) not exist
-    kubectl taint nodes $name $key1:$effect-
-
-    ```
 
 ## Modify `kubelet` Configuration 
 
-UPDATE : Not a viable option for reserving resources; [Node Allocatable](https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable) (cgroup) settings. Requires many kernel-level modifications and systemd unit files and reconfigurations. Better to destroy the cluster and start again.
+UPDATE : __Not a viable option for reserving resources__; [Node Allocatable](https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable) (cgroup) settings are applied by default `kubeadm init`/`join`. Modifying this after init requires many kernel-level modifications and systemd unit files and reconfigurations. Better to destroy the cluster and start again.
 
 __View__ current configuration files
 
@@ -340,7 +341,6 @@ pod "nbox2" deleted
 ```bash
 make trivy
 ```
-
 
 
 ## Background 
