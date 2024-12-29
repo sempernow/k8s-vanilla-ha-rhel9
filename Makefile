@@ -152,13 +152,12 @@ env :
 	@env |grep ADMIN_ 
 
 perms mode :
-	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \+
-	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \+
-	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \+
+	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \;
+	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \;
+	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \;
 
 html :
-	md2html.exe LOG.md
-	md2html.exe README.md
+	find . -type f ! -path './.git/*' -name '*.md' -exec md2html.exe "{}" \;
 
 push commit : html mode
 	gc && git push && gl && gs
