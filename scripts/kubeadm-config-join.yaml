@@ -1,52 +1,15 @@
-## kubeadm-config @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/ 
 ---
-## The JoinConfiguration is IGNORED on init
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: JoinConfiguration
-## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinConfiguration
-## Discovery file conflicts with JoinConfiguration yet lacks keys to configure.
-# discovery:
-#   # file XOR bootstrapToken
-#   file:
-#     kubeConfigPath: discovery.yaml
-  # bootstrapToken:
-  #   ## Generate token and CA certificate : kubeadm token generate
-  #   ## CA certificate @ /etc/kubernetes/pki/ca.crt
-  #   token: duednm.do7e306d70pjzie1
-  #   # apiServerEndpoint: kube-apiserver:6443
-  #   apiServerEndpoint: 192.168.11.101:6443
-  #   ## CA-Certificate Hash(es):
-  #   ## See "kubeadm init" output: 
-  #   ## --discovery-token-ca-cert-hash sha256:<hex-encoded-value>
-  #   ## Is hash of "Subject Public Key Info" (SPKI) object
-  #   ## Is DISABLED (Unsafe) if empty.
-  #   ## Create a caCertHash
-  #   ## (The SHA-256 hash of the public key extracted from ca.crt)
-  #   ## --ca-cert-hashes="sha256:$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt |openssl rsa -pubin -outform der 2>/dev/null |openssl dgst -sha256 -hex |sed 's/^.* //')"
-  #   #caCertHashes: []
-  #   caCertHashes: 
-  #   - sha256:sha256:80edaee5eee656f18d90b2943f7d948380439974b1950efd6385a50c209d332d
-  #   # unsafeSkipCAVerification: false  ## true (default)
-  # # timeout: 5m
-  # tlsBootstrapToken: duednm.do7e306d70pjzie1 
+discovery:
+  file:
+    kubeConfigPath: discovery.yaml
 nodeRegistration: 
-  #ignorePreflightErrors:
-  #- Mem
-  # imagePullPolicy: IfNotPresent ## Always|Never|IfNotPresent (default)
   criSocket: unix:///var/run/containerd/containerd.sock 
   name: THIS_NODE_NAME
-  # taints: null ## For default taints
   taints: []   ## For no taints
-  # kubeletExtraArgs: 
-  ## See kubelet --help
-  ## Some kubeletExtraArgs are exclusive to Standalone mode,
-  ## which is enabled by `kubelet --kubeconfig ...`
-    # v: 5            
-    # pod-cidr: 10.22.0.0/16 
-    # cgroup-driver: systemd
-## REQUIRED @ CONTROL node
 controlPlane:
   localAPIEndpoint: 
     advertiseAddress: THIS_NODE_IP
     bindPort: 6443
-  certificateKey: eff6aace1e22ac5f0eccb1fd113b1b292660ba27006cc0e72d518e774baea869
+  certificateKey: 4b39a69099b2230a214a960d66a15fd93837d203aafd0a4f221dd8c09c18e51d

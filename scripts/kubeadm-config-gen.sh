@@ -19,5 +19,5 @@ cat ${ADMIN_SRC_DIR}/scripts/${1}.tpl \
     |sed "s,K8S_CERTIFICATE_KEY,${K8S_CERTIFICATE_KEY},g" \
     |sed "s,K8S_CA_CERT_HASH,${K8S_CA_CERT_HASH},g" \
     |sed "s,K8S_JOIN_KUBECONFIG,${K8S_JOIN_KUBECONFIG},g" \
-    |sed "/^ *,/d" |sed "/^\s*$/d" \
+    |sed "/^ *,/d" |sed "/^\s*$/d" |sed '/^[[:space:]]*#/d' \
     |tee ${ADMIN_SRC_DIR}/scripts/${1}

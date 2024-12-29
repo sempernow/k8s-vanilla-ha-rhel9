@@ -1,129 +1,50 @@
-## kubeadm-config @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/ 
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
-## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ClusterConfiguration
-## RELEASEs https://kubernetes.io/releases/
 kubernetesVersion: 1.29.6
-# imageRepository: registry.k8s.io
-# apiServer:
-#   timeoutForControlPlane: 4m
-# certificatesDir: /etc/kubernetes/pki
 clusterName: lime3
-# controllerManager: ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ControlPlaneComponent
-#   extraArgs: {} # map[string]string of flag name(s) sans leading dash(es)
-#   extraVolumes: []
-# dns: {}
-# etcd:
-#   local:
-#     dataDir: /var/lib/etcd
-## External LB endpoint else that of init node
 controlPlaneEndpoint: 192.168.11.101:6443
 networking:
-#   ## Services subnet CIDR : 10.96.0.0/12 (default)
-  serviceSubnet: 10.33.0.0/12
-#   ## Pod subnet CIDR : 172.16.0.0/16 (default)
+  serviceSubnet: 10.32.0.0/16
   podSubnet: 10.22.0.0/16
-#   dnsDomain: cluster.local
-# scheduler: {}
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
-## @ https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration
-## Kubelet is PER NODE
-## See kubelet -h
-## kubeadm config print init-defaults --component-configs KubeletConfiguration
-## kubectl get configmap kubelet-config-1 -n kube-system -o json |jq -Mr .data.kubelet |base64 -d 
-## ConfigMaps, kubelet-config-1, exist PER NODE.
-## Restart kubelet.service on any change to its --config CONFIG
-# enableServer: true 
-# imageGCHighThresholdPercent: 85
-# imageGCLowThresholdPercent: 80 
-## TLS Params : See https://pkg.go.dev/crypto/tls#pkg-constants
-# tlsCipherSuites: []
-# tlsMinVersion: VersionTLS12 #... VersionTLS12|VersionTLS13 
-# authentication:
-#   anonymous:
-#     enabled: false
-#   webhook:
-#     cacheTTL: 0s
-#     enabled: true
-#   x509:
-#     clientCAFile: /etc/kubernetes/pki/ca.crt
-# authorization: 
-#   mode: Webhook
-#   webhook:
-#     cacheAuthorizedTTL: 0s
-#     cacheUnauthorizedTTL: 0s
-## Docker-K8s shim : /var/run/cri-docker.sock
-## See https://github.com/mirantis/cri-dockerd 
-## + https://www.mirantis.com/blog/the-future-of-dockershim-is-cri-dockerd/
-## + https://mirantis.github.io/cri-dockerd/usage/install/
-#containerRuntimeEndpoint: /var/run/cri-docker.sock                   
+containerRuntimeEndpoint: unix:///var/run/containerd/containerd.sock
 cgroupDriver: systemd # systemd|cgroupfs
-# containerLogMaxSize: 10Mi 
-# containerLogMaxFiles: 5
-# localStorageCapacityIsolation: true
-## Node Allocatable
-## https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/ 
-## Reserve ample resources for control plane, especially if node is dual use.
-## https://unofficial-kubernetes.readthedocs.io/en/latest/tasks/administer-cluster/reserve-compute-resources/
-## Rather than Node Allocatable scheme, rely on Pod QoS : Guaranteed 
-## https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/#create-a-pod-that-gets-assigned-a-qos-class-of-guaranteed
-# systemReserved: # For host
-#   cpu: "500m"
-#   memory: "1Gi"
-# kubeReserved:   # For K8s
-#   cpu: "500m"
-#   memory: "1Gi"
-# enforceNodeAllocatable:
-#   - "pods"
-#   - "system-reserved"
-#   - "kube-reserved"
-# evictionHard:
-#   memory.available: "200Mi"
-#   nodefs.available: "10%"
-# ---
-# apiVersion: kubeproxy.config.k8s.io/v1alpha1
-# kind: KubeProxyConfiguration
-# ## @ https://kubernetes.io/docs/reference/config-api/kube-proxy-config.v1alpha1/#kubeproxy-config-k8s-io-v1alpha1-KubeProxyConfiguration
+imageGCHighThresholdPercent: 85
+imageGCLowThresholdPercent: 80
+imageMinimumGCAge: 2m
+evictionHard:
+  nodefs.available: "10%"
+  imagefs.available: "15%"
+  memory.available: "100Mi"
+evictionSoft:
+  nodefs.available: "15%"
+  imagefs.available: "20%"
+evictionSoftGracePeriod:
+  nodefs.available: "1m"
+  imagefs.available: "1m"
+evictionMaxPodGracePeriod: 30
+evictionPressureTransitionPeriod: 30s
+nodeStatusReportFrequency: 10s
+nodeStatusUpdateFrequency: 10s
+runtimeRequestTimeout: 2m
+volumeStatsAggPeriod: 1m
+syncFrequency: 1m
+rotateCertificates: true
+cpuManagerReconcilePeriod: 10s
+fileCheckFrequency: 20s
+httpCheckFrequency: 10s
+logging:
+  flushFrequency: 5s
+  verbosity: 1
+shutdownGracePeriod: 30s
+shutdownGracePeriodCriticalPods: 10s
+streamingConnectionIdleTimeout: 0s
 ---
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
-## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-InitConfiguration
-# Use --upload-certs
-## Certificate Key:
-## See "kubeadm init" output : ... --certificate-key <KEY>
-## --certificate-key=$(kubeadm certs certificate-key)
-# certificateKey: eff6aace1e22ac5f0eccb1fd113b1b292660ba27006cc0e72d518e774baea869 
-# bootstrapTokens:
-# ## --token=$(kubeadm token generate)
-# - token: i6x6x7.lkc02l2wiqi28tzj
-#   ttl: 24h
-#   usages:
-#   - authentication
-#   - signing
-#   groups:
-#   - system:bootstrappers:kubeadm:default-node-token
-## Local API Endpoint is *not* the cluster (External LB) endpoint
-# localAPIEndpoint:
-#   advertiseAddress: 1.2.3.4  # IP address of this control node
-#   bindPort: 6443             # 6443 (default)
 nodeRegistration:
   name: a1 ## Default to hostname
-  # imagePullPolicy: IfNotPresent ## Always|Never|IfNotPresent (default)
   criSocket: unix:///var/run/containerd/containerd.sock
-  # taints: null   ## Default taints on control nodes
   taints: []      ## No taints on control nodes
-  # taints:        ## []core/v1.Taint
-  # - key: "kubeadmNode"
-  #   value: "someValue"
-  #   effect: "NoSchedule"
-  # ignorePreflightErrors:
-  # - Mem
-  # kubeletExtraArgs:  
-  ## See kubelet --help
-  ## Some kubeletExtraArgs are exclusive to Standalone mode,
-  ## which is enabled by `kubelet --kubeconfig ...`
-  #   v: "5" 
-  #   pod-cidr: 10.22.0.0/16 
-  #   cgroup-driver: systemd 

@@ -13,7 +13,7 @@ sed -i "s,THIS_NODE_NAME,$(hostname),g" $2 || exit 22
 ip="$(command ip -4 -brief addr show dev $1 |awk '{print $3}' |cut -d'/' -f1)"
 [[ $ip ]] && sed -i "s,THIS_NODE_IP,$ip,g" $2 || exit 22
 
-cat $3
+cat $2
 
 # Join requires valid (ephemeral) PKI.
 kubeadm join -v5 --config $2

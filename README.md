@@ -19,6 +19,7 @@ make install
 make reboot
 # Initialize cluster ( 1st node) 
 make init 
+vi Makefile.settings # Paste key, hash, token
 # Configure client on this admin host
 make kubeconfig 
 # Install CNI Pod/Service network

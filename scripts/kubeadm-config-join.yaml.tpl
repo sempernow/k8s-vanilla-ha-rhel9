@@ -1,9 +1,9 @@
-## kubeadm-config @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/ 
 ---
 ## The JoinConfiguration is IGNORED on init
+## kubeadm-config @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/ 
+## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinConfiguration
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: JoinConfiguration
-## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinConfiguration
 discovery:
   # file XOR bootstrapToken
   file:
