@@ -58,11 +58,8 @@ kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
 ## See https://github.com/mirantis/cri-dockerd 
 ## + https://www.mirantis.com/blog/the-future-of-dockershim-is-cri-dockerd/
 ## + https://mirantis.github.io/cri-dockerd/usage/install/
-#containerRuntimeEndpoint: /var/run/cri-docker.sock                   
+containerRuntimeEndpoint: K8S_CRI_SOCKET
 cgroupDriver: K8S_CGROUP_DRIVER # systemd|cgroupfs
-# containerLogMaxSize: 10Mi 
-# containerLogMaxFiles: 5
-# localStorageCapacityIsolation: true
 ## Node Allocatable
 ## https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/ 
 ## Reserve ample resources for control plane, especially if node is dual use.
@@ -79,9 +76,37 @@ cgroupDriver: K8S_CGROUP_DRIVER # systemd|cgroupfs
 #   - "pods"
 #   - "system-reserved"
 #   - "kube-reserved"
-# evictionHard:
-#   memory.available: "200Mi"
-#   nodefs.available: "10%"
+#clusterDomain: cluster.local
+imageGCHighThresholdPercent: 85
+imageGCLowThresholdPercent: 80
+imageMinimumGCAge: 2m
+evictionHard:
+  nodefs.available: "10%"
+  imagefs.available: "15%"
+  memory.available: "100Mi"
+evictionSoft:
+  nodefs.available: "15%"
+  imagefs.available: "20%"
+evictionSoftGracePeriod:
+  nodefs.available: "1m"
+  imagefs.available: "1m"
+evictionMaxPodGracePeriod: 30
+evictionPressureTransitionPeriod: 30s
+nodeStatusReportFrequency: 10s
+nodeStatusUpdateFrequency: 10s
+runtimeRequestTimeout: 2m
+volumeStatsAggPeriod: 1m
+syncFrequency: 1m
+rotateCertificates: true
+cpuManagerReconcilePeriod: 10s
+fileCheckFrequency: 20s
+httpCheckFrequency: 10s
+logging:
+  flushFrequency: 5s
+  verbosity: 1
+shutdownGracePeriod: 30s
+shutdownGracePeriodCriticalPods: 10s
+streamingConnectionIdleTimeout: 0s
 # ---
 # apiVersion: kubeproxy.config.k8s.io/v1alpha1
 # kind: KubeProxyConfiguration

@@ -43,6 +43,7 @@ kubeadm reset -f 2>/dev/null
 systemctl stop kubelet #|| exit 22
 [[ $(type -t docker) ]] && systemctl stop docker
 systemctl stop containerd #|| exit 33
+rm -rf /run/containerd
 
 # If using etcd in a dedicated directory (for external etcd)
 rm -rf /var/lib/etcd
