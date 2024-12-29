@@ -4,7 +4,7 @@
 #################################################################
 vm_ip(){
     # Print IPv4 address of an ssh-configured Host ($1). 
-    [[ $1 ]] || exit 99
+    [[ $1 ]] || return 99
     echo $(cat ~/.ssh/config |grep -A4 -B2 $1 |grep Hostname |head -n 1 |cut -d' ' -f2)
 }
 
@@ -13,7 +13,7 @@ halb(){
     # Highly Available Load Balancer (HALB) built of HAProxy and Keepalived.
     # Configuration files, haproxy.cfg (LB) and keepalived-*.conf (HA; node failover),
     # are generated from their respective template file (*.tpl).
-    pushd halb 
+    pushd halb || return 111
     # VIP must be static and not assignable by the subnet's DHCP server.
     vip='192.168.0.100' 
     vip6='::ffff:c0a8:64'
@@ -25,8 +25,8 @@ halb(){
     lb_1_ipv4=$(vm_ip ${lb_1_fqdn%%.*})
     lb_2_ipv4=$(vm_ip ${lb_2_fqdn%%.*})
     # Smoke test these gotten node-IP values : Abort on fail
-    [[ $lb_1_ipv4 ]] || { echo 'FAIL @ lb_1_ipv4';exit 22; }
-    [[ $lb_2_ipv4 ]] || { echo 'FAIL @ lb_2_ipv4';exit 22; }
+    [[ $lb_1_ipv4 ]] || { echo 'ERR : @ lb_1_ipv4';return 22; }
+    [[ $lb_2_ipv4 ]] || { echo 'ERR : @ lb_2_ipv4';return 23; }
 
     target=keepalived-check_apiserver.sh
     cp ${target}.tpl $target
@@ -65,18 +65,26 @@ halb(){
 }
 
 kubeconfig(){
-    src='/etc/kubernetes/admin.conf'
-    [[ $K8S_INIT_NODE ]] || { echo 'FAIL : K8S_INIT_NODE is UNSET'; return; }
-    ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} 'sudo cp -p '"$src"' . && sudo chown $(id -u):$(id -g) admin.conf'
+    [[ $K8S_INIT_NODE ]] || { echo 'ERR : K8S_INIT_NODE is UNSET'; return; }
+    ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
+        'sudo cp -p /etc/kubernetes/admin.conf . && sudo chown $(id -u):$(id -g) admin.conf'
     mkdir -p ~/.kube
-    scp -p $K8S_INIT_NODE:admin.conf ~/.kube/
-    [[ -f ~/.kube/config ]] && mv ~/.kube/cofig ~/.kube/config.old
-    cp -p ~/.kube/admin.conf ~/.kube/config
-    chmod 0600 ~/.kube/conf*
-    [[ -d ~/.kube/cache ]] && sudo rm -rf ~/.kube/cache
-    kubectl config set-context --current --namespace kube-system
-    kubectl get no -o wide
-    kubectl get po -o wide
+
+    scp -p $K8S_INIT_NODE:admin.conf ~/.kube/ && {
+
+        target=~/.kube/config
+        [[ -f $target ]] &&
+            mv $target $target.$(date '+%F.%T' |sed s,:,.,g)
+
+        mv ~/.kube/admin.conf $target
+        [[ -d ~/.kube/cache ]] && sudo rm -rf ~/.kube/cache
+        chmod 600 ~/.kube/conf*
+
+        kubectl config set-context --current --namespace kube-system
+        kubectl get no -o wide &&
+            kubectl get po -o wide
+
+    } || echo 'ERR : Failed to pull kubeconfig'
 }
 
 "$@"
