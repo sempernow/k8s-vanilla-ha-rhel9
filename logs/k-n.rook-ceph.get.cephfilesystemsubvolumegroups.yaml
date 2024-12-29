@@ -1,0 +1,31 @@
+apiVersion: v1
+items:
+- apiVersion: ceph.rook.io/v1
+  kind: CephFilesystemSubVolumeGroup
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"ceph.rook.io/v1","kind":"CephFilesystemSubVolumeGroup","metadata":{"annotations":{},"name":"rook-cephfs-csi","namespace":"rook-ceph"},"spec":{"filesystemName":"rook-cephfs","name":"csi","pinning":{"distributed":1}}}
+    creationTimestamp: "2024-12-28T20:25:43Z"
+    finalizers:
+    - cephfilesystemsubvolumegroup.ceph.rook.io
+    generation: 2
+    name: rook-cephfs-csi
+    namespace: rook-ceph
+    resourceVersion: "120039"
+    uid: b5093bba-f937-4690-9f08-a830ca77e8c9
+  spec:
+    dataPoolName: ""
+    filesystemName: rook-cephfs
+    name: csi
+    pinning:
+      distributed: 1
+  status:
+    info:
+      clusterID: 8ce940ea1cf4b8b53b1449301b2d0382
+      pinning: distributed=1
+    observedGeneration: 2
+    phase: Ready
+kind: List
+metadata:
+  resourceVersion: ""
