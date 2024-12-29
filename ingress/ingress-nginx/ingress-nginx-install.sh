@@ -4,7 +4,7 @@
 # - Apply ingress-nginx Ingress Controller configured for kind cluster.
 # - Apply E2E test of Ingress/App
 # -----------------------------------------------------------------------------
-manifest=deploy-ingress-nginx-baremetal.yaml
+manifest=ingress-nginx-baremetal.yaml
 usage=ingress-nginx-usage.yaml
 
 v=v1.11.3
