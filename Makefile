@@ -396,6 +396,9 @@ crictl-images :
 	ansibash sudo crictl images
 images :
 	kubectl get po -A -o jsonpath='{range .items[*]}{.spec.containers[*].image}{"\n"}{end}' |sort -u
+crictl-ready :
+	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl stopp'
+	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl rmp'
 
 metrics metrics-up :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh apply
@@ -433,5 +436,6 @@ teardown : calico-teardown cilium-teardown kuberouter-teardown
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash sudo bash teardown.sh
-	tar -caf kube.tgz ~/.kube/config_* && sudo rm -rf ~/.kube/cache
+	tar -C ~ -caf kube.tgz ~/.kube/config_* --exclude=cache \
+		&& rm -rf ~/.kube/cache
 

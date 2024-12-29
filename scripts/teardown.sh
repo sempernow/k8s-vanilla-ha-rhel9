@@ -45,6 +45,17 @@ systemctl stop kubelet #|| exit 22
 systemctl stop containerd #|| exit 33
 rm -rf /run/containerd
 
+## Delete rook-ceph Network Block Devices 
+# type -t qemu-nbd || dnf install -y qemu-nbd
+# for nbd in /dev/nbd*; do
+#     qemu-nbd --disconnect $nbd
+# done
+## Delete rook-ceph state
+rm -rf /var/lib/rook
+## Wipe rook-ceph block device 
+#rbd=sdb
+#sudo wipefs --all /dev/$rdb && sudo dd if=/dev/zero of=/dev/$rbd bs=1M count=10
+
 # If using etcd in a dedicated directory (for external etcd)
 rm -rf /var/lib/etcd
 
@@ -59,7 +70,8 @@ rem(){
         ' _
 }
 export -f rem
-printf "%s\n" $dev |xargs -n1 /bin/bash -c 'rem $1 2>/dev/null' _
+printf "%s\n" $dev \
+    |xargs -n1 /bin/bash -c 'rem $1 2>/dev/null' _
 
 # Flush iptables : filter, nat, and mangle
 iptables --flush

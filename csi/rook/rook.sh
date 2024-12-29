@@ -41,31 +41,35 @@ up(){
 }
 # https://rook.io/docs/rook/latest-release/Getting-Started/ceph-teardown/#cleaning-up-a-cluster
 down(){
+    # Destroy the data
+    kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
+
     kubectl delete -n rook-ceph cephblockpool replicapool
     kubectl delete storageclass rook-ceph-block
     kubectl delete storageclass csi-cephfs
     pushd examples || return 11
-    for manifest in cluster operator common crds;do
+    for manifest in toolbox object object-user cluster operator common crds;do
         [[ -r $manifest.yaml ]] &&
             kubectl delete -f $manifest.yaml
     done
     popd
+    kubectl delete ns rook-ceph
 }
 host_teardown(){
-    # Working at target node, delete all NDBs (Network Block Device)s
-    type -t qemu-nbd || dnf install -y qemu-nbd
-    for nbd in /dev/nbd*; do
-        qemu-nbd --disconnect $nbd
-    done
+    # Working at TARGET NODEs, delete all NDBs (Network Block Device)s
+    #type -t qemu-nbd || dnf install -y qemu-nbd
+    #for nbd in /dev/nbd*; do
+    #    qemu-nbd --disconnect $nbd
+    #done
     # Delete state
     rm -rf /var/lib/rook
 
     # Wipe block device 
-    #rbd=sdb
-    #sudo wipefs --all /dev/sdb && sudo dd if=/dev/zero of=/dev/${rbd} bs=1M count=10
+    rbd=sdb
+    sudo wipefs --all /dev/sdb && sudo dd if=/dev/zero of=/dev/${rbd} bs=1M count=10
 }
 
-pushd ${BASH_SOURCE%/*} || exit 1
+pushd ${BASH_SOURCE%/*} || pushd . || exit 1
 "$@" || code=$?
 popd
 [[ $code ]] && echo " ERR : $code" || echo
