@@ -1,6 +1,7 @@
 ---
 # Block (Device) Storage (rbd)
 # https://rook.github.io/docs/rook/latest-release/Storage-Configuration/Block-Storage-RBD/block-storage/#provision-storage
+# https://github.com/rook/rook/blob/release-1.16/deploy/examples/csi/rbd/storageclass.yaml
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:

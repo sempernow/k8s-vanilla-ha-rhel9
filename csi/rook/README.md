@@ -268,11 +268,33 @@ Connection to 192.168.11.100 closed.
 
 ## [Storage](https://rook.github.io/docs/rook/latest-release/Getting-Started/quickstart/#storage) | [Setting up consumable storage](https://rook.github.io/docs/rook/latest-release/Getting-Started/example-configurations/#setting-up-consumable-storage)
 
-- __Block__ : Create block storage (RADOS Block Device) to be consumed by a pod (__RWO__)
+Manifests : See [__Example Configurations__](https://rook.github.io/docs/rook/latest-release/Getting-Started/example-configurations)
+
+See `deploy/examples` :
+
+```bash
+v=1.16.0
+git clone --single-branch --branch v$v https://github.com/rook/rook.git
+```
+
+- __RBD__ (RADOS __Block Device__) : Create attachable block device to be consumed by a Pod.
+    - Allows __RWO__ access; mount at one or more Pods, but only at __one node__.
     - [__`storageclass-rbd.yaml`__](storageclass-rbd.yaml)
-- __Shared Filesystem__ : Create a filesystem to be shared across multiple pods (__RWX__)
+- __CephFS__ (__Shared Filesystem__) : Create a POSIX filesystem to be shared across multiple Pods and Nodes.
+    - Allows __RWX__ access; mount at one or more Pods across __multiple nodes__.
     - [__`storageclass-cephfs.yaml`__](storageclass-cephfs.yaml)
-- __Object__ : Create an object store that is accessible with an S3 endpoint inside or outside the Kubernetes cluster
+- __S3__ (__Object Storage Device__) : Create an S3-compatible object store (OSD) having an entrypoint inside or outside the K8s cluster.
+
+### RBD vs CephFS
+
+|Feature|RBD|CephFS|
+|--|--|--|
+|Type|Block storage|File storage|
+|Access|Single-node (RWO)|Multi-node (RWX)|
+|Use Cases|Databases, VMs, K8s PVCs|Shared FS, logs|
+|Protocol|Block-level access (iSCSI-like)|POSIX-compliant file system|
+
+CephFS functions much like NFS
 
 ### Block Storage : [RADOS Block Device (`RBD`)](https://rook.github.io/docs/rook/latest-release/Storage-Configuration/Block-Storage-RBD/block-storage/#provision-storage)
 
@@ -281,7 +303,11 @@ These provide `ReadWrinteOnce` (RWO) `accessMode`.
 
 Before Rook can provision storage, a `StorageClass` and `CephBlockPool` CR need to be created. This will allow Kubernetes to interoperate with Rook when provisioning persistent volumes. The storage class is defined with a Ceph pool which defines the level of data redundancy in Ceph:
 
-See [__`storageclass-rbd.yaml`__](storageclass-rbd.yaml)
+```bash
+k apply -f storageclass-rbd.yaml
+```
+- [__`storageclass-rbd.yaml`__](storageclass-rbd.yaml)
+
 
 
 ```bash
@@ -436,12 +462,10 @@ bar
 
 Ceph provides  `ReadWriteMany` (RWX) `accessMode` to a shared POSIX filesystem (CephFS) folder at more application pods. This storage is __similar to NFS__ shared storage or CIFS shared folders.
 
-[__`storageclass-cephfs.yaml`__](storageclass-cephfs.yaml)
-
-
 ```bash
 k apply -f storageclass-cephfs.yaml
 ```
+- [__`storageclass-cephfs.yaml`__](storageclass-cephfs.yaml)
 
 Test
 
@@ -518,6 +542,12 @@ Disk stats (read/write):
   rbd0: ios=973/0, sectors=1992704/0, merge=0/0, ticks=3340/0, in_queue=3340, util=95.28%
 ```
 
+
+### [Object Storage Device](https://rook.github.io/docs/rook/latest-release/Getting-Started/example-configurations/#object-storage) | [Overview](https://rook.github.io/docs/rook/latest-release/Storage-Configuration/Object-Storage-RGW/object-storage/) | [CephObjectStore CRD](https://rook.github.io/docs/rook/latest-release/CRDs/Object-Storage/ceph-object-store-crd/#example-debugging)
+
+Object storage exposes an S3 API and or a Swift API to the storage cluster for applications to put and get data.
+
+See [__`object.yaml`__](examples/object.yaml)
 
 ## [Ceph Dashboard](https://rook.github.io/docs/rook/latest-release/Storage-Configuration/Monitoring/ceph-dashboard/)
 

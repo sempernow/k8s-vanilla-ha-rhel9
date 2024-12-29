@@ -2,27 +2,54 @@
 
 up(){
     # Install Rook
-    v=v1.16.0
     # https://rook.github.io/docs/rook/latest-release/Getting-Started/quickstart/#prerequisites
-    [[ $(type -t git) ]] || exit 111
-    #git clone --single-branch --branch $v https://github.com/rook/rook.git
+    [[ $(type -t git) ]] || exit 11
+    v=1.16.0
+    manifests='
+        crds
+        common
+        operator
+        cluster
+        toolbox
+        dashboard-external-http
+        dashboard-external-https
+        dashboard-ingress-https
+        dashboard-loadbalancer
+        object
+        object-user
+    '
+    [[ -d examples ]] || {
+        mkdir -p examples/csi/rbd
+        # https://github.com/rook/rook/blob/release-1.16/deploy/examples
+        git clone --single-branch --branch v$v https://github.com/rook/rook.git
+        printf "%s\n" $manifests |xargs -n1 /bin/bash -c '
+            cp -p rook/deploy/examples/$1.yaml examples/$1.yaml
+        ' _
+        [[ -d rook/.git ]] && rm -rf rook
+    }
+    pushd examples || return 22
     kubectl create -f crds.yaml -f common.yaml -f operator.yaml
     kubectl create -f cluster.yaml
-    
-    [[ -r toolbox.yaml ]] ||
-        curl -sSLO https://raw.githubusercontent.com/rook/rook/master/deploy/examples/toolbox.yaml
-    k apply -f toolbox.yaml
+    kubectl create -f object.yaml -f object-user.yaml
+    kubectl apply -f toolbox.yaml
+
+    popd 
+    # RBD : example/csi/rbd/storageclass.yaml
+    kubectl apply -f storageclass-rbd.yaml 
+    # CephFS : example/filesystem.yaml
+    kubectl apply -f storageclass-cephfs.yaml 
 }
 # https://rook.io/docs/rook/latest-release/Getting-Started/ceph-teardown/#cleaning-up-a-cluster
 down(){
     kubectl delete -n rook-ceph cephblockpool replicapool
     kubectl delete storageclass rook-ceph-block
     kubectl delete storageclass csi-cephfs
+    pushd examples || return 11
     for manifest in cluster operator common crds;do
         [[ -r $manifest.yaml ]] &&
             kubectl delete -f $manifest.yaml
     done
-    echo 
+    popd
 }
 host_teardown(){
     # Working at target node, delete all NDBs (Network Block Device)s

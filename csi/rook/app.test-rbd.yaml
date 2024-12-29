@@ -29,6 +29,8 @@ spec:
 #        claimName: test-rbd
 #        readOnly: false
 ---
+# Though DaemonSet, expect only one Pod (due to RWO access), 
+# and those of all other nodes having status "Pending".
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
