@@ -64,7 +64,7 @@ kubectl proxy # K8s API @ http://127.0.0.1:8001 (Blocks)
 curl http://127.0.0.1:8001/healthz #> ok
 ```
 
-## Delete/Rejoin Node
+## Delete/Rejoin Nodes of Control Plane
 
 Say we modify Pod CIDR at a control node :
 
@@ -82,6 +82,16 @@ spec:
     - --node-cidr-mask-size=20
     ...
 ```
+
+To be sure, applying modifications of Static Pod manifest(s) does not typically require `drain`/`delete`/`join` of (control-plane) nodes. However, some changes require it:
+
+- Pod CIDR Allocations
+    - Existing nodes will not adopt changes to Pod CIDR, 
+      whether declared by modifying manifests or otherwise.
+- Control-Plane Certificates 
+    - If expired or improperly rotated, 
+      rejoining nodes may be necessary.
+- Adding New Control-Plane Nodes.
 
 ### 1. Generate new key, hash and token: 
 
