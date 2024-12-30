@@ -1,4 +1,4 @@
-# [Ingress-NGINX Controller](https://kubernetes.github.io/ingress-nginx/deploy/#bare-metal-clusters "kubernetes.github.io") | [Releases](https://github.com/kubernetes/ingress-nginx/releases)
+# [Ingress-NGINX Controller](https://kubernetes.github.io/ingress-nginx/deploy/#bare-metal-clusters "kubernetes.github.io") | [Releases](https://github.com/kubernetes/ingress-nginx/releases) | [Configuration](https://github.com/kubernetes/ingress-nginx/blob/main/docs/user-guide/nginx-configuration/index.md)
 
 
 ## `Ingress` : Rewrite ([`rewrite-target`](https://github.com/kubernetes/ingress-nginx/blob/main/docs/examples/rewrite/README.md "github.com/kubernetes/ingress-nginx")) Syntax
@@ -93,7 +93,7 @@ __before it is sent upstream__.
 ## Deploy (DaemonSet) : Baremetal (On-prem) Configuration
 
 
-@ [__`deploy-ingress-nginx-baremetal.yaml`__](deploy-ingress-nginx-baremetal.yaml)
+@ [__`ingress-nginx-baremetal.yaml`__](ingress-nginx-baremetal.yaml)
 
 Use this configuration __for on-prem clusters__, 
 whether the hosts are "baremetal" (physical sever) or on a hypervisor. 
@@ -102,7 +102,7 @@ whether the hosts are "baremetal" (physical sever) or on a hypervisor.
 # https://github.com/kubernetes/ingress-nginx/releases
 v=1.11.3
 url=https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v$v/deploy/static/provider/baremetal/deploy.yaml
-manifest=deploy-ingress-nginx-baremetal.yaml
+manifest=ingress-nginx-baremetal.yaml
 curl -sSL -o $manifest $url
 
 kubectl apply -f $manifest

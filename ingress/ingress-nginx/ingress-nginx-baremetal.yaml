@@ -416,12 +416,12 @@ spec:
       app.kubernetes.io/component: controller
       app.kubernetes.io/instance: ingress-nginx
       app.kubernetes.io/name: ingress-nginx
-  ## @ Deployment
-  # strategy:
-  #   type: RollingUpdate
-  #   rollingUpdate:
-  #     maxUnavailable: 1
-  ## @ DaemonSet
+    ## @ Deployment
+    # strategy:
+    #   type: RollingUpdate
+    #   rollingUpdate:
+    #     maxUnavailable: 1
+    ## @ DaemonSet
     updateStrategy:
       type: RollingUpdate
       rollingUpdate:
