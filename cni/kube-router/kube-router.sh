@@ -45,7 +45,7 @@ _teardown(){
     kubectl delete -f $POD
 }
 
-pushd ${BASH_SOURCE%/*} || exit 1
+pushd ${BASH_SOURCE%/*} || pushd . || exit 1
 "$@" || code=$?
 popd
 [[ $code ]] && echo " ERR : $code" || echo

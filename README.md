@@ -64,6 +64,49 @@ kubectl proxy # K8s API @ http://127.0.0.1:8001 (Blocks)
 curl http://127.0.0.1:8001/healthz #> ok
 ```
 
+## Delete/Rejoin Node
+
+Say we modify Pod CIDR at a control node :
+
+```bash
+sudo vi /etc/kubernetes/manifests/kube-controller-manager.yaml
+```
+```yaml
+spec:
+  containers:
+  - command:
+    - kube-controller-manager
+    ...
+    - --allocate-node-cidrs=true
+    - --cluster-cidr=10.22.0.0/16
+    - --node-cidr-mask-size=20
+    ...
+```
+
+### 1. Generate new key, hash and token: 
+
+See [`scripts/kubeadm-join-certs.sh`](scripts/kubeadm-join-certs.sh)
+
+```bash
+echo |tee Makefile.settings
+make join-certs
+make join-prep
+```
+
+### 2. Drain/Delete/Join
+
+For each control node:
+
+```bash
+no=a1
+# Delete
+kubectl drain $no --delete-local-data --force --ignore-daemonsets
+kubectl delete node $no
+# Join
+ssh u1@$no sudo kubeadm join --config kubeadm-config-join.yaml
+
+```
+
 ## Remove taint 
 
 ```bash

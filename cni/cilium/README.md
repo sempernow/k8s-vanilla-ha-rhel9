@@ -39,14 +39,13 @@ ok(){
     rm -rf $chart
     popd
 }
-ok || echo '=== FAILed'
+ok
 
 ```
 
 ## [Install](https://chatgpt.com/c/6749a5f4-ad00-8009-9166-ad815bc10bfc "ChatGPT")
 
 Both methods are of Helm chart
-
 
 ### CLI method
 
