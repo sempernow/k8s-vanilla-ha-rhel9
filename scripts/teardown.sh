@@ -103,12 +103,16 @@ rm -rf /var/{lib,run}/{cni,calico,cilium,kube-router}
 # Clear remaining kubelet files
 rm -rf /var/lib/kubelet
 
+systemctl start containerd
 # Last resort to delete all pods : delete entire containerd store.
 # (This deletes all pulled/cached images too.)
-[[ $(crictl pods |grep -v NAME) ]] && rm -rf /var/lib/containerd
+[[ "$(crictl pods |grep -v NAME)" ]] && {
+    systemctl stop containerd
+    sleep 3
+    rm -rf /var/lib/containerd
+    systemctl start containerd
+}
 # rm -rf /var/lib/docker
 # rm -rf /var/lib/containerd
-
-systemctl start containerd
 [[ $(type -t docker) ]] && systemctl start docker
 systemctl start kubelet

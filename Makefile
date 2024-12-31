@@ -74,10 +74,13 @@ export K8S_CONTROL_PLANE_IP   ?= 192.168.11.101
 export K8S_CONTROL_PLANE_PORT ?= 6443
 export K8S_NETWORK_DEVICE     ?= eth0
 export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
-export K8S_SERVICE_CIDR       ?= 10.32.0.0/16
-#export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
-export K8S_POD_CIDR           ?= 10.22.0.0/16
-#export K8S_POD_CIDR           ?= 10.244.0.0/16
+## CNI projects notoriously ignore custom CIDRs : Even masks (/16 v. /24) are a shaky proposition
+#export K8S_SERVICE_CIDR       ?= 10.32.0.0/16
+export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
+#export K8S_POD_CIDR           ?= 10.22.0.0/16
+export K8S_POD_CIDR           ?= 10.244.0.0/16
+# UNUSED : Don't even bother : CNIs will ignore
+export K8S_NODE_CIDR_MASK     ?= 20
 export K8S_CRI_SOCKET         ?= unix:///var/run/containerd/containerd.sock
 export K8S_CGROUP_DRIVER      ?= systemd
 ## PKI : See Makefile.settings : Values are generated ONLY IF NOT EXIST
@@ -142,6 +145,9 @@ menu :
 	@echo "csi-local    : Install local-path-provisioner"
 	@echo "csi-rook-up  : Install Rook Operator / Ceph "
 	@echo "csi-rook-down: Teardown Rook Operator / Ceph "
+	@echo "============== "
+	@echo "efk-up       : Install EFK stack"
+	@echo "efk-down     : Teardown EFK stack"
 	@echo "============== "
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 
@@ -268,9 +274,12 @@ init-imperative :
 
 # @ init-certs phase : config (K8S_KUBEADM_CONF_INIT) must NOT have PKI
 # @ final init phase : config (K8S_KUBEADM_CONF_INIT) may have PKI, but ours does not.
-init : init-gen init-push init-images init-pre init-now
-	@echo Populate K8S_CERTIFICATE_KEY and K8S_BOOTSTRAP_TOKEN @ Makefile.settings 
-init-gen :
+
+init : init-purge init-gen init-push init-images init-pre init-now
+	@echo === Get kubeconfig and set K8S_CERTIFICATE_KEY @ Makefile.settings prior to join-gen
+init-purge :
+	bash ${ADMIN_SRC_DIR}/scripts/makefile-settings-purge.sh
+init-gen : 
 	bash ${ADMIN_SRC_DIR}/scripts/kubeadm-config-gen.sh ${K8S_KUBEADM_CONF_INIT} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-gen.log
 init-push :
@@ -283,7 +292,7 @@ init-images :
 			--kubernetes-version ${K8S_VERSION} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-images.log
 ## Generate cluster PKI (if not exist) : Cleanup old settings
-# The config (K8S_KUBEADM_CONF_INIT) must NOT have PKI
+## This K8S_KUBEADM_CONF_INIT must NOT have PKI (key, hash, token)
 init-certs :
 	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh \
 		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
@@ -301,7 +310,7 @@ init-now :
 			--upload-certs \
 			--config ${K8S_KUBEADM_CONF_INIT} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-now.log
-		
+
 kubeconfig :
 	bash make.recipes.sh kubeconfig
 
@@ -329,8 +338,7 @@ cilium-helm-teardown :
 
 calico : calico-operator
 calico-operator :
-	kubectl create -f ${ADMIN_SRC_DIR}/cni/calico/operator-method/tigera-operator.yaml
-	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/operator-method/custom-resources-bpf-bgp.yaml
+	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh 
 calico-manifest :
 	kubectl create -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
@@ -342,6 +350,7 @@ calico-teardown :
 	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
 
+## Makefile.settings must have valid K8S_CERTIFICATE_KEY 
 join-control : join-prep
 	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
 		ansibash sudo bash join-control.sh \
@@ -432,11 +441,15 @@ csi-rook-down :
 	ansibash sudo bash ./rook.sh host_teardown
 	ansibash 'sudo wipefs --all /dev/${rbd} && sudo dd if=/dev/zero of=/dev/${rbd} bs=1M count=10'
 
+efk-up :
+	bash ${ADMIN_SRC_DIR}/observability/logging/efk/efk.sh apply
+efk-down :
+	bash ${ADMIN_SRC_DIR}/observability/logging/efk/efk.sh delete
+
 teardown : calico-teardown cilium-teardown kuberouter-teardown 
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash sudo bash teardown.sh
-	tar -C ~ -caf kube.tgz ~/.kube/config_* --exclude=cache \
+	tar -C ~ --exclude=cache -caf kube.tgz ~/.kube/config_* \
 		&& rm -rf ~/.kube/cache
-

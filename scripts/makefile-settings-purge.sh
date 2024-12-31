@@ -1,4 +1,7 @@
+#!/usr/bin/env bash
+cat <<-EOH |tee Makefile.settings
 ## This file is DYNAMICALLY GENERATED at make recipes
-export K8S_CERTIFICATE_KEY ?= 5a3af8785c6fd618616a071bcd329ce5d93e4be6a443e9d7a25d2b1eaa647af8
+export K8S_CERTIFICATE_KEY ?=
 export K8S_CA_CERT_HASH    ?=
 export K8S_BOOTSTRAP_TOKEN ?=
+EOH

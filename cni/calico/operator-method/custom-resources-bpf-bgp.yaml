@@ -23,7 +23,7 @@ spec:
     # flexVolumePath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
 
     ipPools:
-    - cidr: 10.244.0.0/24   # Pod CIDR
+    - cidr: 10.244.0.0/16   # K8S_POD_CIDR
       encapsulation: None   # "IPIPCrossSubnet", "IPIP", "VXLAN", "VXLANCrossSubnet", "None"
       natOutgoing: Enabled  # Enable NAT for outbound traffic.
       nodeSelector: all()   # Apply to all nodes.

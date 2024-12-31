@@ -69,10 +69,10 @@ tunnelProtocol: vxlan
 
 ```
 
-@ [`values.yaml](values.yaml)
+@ [`cilium.values.yaml](cilium.values.yaml)
 
 ```bash
-cilium install --kubeconfig ~/.kube/config --values values.yaml
+cilium install --kubeconfig ~/.kube/config --values cilium.values.yaml
 ```
 ```bash
 ☩ kw
@@ -94,7 +94,7 @@ sysdump-7bs6q                      1/1     Terminating         0             40s
 
 ```bash
 app=cilium
-ver=1.16.4
+ver=1.16.5
 values=values.yaml
 tar -xaf ${app}-$ver.tgz &&
     helm upgrade --install -f $values $app $app/ &&

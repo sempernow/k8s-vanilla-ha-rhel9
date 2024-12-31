@@ -93,6 +93,9 @@ To be sure, applying modifications of Static Pod manifest(s) does not typically 
       rejoining nodes may be necessary.
 - Adding New Control-Plane Nodes.
 
+__UPDATE__ : __This ChatGPT scheme__ is internally inconsitent, 
+and therefore not trustworthy.
+
 ### 1. Generate new key, hash and token: 
 
 See [`scripts/kubeadm-join-certs.sh`](scripts/kubeadm-join-certs.sh)
@@ -101,6 +104,19 @@ See [`scripts/kubeadm-join-certs.sh`](scripts/kubeadm-join-certs.sh)
 echo |tee Makefile.settings
 make join-certs
 make join-prep
+```
+
+Add/Edit @ `/etc/kubernetes/kube-controller-manager-config.yaml`
+
+```yaml
+---
+apiVersion: kubecontrollermanager.config.k8s.io/v1alpha1
+kind: KubeControllerManagerConfiguration
+## https://kubernetes.io/docs/reference/config-api/kube-controller-manager-config.v1alpha1/#kubecontrollermanager-config-k8s-io-v1alpha1-KubeControllerManagerConfiguration
+nodeIPAMController:
+  podCIDR: K8S_POD_CIDR
+  serviceCIDR: K8S_SERVICE_CIDR
+  nodeCIDRMaskSize: K8S_NODE_CIDR_MASK
 ```
 
 ### 2. Drain/Delete/Join
@@ -112,6 +128,13 @@ no=a1
 # Delete
 kubectl drain $no --delete-local-data --force --ignore-daemonsets
 kubectl delete node $no
+ssh -tt u1@$no /bin/bash -c '
+    sudo rm -rf /etc/kubernetes/manifests/*
+    sudo rm -rf /var/lib/kubelet/*
+    sudo rm -rf /var/lib/etcd/*
+'
+#... !!! so can't edit to include the target changes (Node CIDR mask) !!!
+
 # Join
 ssh u1@$no sudo kubeadm join --config kubeadm-config-join.yaml
 

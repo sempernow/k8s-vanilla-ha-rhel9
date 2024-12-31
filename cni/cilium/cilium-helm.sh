@@ -2,14 +2,18 @@
 APP=cilium
 
 _install(){
-
-    pushd "${BASH_SOURCE%/*}"
-    ver=1.16.4
+    v=1.16.5
     values=values.yaml
-
-    tar -xaf ${APP}-$ver.tgz &&
+    
+    pushd "${BASH_SOURCE%/*}" || pushd . || return 11
+    [[ -r ${APP}-$v.tgz ]] || {
+        helm repo update $APP
+        helm pull $APP/$APP
+    }
+    tar -xaf ${APP}-$v.tgz &&
         helm upgrade --install -f $values $APP $APP/ &&
-            rm -rf $APP
+            kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"not-kuberouter": "true"}}}}}' &&
+                rm -rf $APP
 
     code=$?
     popd
@@ -18,7 +22,16 @@ _install(){
 
 _teardown(){
     helm -n kube-system uninstall $APP
-    $APP uninstall
+    $APP uninstall || echo ERR : $APP $FUNCNAME : $?
 }
 
-"$@"
+"$@" || echo ERR : $?
+
+exit
+####
+
+
+# Remove patch : restore kube-proxy
+kubectl patch ds -n kube-system kube-proxy --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/not-kuberouter"}]'
+
+#FAIL : kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{}}}}}'

@@ -42,7 +42,7 @@ _install(){
 }
 _teardown(){
     kubectl delete -f $ALL
-    kubectl delete -f $POD
+    kubectl delete -f $POD || echo ERR : kube-router $FUNCNAME : $?
 }
 
 pushd ${BASH_SOURCE%/*} || pushd . || exit 1

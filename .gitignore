@@ -1,4 +1,4 @@
 *.log
 *.html
 **/LOG.*
-kube.tgz
+*.tgz
