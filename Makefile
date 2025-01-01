@@ -58,7 +58,7 @@ export ANSIBASH_USER        ?= ${ADMIN_USER}
 
 ## Configurations : https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/
 ## K8s RELEASEs https://kubernetes.io/releases/
-export K8S_CLUSTER_NAME       ?= lime3
+export K8S_CLUSTER_NAME       ?= lime
 export K8S_VERSION            ?= 1.29.6
 export K8S_PROVISIONER        ?= ${ADMIN_USER}
 export K8S_PROVISIONER_KEY    ?= ${GITIPS_KEY}
@@ -79,8 +79,10 @@ export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_POR
 export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
 #export K8S_POD_CIDR           ?= 10.22.0.0/16
 export K8S_POD_CIDR           ?= 10.244.0.0/16
+# @ Cilium eBPF mode
+#export K8S_POD_CIDR           ?= 10.0.0.0/8
 # UNUSED : Don't even bother : CNIs will ignore
-export K8S_NODE_CIDR_MASK     ?= 20
+#export K8S_NODE_CIDR_MASK     ?= 20
 export K8S_CRI_SOCKET         ?= unix:///var/run/containerd/containerd.sock
 export K8S_CGROUP_DRIVER      ?= systemd
 ## PKI : See Makefile.settings : Values are generated ONLY IF NOT EXIST
@@ -184,19 +186,23 @@ scan :
 
 # Smoke test this setup
 status hello :
-	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+	@ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash 'printf "%12s: %s\n" Host $$(hostname) \
-		&& printf "%12s: %s\n" User $$(id -un) \
-		&& printf "%12s: %s\n" Kernel $$(uname -r) \
-		&& printf "%12s: %s\n" firewalld $$(systemctl is-active firewalld.service) \
-		&& printf "%12s: %s\n" SELinux $$(getenforce) \
-		&& printf "%12s: %s\n" containerd $$(systemctl is-active containerd) \
-		&& printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
-	'
+			&& printf "%12s: %s\n" User $$(id -un) \
+			&& printf "%12s: %s\n" Kernel $$(uname -r) \
+			&& printf "%12s: %s\n" firewalld $$(systemctl is-active firewalld.service) \
+			&& printf "%12s: %s\n" SELinux $$(getenforce) \
+			&& printf "%12s: %s\n" containerd $$(systemctl is-active containerd) \
+			&& printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
+		'
 
 network net ip:
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash ip -brief addr
+		&& ansibash '\
+			ip -brief addr; \
+			sudo iptables -L -n -v; \
+			sudo nft list ruleset \
+		'
 
 psrss :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
@@ -338,17 +344,30 @@ cilium-helm-teardown :
 
 calico : calico-operator
 calico-operator :
-	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh 
+	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh apply
 calico-manifest :
 	kubectl create -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
 	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.calico.log
 calico-teardown :
-	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.calico.log
-	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
+	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh teardown
+
+kubeproxy-cleanup :
+	kubectl patch ds -n kube-system kube-proxy \
+		-p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico": "true"}}}}}' || echo 
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		ansibash -u scripts/kube-proxy-cleanup.sh
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		ansibash sudo bash kube-proxy-cleanup.sh
+kubeproxy-restore :
+	kubectl patch ds -n kube-system kube-proxy \
+    --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/non-calico"}]'
+
+# kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
+# 	|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.calico.log
+# kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
+# 	|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
 
 ## Makefile.settings must have valid K8S_CERTIFICATE_KEY 
 join-control : join-prep
@@ -446,10 +465,11 @@ efk-up :
 efk-down :
 	bash ${ADMIN_SRC_DIR}/observability/logging/efk/efk.sh delete
 
-teardown : calico-teardown cilium-teardown kuberouter-teardown 
+teardown : calico-teardown cilium-teardown kuberouter-teardown
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash sudo bash teardown.sh
 	tar -C ~ --exclude=cache -caf kube.tgz ~/.kube/config_* \
-		&& rm -rf ~/.kube/cache
+		&& rm -rf ~/.kube/cache \
+		mv ~/.kube/config ~/.kube/config.$(shell date '+%F.%T' |sed s,:,.,g) || echo

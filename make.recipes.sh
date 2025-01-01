@@ -82,7 +82,7 @@ kubeconfig(){
 
         kubectl config set-context --current --namespace kube-system
         kubectl get no -o wide &&
-            kubectl get po -o wide -A -w
+            kubectl get po -o wide -A
 
     } || echo 'ERR : Failed to pull kubeconfig'
 }

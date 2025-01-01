@@ -1,5 +1,10 @@
 # [Cilium](https://github.com/cilium/cilium)
 
+## TL;DR 
+
+The only reason to attempt Cilium is for its DirectPath mode, but that is a black hole of man hours with its labyrinth of undocumented parameters, and in the end is far too brittle to be useful for anything but as a toy. Moreover, Calico's performant mode is as fast by `iperf3` metrics, and installs everywhere without issue.
+
+
 ## Download 
 
 ```bash
@@ -153,21 +158,8 @@ the __Direct Datapath__ is usually the industry recommendation.
 Query 
 
 ```bash
-cilium config view | grep tunnel
+cilium config view |grep tunnel
 ```
 - If `tunnel` is set to `vxlan` or `geneve`, it’s __Encapsulated__.
 - If `tunnel` is set to `disabled`, it’s __Direct__.
 
-Verify Cilium's load balancing configuration:
-
-```bash
-cilium service list
-cilium bpf lb list
-```
-
-
-Test before/after
-
-```bash
-iperf3 
-``

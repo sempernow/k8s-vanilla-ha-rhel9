@@ -21,16 +21,18 @@ rm $manifests/kube-apiserver.yaml &&
         sleep 10
 
 # Delete residual Pods
+[[ $(systemctl is-active containerd) == 'active' ]] ||
+    systemctl start containerd
 obj="$(sudo crictl pods -q)"
 echo "$obj" |xargs -I{} crictl stopp {}
 echo "$obj" |xargs -I{} crictl rmp {}
-[[ $obj ]] && echo 'RESIDUAL Pods' && sleep 10
+[[ $obj ]] && echo 'RESIDUAL Pods' && sleep 3
 
 # Delete residual containers
 obj="$(sudo crictl ps -q)"
 echo "$obj" |xargs -I{} crictl stop {}
 echo "$obj" |xargs -I{} crictl rm {}
-[[ $obj ]] && echo 'RESIDUAL containers' && sleep 10
+[[ $obj ]] && echo 'RESIDUAL containers' && sleep 3
 
 # Delete CRDs
 kubectl get crds |grep -v NAME |cut -d' ' -f1 \
@@ -73,25 +75,35 @@ export -f rem
 printf "%s\n" $dev \
     |xargs -n1 /bin/bash -c 'rem $1 2>/dev/null' _
 
+systemctl disable --now firewalld
+#systemctl stop iptables
+systemctl disable --now nftables
+
 # Flush iptables : filter, nat, and mangle
-iptables --flush
-iptables --delete-chain
-iptables -t nat --flush
-iptables -t nat --delete-chain
-iptables -t mangle --flush
-iptables -t mangle --delete-chain
+# iptables --flush
+# iptables --delete-chain
+# iptables -t nat --flush
+# iptables -t nat --delete-chain
+# iptables -t mangle --flush
+# iptables -t mangle --delete-chain
 
 # Cleanup nftables
-cni='cali cilium kube'
-for name in $cni;do
-    nft list table ip raw \
-        |grep -io "chain $name-[^ ]*" \
-        |awk '{print $2}' \
-        |xargs -I{} nft delete chain ip raw "{}"
-done 
+#nft flush ruleset
+cni='cni cali cilium kube'
+tables='raw nat filter'
+for table in $tables; do
+    for name in $cni; do
+        nft list table ip $table \
+            |grep -io "chain $name-[^ ]*" \
+            |awk '{print $2}' \
+            |xargs -I{} nft delete chain ip $table "{}"
+    done
+done
 # Persist 
 #nft list ruleset > /etc/nftables.conf
-#systemctl restart nftables
+#systemctl enable --now firewalld
+#systemctl stop iptables
+systemctl enable --now nftables
 
 # Clear IPVS tables
 [[ $(type -t ipvsadm) ]] && ipvsadm --clear

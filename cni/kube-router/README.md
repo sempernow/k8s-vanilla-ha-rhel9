@@ -24,6 +24,8 @@ pod/nbox created
 [  5]   0.00-10.00  sec  6.87 GBytes  5.90 Gbits/sec                  receiver
 ```
 
+That's as fast as either Calico or Cilium, with the exception of Cilium's DirectPath mode having a labyrinth of undocumented parameters and is far too brittle to be useful for anything but as a toy.
+
 ## Node tools
 
 View 
