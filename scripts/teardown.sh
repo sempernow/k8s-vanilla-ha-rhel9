@@ -2,18 +2,23 @@
 
 [[ "$(whoami)" == 'root' ]] || exit 11
 
-[[ -f ~/.kube/config ]] ||
-    export KUBECONFIG=/etc/kubernetes/admin.conf
+[[ -r ~/.kube/config ]] &&
+    export KUBECONFIG=~/.kube/config ||
+        export KUBECONFIG=/etc/kubernetes/admin.conf
+[[ $(kubectl config get-contexts --no-headers) ]] && {
+    helm list -A 2>&1 \
+        |grep -ve WARN -ve NAME \
+        |xargs -IX /bin/bash -c 'helm uninstall -n $2 $1' _ X
 
-helm list -A 2>&1 \
-    |grep -ve WARN -ve NAME \
-    |xargs -IX /bin/bash -c 'helm uninstall -n $2 $1' _ X
+    kubectl get no |grep -v NAME |cut -d' ' -f1 \
+        |xargs -I{} kubectl drain --ignore-daemonsets=true {}
 
-kubectl get no |grep -v NAME |cut -d' ' -f1 \
-    |xargs -I{} kubectl drain --ignore-daemonsets=true {}
+    kubectl get no |grep -v NAME |cut -d' ' -f1 \
+        |xargs -I{} kubectl cordon {}
 
-kubectl get no |grep -v NAME |cut -d' ' -f1 \
-    |xargs -I{} kubectl cordon {}
+    kubectl get crds |grep -v NAME |cut -d' ' -f1 \
+        |xargs -I{} kubectl delete crds {}
+}
 
 manifests=/etc/kubernetes/manifests
 rm $manifests/kube-apiserver.yaml &&
@@ -26,17 +31,13 @@ rm $manifests/kube-apiserver.yaml &&
 obj="$(sudo crictl pods -q)"
 echo "$obj" |xargs -I{} crictl stopp {}
 echo "$obj" |xargs -I{} crictl rmp {}
-[[ $obj ]] && echo 'RESIDUAL Pods' && sleep 3
+[[ $obj ]] && sleep 3
 
 # Delete residual containers
 obj="$(sudo crictl ps -q)"
 echo "$obj" |xargs -I{} crictl stop {}
 echo "$obj" |xargs -I{} crictl rm {}
-[[ $obj ]] && echo 'RESIDUAL containers' && sleep 3
-
-# Delete CRDs
-kubectl get crds |grep -v NAME |cut -d' ' -f1 \
-    |xargs -I{} kubectl delete crds {}
+[[ $obj ]] && sleep 3
 
 # Reset kubeadm installed state
 kubeadm reset -f 2>/dev/null

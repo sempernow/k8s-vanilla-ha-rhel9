@@ -124,10 +124,10 @@ menu :
 	@echo "============== "
 	@echo "kubeconfig 	: Configure the client"
 	@echo "============== "
-	@echo "cilium       : Install Cilium CNI for Pod Network "
-	@echo "calico       : Install Calico CNI for Pod Network"
-	@echo "kuberouter-install  : kube-router install"
-	@echo "kuberouter-teardown : kube-router teardown"
+	@echo "cilium       : Install Cilium"
+	@echo "calico       : Install Calico"
+	@echo "kuberouter   : Install Kube Router"
+	@echo "  -teardown  : Per-CNI teardown"
 	@echo "============== "
 	@echo "join-control : Join all other control-plane nodes into cluster"
 	@echo "  -prep      : join-certs join-gen join-push"
@@ -325,7 +325,7 @@ kubeconfig :
 	bash make.recipes.sh kubeconfig
 
 ## _install [replace_kube_proxy|pod_ntwk_only] : Default is replace else pod on fail
-kuberouter-install :
+kuberouter kuberouter-install :
 	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _install replace_kube_proxy \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-install.log
 	kubectl get pod -A -o wide -w
@@ -334,21 +334,22 @@ kuberouter-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-teardown.log
 
-cilium : cilium-helm
+export cilium_values := values-bpf.yaml
+cilium : cilium-gen cilium-helm
 cilium-gen : 
 	bash make.recipes.sh settings_inject \
-		${ADMIN_SRC_DIR}/cni/cilium/values-bpf.yaml \
+		${ADMIN_SRC_DIR}/cni/cilium/${cilium_values} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-gen.log
-cilium-teardown : cilium-helm-teardown
 cilium-cli :
-	cilium install --kubeconfig ~/.kube/config --values ${ADMIN_SRC_DIR}/cni/cilium/values.yaml \
+	cilium install --kubeconfig ~/.kube/config --values \
+		${ADMIN_SRC_DIR}/cni/cilium/${cilium_values} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-cli.log
-cilium-helm :
+cilium-helm : 
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium-helm.sh _install \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-helm-install.log
-cilium-helm-teardown :
+cilium-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium-helm.sh _teardown \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-helm-teardown.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-teardown.log
 
 calico : calico-operator
 calico-operator :
