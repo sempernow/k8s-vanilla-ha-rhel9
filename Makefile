@@ -162,7 +162,7 @@ env :
 perms mode :
 	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \;
 	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \;
-	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \;
+#	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \;
 
 html :
 	find . -type f ! -path './.git/*' -name '*.md' -exec md2html.exe "{}" \;
