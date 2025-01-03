@@ -7,7 +7,7 @@
 ###############################################################################
 K8S_VERSION=$1
 [[ $K8S_VERSION ]] || K8S_VERSION="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
-[[ $K8S_VERSION ]] || K8S_VERSION=1.29.6
+[[ $K8S_VERSION ]] || K8S_VERSION=v1.29.6
 K8S_REGISTRY=${2:-registry.k8s.io}
 ARCH=$(uname -m)
 [[ $ARCH ]] || ARCH=amd64
@@ -30,12 +30,12 @@ ok(){
     # https://v1-29.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
     # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
     arch="${ARCH:-amd64}"
-    ver="$K8S_VERSION"
+    ver="${K8S_VERSION/v/}"
     [[ $ver ]] || return 20
-    [[ $(type -t kubelet) && $(kubeadm version |grep v$ver) ]] &&
+    [[ $(type -t kubelet) && $(kubeadm version |grep $ver) ]] &&
         return 0
     # Client, server and node, where client and node are subsets of server
-    base="https://dl.k8s.io/v${ver}" 
+    base="https://dl.k8s.io/${ver}" 
     tarball="kubernetes-server-linux-${arch}.tar.gz"
     curl -sSL $base/$tarball |tar -xz ||
         return 22
@@ -63,7 +63,7 @@ ok || exit $?
 
 ok(){
     # List all container images required by kubelet (K8s Static Pods)
-    ver="$K8S_VERSION"
+    ver="${K8S_VERSION/v/}"
     [[ $ver ]] || return 30
     reg="${K8S_REGISTRY:-registry.k8s.io}"
     conf=kubeadm-config-images.yaml

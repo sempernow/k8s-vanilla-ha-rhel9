@@ -59,7 +59,9 @@ export ANSIBASH_USER        ?= ${ADMIN_USER}
 ## Configurations : https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/
 ## K8s RELEASEs https://kubernetes.io/releases/
 export K8S_CLUSTER_NAME       ?= lime
-export K8S_VERSION            ?= 1.29.6
+#export K8S_VERSION            ?= $(shell curl -sSL https://dl.k8s.io/release/stable.txt)
+export K8S_VERSION            ?= v1.29.6
+#export K8S_VERSION            ?= v1.32.0
 export K8S_PROVISIONER        ?= ${ADMIN_USER}
 export K8S_PROVISIONER_KEY    ?= ${GITIPS_KEY}
 #export K8S_REGISTRY           ?= ${CNCF_REGISTRY_ENDPOINT}
@@ -295,7 +297,7 @@ init-push :
 init-images :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
-			--kubernetes-version ${K8S_VERSION} \
+			--config ${K8S_KUBEADM_CONF_INIT} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-images.log
 ## Generate cluster PKI (if not exist) : Cleanup old settings
 ## This K8S_KUBEADM_CONF_INIT must NOT have PKI (key, hash, token)

@@ -8,7 +8,7 @@
 }
 
 cat ${ADMIN_SRC_DIR}/scripts/${1}.tpl \
-    |sed "s,K8S_VERSION,${K8S_VERSION},g" \
+    |sed "s,K8S_VERSION,${K8S_VERSION/v/},g" \
     |sed "s,K8S_VERBOSITY,${K8S_VERBOSITY},g" \
     |sed "s,K8S_CLUSTER_NAME,${K8S_CLUSTER_NAME},g" \
     |sed "s,K8S_INIT_NODE,${K8S_INIT_NODE},g" \

@@ -1,5 +1,19 @@
 # [Calico : On-prem K8s](https://docs.tigera.io/calico/latest/getting-started/kubernetes/self-managed-onprem/onpremises)
 
+## TL;DR
+
+None of these eBPF based CNI projects are ready for production. Given the number of configuration parameters, and the effective absense of specifications, there is nearly no chance of a fully functioning network. That stands even after "properly" configuring and passing all their smoke tests:
+
+```bash
+Warning  FailedCreatePodSandBox  3m22s                   kubelet            Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "f25db3628f5e8f1cddc1dc0a0497b3602505ff73993cad9e7e2ec861af61cadd": plugin type="calico" failed (add): error getting ClusterInformation: connection is unauthorized: Unauthorized
+  Normal   SandboxChanged          3m18s (x12 over 3m29s)  kubelet            Pod sandbox changed, it will be killed and re-created.
+  Warning  FailedCreatePodSandBox  3m18s (x4 over 3m21s)   kubelet            (combined from similar events): Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "60d5b58999efe9297d87d6fa83f934b57c12abb54d27de1a5233a2da877bc01a": plugin type="calico" failed (add): error getting ClusterInformation: connection is unauthorized: Unauthorized
+
+```
+
+Typical, recurring failures, endlessly revealing new fail modes.
+
+
 ## Download
 
 ```bash

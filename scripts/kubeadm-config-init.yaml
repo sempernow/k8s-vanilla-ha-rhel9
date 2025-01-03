@@ -10,7 +10,7 @@ networking:
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
 containerRuntimeEndpoint: unix:///var/run/containerd/containerd.sock
-cgroupDriver: systemd # systemd|cgroupfs
+cgroupDriver: systemd 
 imageGCHighThresholdPercent: 85
 imageGCLowThresholdPercent: 80
 imageMinimumGCAge: 2m

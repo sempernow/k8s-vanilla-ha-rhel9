@@ -59,7 +59,7 @@ kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
 ## + https://www.mirantis.com/blog/the-future-of-dockershim-is-cri-dockerd/
 ## + https://mirantis.github.io/cri-dockerd/usage/install/
 containerRuntimeEndpoint: K8S_CRI_SOCKET
-cgroupDriver: K8S_CGROUP_DRIVER # systemd|cgroupfs
+cgroupDriver: K8S_CGROUP_DRIVER 
 ## Node Allocatable
 ## https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/ 
 ## Reserve ample resources for control plane, especially if node is dual use.
