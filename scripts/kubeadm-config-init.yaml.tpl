@@ -9,20 +9,24 @@ kubernetesVersion: K8S_VERSION
 #   timeoutForControlPlane: 4m
 # certificatesDir: /etc/kubernetes/pki
 clusterName: K8S_CLUSTER_NAME
-# controllerManager: ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ControlPlaneComponent
-#   extraArgs: {} # map[string]string of flag name(s) sans leading dash(es)
+controllerManager: 
+## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ControlPlaneComponent
+## https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
+  extraArgs:
+    allocate-node-cidrs: "true"
+    cluster-cidr: "K8S_POD_CIDR"
 #   extraVolumes: []
 # dns: {}
 # etcd:
 #   local:
 #     dataDir: /var/lib/etcd
 ## External LB endpoint else that of init node
-controlPlaneEndpoint: K8S_ENDPOINT
+controlPlaneEndpoint: "K8S_ENDPOINT"
 networking:
 #   ## Services subnet CIDR : 10.96.0.0/12 (default)
-  serviceSubnet: K8S_SERVICE_CIDR
+  serviceSubnet: "K8S_SERVICE_CIDR"
 #   ## Pod subnet CIDR : 172.16.0.0/16 (default)
-  podSubnet: K8S_POD_CIDR
+  podSubnet: "K8S_POD_CIDR"
 #   dnsDomain: cluster.local
 # scheduler: {}
 ---

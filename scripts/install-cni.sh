@@ -16,6 +16,8 @@ export KUBECONFIG=/etc/kubernetes/admin.conf
 ok(){
     [[ $eBPF ]] || return 
     ## BPF must be mounted 
+    ## Linux kernel (RHEL9) does so automatically (not declared at /etc/fstab).
+    ## See `cat /proc/self/mountinfo |grep /sys/fs/bpf`
     [[ $(mount |grep /sys/fs/bpf) ]] && return 
     
     # Mount it directly

@@ -81,10 +81,11 @@ export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_POR
 export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
 #export K8S_POD_CIDR           ?= 10.22.0.0/16
 export K8S_POD_CIDR           ?= 10.244.0.0/16
+export K8S_POD_CIDR6          ?= fd00:10:22::/64
 # @ Cilium eBPF mode
 #export K8S_POD_CIDR           ?= 10.0.0.0/8
-# UNUSED : Don't even bother : CNIs will ignore
-#export K8S_NODE_CIDR_MASK     ?= 20
+export K8S_NODE_CIDR_MASK     ?= 24
+export K8S_NODE_CIDR6_MASK    ?= 96
 export K8S_CRI_SOCKET         ?= unix:///var/run/containerd/containerd.sock
 export K8S_CGROUP_DRIVER      ?= systemd
 ## PKI : See Makefile.settings : Values are generated ONLY IF NOT EXIST
@@ -286,9 +287,10 @@ init-imperative :
 init : init-purge init-gen init-push init-images init-pre init-now
 	@echo === Get kubeconfig and set K8S_CERTIFICATE_KEY @ Makefile.settings prior to join-gen
 init-purge :
-	bash ${ADMIN_SRC_DIR}/scripts/makefile-settings-purge.sh
+	bash make.recipes.sh settings_purge
 init-gen : 
-	bash ${ADMIN_SRC_DIR}/scripts/kubeadm-config-gen.sh ${K8S_KUBEADM_CONF_INIT} \
+	bash make.recipes.sh settings_inject \
+		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-gen.log
 init-push :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
@@ -333,6 +335,10 @@ kuberouter-teardown :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-teardown.log
 
 cilium : cilium-helm
+cilium-gen : 
+	bash make.recipes.sh settings_inject \
+		${ADMIN_SRC_DIR}/cni/cilium/values-bpf.yaml \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-gen.log
 cilium-teardown : cilium-helm-teardown
 cilium-cli :
 	cilium install --kubeconfig ~/.kube/config --values ${ADMIN_SRC_DIR}/cni/cilium/values.yaml \
@@ -355,16 +361,16 @@ calico-manifest :
 calico-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh teardown
 
+export selector := non-cilium
 kubeproxy-cleanup :
-	kubectl patch ds -n kube-system kube-proxy \
-		-p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico": "true"}}}}}' || echo 
+	kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"${selector}": "true"}}}}}' || echo 
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		ansibash -u scripts/kube-proxy-cleanup.sh
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		ansibash sudo bash kube-proxy-cleanup.sh
 kubeproxy-restore :
 	kubectl patch ds -n kube-system kube-proxy \
-    --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/non-calico"}]'
+    --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
 
 # kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
 # 	|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.calico.log
@@ -386,7 +392,9 @@ join-certs : init-push
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-certs.log
 	scp ${K8S_INIT_NODE}:Makefile.settings .
 join-gen :
-	bash ${ADMIN_SRC_DIR}/scripts/kubeadm-config-gen.sh ${K8S_KUBEADM_CONF_JOIN}
+	bash make.recipes.sh settings_inject \
+		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-gen.log
 join-push :
 	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
 		ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh

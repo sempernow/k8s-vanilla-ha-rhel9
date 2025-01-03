@@ -40,12 +40,12 @@ imagePullSecrets: []
 # @default -- `"~/.kube/config"`
 kubeConfigPath: ""
 # -- (string) Kubernetes service host - use "auto" for automatic lookup from the cluster-info ConfigMap (kubeadm-based clusters only)
-k8sServiceHost: ""
+k8sServiceHost: "K8S_CONTROL_PLANE_IP"
 # @schema
 # type: [string, integer]
 # @schema
 # -- (string) Kubernetes service port
-k8sServicePort: ""
+k8sServicePort: "K8S_CONTROL_PLANE_PORT"
 # -- Configure the client side rate limit for the agent and operator
 #
 # If the amount of requests to the Kubernetes API server exceeds the configured
@@ -326,37 +326,9 @@ updateStrategy:
     # @schema
     maxUnavailable: 2
 # Configuration Values for cilium-agent
-aksbyocni:
-  # -- Enable AKS BYOCNI integration.
-  # Note that this is incompatible with AKS clusters not created in BYOCNI mode:
-  # use Azure integration (`azure.enabled`) instead.
-  enabled: false
-# @schema
-# type: [boolean, string]
-# @schema
-# -- Enable installation of PodCIDR routes between worker
-# nodes if worker nodes share a common L2 network segment.
-autoDirectNodeRoutes: false
-# -- Enable skipping of PodCIDR routes between worker
-# nodes if the worker nodes are in a different L2 network segment.
-directRoutingSkipUnreachable: false
 # -- Annotate k8s node upon initialization with Cilium's metadata.
 annotateK8sNode: false
-azure:
-  # -- Enable Azure integration.
-  # Note that this is incompatible with AKS clusters created in BYOCNI mode: use
-  # AKS BYOCNI integration (`aksbyocni.enabled`) instead.
-  enabled: false
-  # usePrimaryAddress: false
-  # resourceGroup: group1
-  # subscriptionID: 00000000-0000-0000-0000-000000000000
-  # tenantID: 00000000-0000-0000-0000-000000000000
-  # clientID: 00000000-0000-0000-0000-000000000000
-  # clientSecret: 00000000-0000-0000-0000-000000000000
-  # userAssignedIdentityID: 00000000-0000-0000-0000-000000000000
-alibabacloud:
-  # -- Enable AlibabaCloud ENI integration
-  enabled: false
+
 # -- Enable bandwidth manager to optimize TCP and UDP workloads and allow
 # for rate-limiting traffic from individual Pods with EDT (Earliest Departure
 # Time) through the "kubernetes.io/egress-bandwidth" Pod annotation.
@@ -395,17 +367,17 @@ l2podAnnouncements:
 bgp:
   # -- Enable BGP support inside Cilium; embeds a new ConfigMap for BGP inside
   # cilium-agent and cilium-operator
-  enabled: false
+  enabled: true
   announce:
     # -- Enable allocation and announcement of service LoadBalancer IPs
-    loadbalancerIP: false
+    loadbalancerIP: true
     # -- Enable announcement of node pod CIDR
-    podCIDR: false
+    podCIDR: true
 # -- This feature set enables virtual BGP routers to be created via
 # CiliumBGPPeeringPolicy CRDs.
 bgpControlPlane:
   # -- Enables the BGP control plane.
-  enabled: false
+  enabled: true 
   # -- SecretsNamespace is the namespace which BGP support will retrieve secrets from.
   secretsNamespace:
     # -- Create secrets namespace for BGP secrets.
@@ -513,7 +485,8 @@ bpf:
   # @schema
   # -- (bool) Enable native IP masquerade support in eBPF
   # @default -- `false`
-  masquerade: ~
+  #masquerade: ~
+  masquerade: true
   # @schema
   # type: [null, boolean]
   # @schema
@@ -1308,9 +1281,9 @@ hubble:
       extraIpAddresses: []
   relay:
     # -- Enable Hubble Relay (requires hubble.enabled=true)
-    enabled: false
+    enabled: true
     # -- Roll out Hubble Relay pods automatically when configmap is updated.
-    rollOutPods: false
+    rollOutPods: true
     # -- Hubble-relay container image.
     image:
       # @schema
@@ -1523,7 +1496,7 @@ hubble:
       port: 6062
   ui:
     # -- Whether to enable the Hubble UI.
-    enabled: false
+    enabled: true
     standalone:
       # -- When true, it will allow installing the Hubble UI only, without checking dependencies.
       # It is useful if a cluster already has cilium and Hubble relay installed and you just
@@ -1693,7 +1666,7 @@ hubble:
     baseUrl: "/"
     # -- hubble-ui ingress configuration.
     ingress:
-      enabled: false
+      enabled: true
       annotations: {}
       # kubernetes.io/ingress.class: nginx
       # kubernetes.io/tls-acme: "true"
@@ -1773,11 +1746,13 @@ identityChangeGracePeriod: ""
 # traffic. This option is only effective when Cilium is running in direct
 # routing and full KPR mode. Moreover, this option cannot be enabled when Cilium
 # is running in a managed Kubernetes environment or in a chained CNI setup.
+
 installNoConntrackIptablesRules: false
 ipam:
   # -- Configure IP Address Management mode.
   # ref: https://docs.cilium.io/en/stable/network/concepts/ipam/
-  mode: "cluster-pool"
+  #mode: "cluster-pool"
+  mode: "kubernetes"
   # -- Maximum rate at which the CiliumNode custom resource is updated.
   ciliumNodeUpdateRate: "15s"
   operator:
@@ -1785,16 +1760,17 @@ ipam:
     # type: [array, string]
     # @schema
     # -- IPv4 CIDR list range to delegate to individual nodes for IPAM.
-    clusterPoolIPv4PodCIDRList: ["10.0.0.0/8"]
+    clusterPoolIPv4PodCIDRList: ["K8S_POD_CIDR"]
     # -- IPv4 CIDR mask size to delegate to individual nodes for IPAM.
-    clusterPoolIPv4MaskSize: 24
+    clusterPoolIPv4MaskSize: K8S_NODE_CIDR_MASK
     # @schema
     # type: [array, string]
     # @schema
     # -- IPv6 CIDR list range to delegate to individual nodes for IPAM.
-    clusterPoolIPv6PodCIDRList: ["fd00::/104"]
+    #clusterPoolIPv6PodCIDRList: ["fd00::/104"]
+    clusterPoolIPv6PodCIDRList: ["K8S_POD_CIDR6"]
     # -- IPv6 CIDR mask size to delegate to individual nodes for IPAM.
-    clusterPoolIPv6MaskSize: 120
+    clusterPoolIPv6MaskSize: K8S_NODE_CIDR6_MASK
     # -- IP pools to auto-create in multi-pool IPAM mode.
     autoCreateCiliumPodIPPools: {}
     #   default:
@@ -1825,7 +1801,73 @@ ipam:
 nodeIPAM:
   # -- Configure Node IPAM
   # ref: https://docs.cilium.io/en/stable/network/node-ipam/
+  enabled: true
+
+## @ NATIVE ROUTING : eBPF Directpath 
+# -- Tunneling protocol to use in tunneling mode and for ad-hoc tunnels.
+# Possible values:
+#   - ""
+#   - vxlan
+#   - geneve
+# @default -- `"vxlan"`
+tunnelProtocol: ""
+# -- Enable native-routing mode or tunneling mode.
+# Possible values:
+#   - ""
+#   - native # eBPF Directpath
+#   - tunnel
+# @default -- `"tunnel"`
+routingMode: "native"
+# -- Configure VXLAN and Geneve tunnel port.
+# @default -- Port 8472 for VXLAN, Port 6081 for Geneve
+tunnelPort: 0
+# -- Configure what the response should be to traffic for a service without backends.
+# Possible values:
+#  - reject (default)
+#  - drop
+serviceNoBackendResponse: reject
+# -- Configure the underlying network MTU to overwrite auto-detected MTU.
+# This value doesn't change the host network interface MTU i.e. eth0 or ens0.
+# It changes the MTU for cilium_net@cilium_host, cilium_host@cilium_net,
+# cilium_vxlan and lxc_health interfaces.
+MTU: 0
+# -- Disable the usage of CiliumEndpoint CRD.
+disableEndpointCRD: false
+wellKnownIdentities:
+  # -- Enable the use of well-known identities.
   enabled: false
+# -- Enable installation of PodCIDR routes between worker
+# nodes if worker nodes share a common L2 network segment.
+# @schema
+# type: [boolean, string]
+# @schema
+autoDirectNodeRoutes: true
+# -- Enable skipping of PodCIDR routes between worker
+# nodes if the worker nodes are in a different L2 network segment.
+directRoutingSkipUnreachable: true
+# -- (string) Allows to explicitly specify the IPv4 CIDR for native routing.
+# When specified, Cilium assumes networking for this CIDR is preconfigured and
+# hands traffic destined for that range to the Linux network stack without
+# applying any SNAT.
+# Generally speaking, specifying a native routing CIDR implies that Cilium can
+# depend on the underlying networking stack to route packets to their
+# destination. To offer a concrete example, if Cilium is configured to use
+# direct routing and the Kubernetes CIDR is included in the native routing CIDR,
+# the user must configure the routes to reach pods, either manually or by
+# setting the auto-direct-node-routes flag.
+ipv4NativeRoutingCIDR: "K8S_POD_CIDR"
+# -- (string) Allows to explicitly specify the IPv6 CIDR for native routing.
+# When specified, Cilium assumes networking for this CIDR is preconfigured and
+# hands traffic destined for that range to the Linux network stack without
+# applying any SNAT.
+# Generally speaking, specifying a native routing CIDR implies that Cilium can
+# depend on the underlying networking stack to route packets to their
+# destination. To offer a concrete example, if Cilium is configured to use
+# direct routing and the Kubernetes CIDR is included in the native routing CIDR,
+# the user must configure the routes to reach pods, either manually or by
+# setting the auto-direct-node-routes flag.
+ipv6NativeRoutingCIDR: "K8S_POD_CIDR6"
+
 # @schema
 # type: [null, string]
 # @schema
@@ -1850,12 +1892,15 @@ ipv6:
   enabled: false
 # -- Configure Kubernetes specific configuration
 k8s:
+  # These settings are IGNORED UNLESS: ipam.mode: kubernetes
+  # @ https://docs.cilium.io/en/stable/network/concepts/ipam/kubernetes/#configuration
   # -- requireIPv4PodCIDR enables waiting for Kubernetes to provide the PodCIDR
   # range via the Kubernetes node resource
-  requireIPv4PodCIDR: false
+  # This REQUIREs ipam.mode: kubernetes
+  requireIPv4PodCIDR: true
   # -- requireIPv6PodCIDR enables waiting for Kubernetes to provide the PodCIDR
   # range via the Kubernetes node resource
-  requireIPv6PodCIDR: false
+  requireIPv6PodCIDR: true
 # -- Keep the deprecated selector labels when deploying Cilium DaemonSet.
 keepDeprecatedLabels: false
 # -- Keep the deprecated probes when deploying Cilium DaemonSet
@@ -1879,13 +1924,14 @@ readinessProbe:
 # -- Configure the kube-proxy replacement in Cilium BPF datapath
 # Valid options are "true" or "false".
 # ref: https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/
-#kubeProxyReplacement: "false"
+# kubeadm init ... --skip-phases=addon/kube-proxy
+kubeProxyReplacement: "true"
 
 # -- healthz server bind address for the kube-proxy replacement.
 # To enable set the value to '0.0.0.0:10256' for all ipv4
 # addresses and this '[::]:10256' for all ipv6 addresses.
 # By default it is disabled.
-kubeProxyReplacementHealthzBindAddr: ""
+kubeProxyReplacementHealthzBindAddr: "0.0.0.0:10256"
 l2NeighDiscovery:
   # -- Enable L2 neighbor discovery in the agent
   enabled: true
@@ -1948,28 +1994,8 @@ vtep:
   mask: ""
   # -- A space separated list of VTEP device MAC addresses (VTEP MAC), for example "x:x:x:x:x:x  y:y:y:y:y:y:y"
   mac: ""
-# -- (string) Allows to explicitly specify the IPv4 CIDR for native routing.
-# When specified, Cilium assumes networking for this CIDR is preconfigured and
-# hands traffic destined for that range to the Linux network stack without
-# applying any SNAT.
-# Generally speaking, specifying a native routing CIDR implies that Cilium can
-# depend on the underlying networking stack to route packets to their
-# destination. To offer a concrete example, if Cilium is configured to use
-# direct routing and the Kubernetes CIDR is included in the native routing CIDR,
-# the user must configure the routes to reach pods, either manually or by
-# setting the auto-direct-node-routes flag.
-ipv4NativeRoutingCIDR: ""
-# -- (string) Allows to explicitly specify the IPv6 CIDR for native routing.
-# When specified, Cilium assumes networking for this CIDR is preconfigured and
-# hands traffic destined for that range to the Linux network stack without
-# applying any SNAT.
-# Generally speaking, specifying a native routing CIDR implies that Cilium can
-# depend on the underlying networking stack to route packets to their
-# destination. To offer a concrete example, if Cilium is configured to use
-# direct routing and the Kubernetes CIDR is included in the native routing CIDR,
-# the user must configure the routes to reach pods, either manually or by
-# setting the auto-direct-node-routes flag.
-ipv6NativeRoutingCIDR: ""
+
+
 # -- cilium-monitor sidecar.
 monitor:
   # -- Enable the cilium-monitor sidecar.
@@ -1982,11 +2008,11 @@ loadBalancer:
 
   # -- algorithm is the name of the load balancing algorithm for backend
   # selection e.g. random or maglev
-  # algorithm: random
+  algorithm: maglev
 
   # -- mode is the operation mode of load balancing for remote backends
-  # e.g. snat, dsr, hybrid
-  # mode: snat
+  # e.g. snat, dsr, hybrid : Default: snat
+  mode: dsr
 
   # -- acceleration is the option to accelerate service handling via XDP
   # Applicable values can be: disabled (do not use XDP), native (XDP BPF
@@ -1996,7 +2022,7 @@ loadBalancer:
   acceleration: disabled
   # -- dsrDispatch configures whether IP option or IPIP encapsulation is
   # used to pass a service IP and port to remote backend
-  # dsrDispatch: opt
+  dsrDispatch: opt
 
   # -- serviceTopology enables K8s Topology Aware Hints -based service
   # endpoints filtering
@@ -2432,38 +2458,6 @@ tls:
     #   -----BEGIN CERTIFICATE-----
     #   ...
     #   -----END CERTIFICATE-----
-# -- Tunneling protocol to use in tunneling mode and for ad-hoc tunnels.
-# Possible values:
-#   - ""
-#   - vxlan
-#   - geneve
-# @default -- `"vxlan"`
-tunnelProtocol: ""
-# -- Enable native-routing mode or tunneling mode.
-# Possible values:
-#   - ""
-#   - native
-#   - tunnel
-# @default -- `"tunnel"`
-routingMode: ""
-# -- Configure VXLAN and Geneve tunnel port.
-# @default -- Port 8472 for VXLAN, Port 6081 for Geneve
-tunnelPort: 0
-# -- Configure what the response should be to traffic for a service without backends.
-# Possible values:
-#  - reject (default)
-#  - drop
-serviceNoBackendResponse: reject
-# -- Configure the underlying network MTU to overwrite auto-detected MTU.
-# This value doesn't change the host network interface MTU i.e. eth0 or ens0.
-# It changes the MTU for cilium_net@cilium_host, cilium_host@cilium_net,
-# cilium_vxlan and lxc_health interfaces.
-MTU: 0
-# -- Disable the usage of CiliumEndpoint CRD.
-disableEndpointCRD: false
-wellKnownIdentities:
-  # -- Enable the use of well-known identities.
-  enabled: false
 etcd:
   # -- Enable etcd mode for the agent.
   enabled: false

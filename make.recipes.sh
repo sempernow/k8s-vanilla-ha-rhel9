@@ -7,7 +7,42 @@ vm_ip(){
     [[ $1 ]] || return 99
     echo $(cat ~/.ssh/config |grep -A4 -B2 $1 |grep Hostname |head -n 1 |cut -d' ' -f2)
 }
-
+settings_inject(){
+    [[ -r $1.tpl ]] || return 11
+    [[ $(echo "$1" |grep 'join') ]] && {
+        [[ ${K8S_CERTIFICATE_KEY} ]] || return 22
+    }
+    cat $1.tpl \
+        |sed "s,K8S_VERSION,${K8S_VERSION/v/},g" \
+        |sed "s,K8S_VERBOSITY,${K8S_VERBOSITY},g" \
+        |sed "s,K8S_CLUSTER_NAME,${K8S_CLUSTER_NAME},g" \
+        |sed "s,K8S_INIT_NODE,${K8S_INIT_NODE},g" \
+        |sed "s,K8S_REGISTRY,${K8S_REGISTRY},g" \
+        |sed "s,K8S_CONTROL_PLANE_IP,${K8S_CONTROL_PLANE_IP},g" \
+        |sed "s,K8S_CONTROL_PLANE_PORT,${K8S_CONTROL_PLANE_PORT},g" \
+        |sed "s,K8S_ENDPOINT,${K8S_ENDPOINT},g" \
+        |sed "s,K8S_SERVICE_CIDR,${K8S_SERVICE_CIDR},g" \
+        |sed "s,K8S_NODE_CIDR6_MASK,${K8S_NODE_CIDR6_MASK},g" \
+        |sed "s,K8S_NODE_CIDR_MASK,${K8S_NODE_CIDR_MASK},g" \
+        |sed "s,K8S_POD_CIDR6,${K8S_POD_CIDR6},g" \
+        |sed "s,K8S_POD_CIDR,${K8S_POD_CIDR},g" \
+        |sed "s,K8S_CRI_SOCKET,${K8S_CRI_SOCKET},g" \
+        |sed "s,K8S_CGROUP_DRIVER,${K8S_CGROUP_DRIVER},g" \
+        |sed "s,K8S_BOOTSTRAP_TOKEN,${K8S_BOOTSTRAP_TOKEN},g" \
+        |sed "s,K8S_CERTIFICATE_KEY,${K8S_CERTIFICATE_KEY},g" \
+        |sed "s,K8S_CA_CERT_HASH,${K8S_CA_CERT_HASH},g" \
+        |sed "s,K8S_JOIN_KUBECONFIG,${K8S_JOIN_KUBECONFIG},g" \
+        |sed "/^ *,/d" |sed "/^\s*$/d" |sed '/^[[:space:]]*#/d' \
+        |tee $1
+}
+settings_purge(){
+	cat <<-EOH |tee Makefile.settings
+	## This file is DYNAMICALLY GENERATED at make recipes
+	export K8S_CERTIFICATE_KEY ?=
+	export K8S_CA_CERT_HASH    ?=
+	export K8S_BOOTSTRAP_TOKEN ?=
+	EOH
+}
 halb(){
     # Function halb generates the configuration for a 2-node 
     # Highly Available Load Balancer (HALB) built of HAProxy and Keepalived.
@@ -63,7 +98,6 @@ halb(){
 
     popd
 }
-
 kubeconfig(){
     [[ $K8S_INIT_NODE ]] || { echo 'ERR : K8S_INIT_NODE is UNSET'; return; }
     ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \

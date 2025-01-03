@@ -213,7 +213,7 @@ kube-scheduler-a3            1/1     Running   34         16m   192.168.11.100  
 
 ## CNI
 
-None of the eBPF based CNI projects variants are ready for production. Given the number of configuration parameters, and the effective absense of specifications, there is nearly no chance of a fully functioning network. That stands even after "properly" configuring and passing all their smoke tests. Here's an attempt to deploy metrics-server on a "fully functional" Calico configured for BPF:
+The eBPF-based variants of CNI projects are purportedly ready for production. However, they have a large number of methods, protocols and configuration parameters per option making it quite challenging to implement a fully functioning network. That stands even after "properly" configuring and passing all their smoke tests. Here's an attempt to deploy the K8s `metrics-server` on such a Calico network:
 
 
 ```bash
@@ -223,8 +223,8 @@ Warning  FailedCreatePodSandBox  3m22s                   kubelet            Fail
 
 ```
 
-Typical, recurring failures, endlessly revealing new fail modes.
-Similarly for Cilium, although that one has vastly more ill-documented parameters, yet 10x higher data rate when it "works". 
+It is not unusual to have recurring failures, endlessly revealing new fail modes.
+Similarly for Cilium, although that one has 10x higher data rate (relative to similarly configured Calico) when it "works". 
 
 
 ## Modify `kubelet` Configuration 

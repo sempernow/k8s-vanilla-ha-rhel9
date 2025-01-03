@@ -3,7 +3,7 @@ APP=cilium
 
 _install(){
     v=1.16.5
-    values=values.yaml
+    values=values-bpf.yaml
     
     pushd "${BASH_SOURCE%/*}" || pushd . || return 11
     [[ -r ${APP}-$v.tgz ]] || {
@@ -12,7 +12,7 @@ _install(){
     }
     tar -xaf ${APP}-$v.tgz &&
         helm upgrade --install -f $values $APP $APP/ &&
-            kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"not-kuberouter": "true"}}}}}' &&
+            kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-cilium": "true"}}}}}' &&
                 rm -rf $APP
 
     # tar -xaf ${APP}-$v.tgz &&
@@ -60,6 +60,9 @@ _install(){
 _teardown(){
     helm -n kube-system uninstall $APP
     $APP uninstall || echo ERR : $APP $FUNCNAME : $?
+
+    # Remove patch : restore kube-proxy
+    kubectl patch ds -n kube-system kube-proxy --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/non-cilium"}]'
 }
 
 "$@" || echo ERR : $?
@@ -76,7 +79,5 @@ kubectl -n kube-system get configmap cilium-config -o yaml
 # Egress issues
 cilium egress list
 
-# Remove patch : restore kube-proxy
-kubectl patch ds -n kube-system kube-proxy --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/not-kuberouter"}]'
 
 #FAIL : kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{}}}}}'
