@@ -158,7 +158,8 @@ Default install does not implement eBPF Datapath
 cilium install --version 1.16.5
 cilium status --wait
 cilium connectivity test 
-kubectl get cm cilium-config -o yaml |yq .data.tunnel-protocol #> vxlan
+kubectl get cm cilium-config -o yaml |yq .data.tunnel-protocol #> <nothing> if eBPF Datapath, else "vxlan"
+kubectl get cm cilium-config -o yaml |yq .data.routing-mode #> native if eBPF Datapath
 kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg status 
 
 ```
