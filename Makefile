@@ -281,7 +281,7 @@ init-imperative :
 			--cri-socket "${K8S_CRI_SOCKET}" \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kubeadm.init-imperative.log
 
-# @ init-certs phase : config (K8S_KUBEADM_CONF_INIT) must NOT have PKI
+# @ init-certs phase : config (K8S_KUBEADM_CONF_INIT) must not have PKI
 # @ final init phase : config (K8S_KUBEADM_CONF_INIT) may have PKI, but ours does not.
 
 init : init-purge init-gen init-push init-images init-pre init-now
@@ -341,8 +341,16 @@ cilium-gen :
 		${ADMIN_SRC_DIR}/cni/cilium/${cilium_values} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-gen.log
 cilium-cli :
-	cilium install --kubeconfig ~/.kube/config --values \
-		${ADMIN_SRC_DIR}/cni/cilium/${cilium_values} \
+	cilium install \
+		--version 1.16.5 \
+		--set bgpControlPlane.enabled=true \
+		--set ipam.mode=kubernetes \
+		--set k8s.requireIPv4PodCIDR=true \
+		--set k8s.requireIPv6PodCIDR=true \
+		--set nodeIPAM.enabled=true \
+		--set kubeProxyReplacement=true \
+		--set k8sServiceHost=${K8S_CONTROL_PLANE_IP} \
+		--set k8sServicePort=${K8S_CONTROL_PLANE_PORT} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-cli.log
 cilium-helm : 
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium-helm.sh _install \
@@ -361,6 +369,8 @@ calico-manifest :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.calico.log
 calico-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh teardown
+	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml || echo 
+	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml || echo 
 
 export selector := non-cilium
 kubeproxy-cleanup :
@@ -372,11 +382,6 @@ kubeproxy-cleanup :
 kubeproxy-restore :
 	kubectl patch ds -n kube-system kube-proxy \
     --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
-
-# kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
-# 	|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.calico.log
-# kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
-# 	|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
 
 ## Makefile.settings must have valid K8S_CERTIFICATE_KEY 
 join-control : join-prep
@@ -413,10 +418,10 @@ join-command :
 		--certificate-key ${K8S_CERTIFICATE_KEY} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.print-join-command.log
 
-# (Re)generate a certificate key, invalidating any prior key
-# INVALIDATES value at certificateKey key in kubeadm-conf-*.yaml
-# - Run this only to join a control node after the key has expired.
-# The config file should NOT contain these PKI params
+# upload-certs (re)generates a certificate key.
+# INVALIDATES all certificateKey values of kubeadm-conf-*.yaml
+# - Run this only to join a control node AFTER KEY HAS EXPIRED.
+# K8S_KUBEADM_CONF_INIT file here should *not* contain any PKI params.
 upload-certs : 
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} sudo kubeadm init phase upload-certs \
 		--upload-certs --config ${K8S_KUBEADM_CONF_INIT} \

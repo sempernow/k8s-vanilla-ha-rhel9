@@ -10,7 +10,8 @@ See `make` recipes
 make
 ```
 
-Create cluster 
+### Create cluster 
+
 ```bash
 # Prepare the host
 make conf 
@@ -19,43 +20,20 @@ make install
 make reboot
 # Initialize cluster ( 1st node) 
 make init 
-vi Makefile.settings # Paste key, hash, token
+vi Makefile.settings # Set K8S_CERTIFICATE_KEY
 # Configure client on this admin host
 make kubeconfig 
-# Install CNI Pod/Service network
+# Install Pod network (CNI addon)
 make kuberouter-install 
-# Here, add PKI params of join command to Makefile.settings
 # Join other control nodes
 make join-control
 
 ```
+- `kubeadm` configuration documents:
+    - [`kubeadm-config-init.yaml`](scripts/kubeadm-config-init.yaml)
+    - [`kubeadm-config-join.yaml`](scripts/kubeadm-config-join.yaml)
+- [`join-control.sh`](scripts/join-control.sh)
 
-### `kubeadm init`/`join` : Imperatively
-
-@ `Ubuntu (master) [15:01:51] [1] [#0] /s/DEV/devops/infra/kubernetes/k8s-vanilla-ha-rhel9`
-
-```bash
-make init-imperative
-make kubeconfig
-make kuberouter-install
-
-# Get join command from most recent
-# @ logs/*.kubeadm.init-imperative.log
-
-ssh u1@a2 sudo kubeadm join 192.168.11.101:6443 \
-    --token 7qcbau.yzvu84puzgih4u31 \
-    --discovery-token-ca-cert-hash sha256:c8cce296aefee5e04133ebc7a60668b1c0053728238e67e0b656a6b9e8f65014 \
-    --control-plane \
-    --certificate-key f079cbf44605ff545156fc79726e35c49e717c22c64d12171f1258003e37338a \
-    --node-name a2 # Append this last flag for hostname override (stability)
-
-ssh u1@a3 sudo kubeadm join 192.168.11.101:6443 \
-    --token 7qcbau.yzvu84puzgih4u31 \
-    --discovery-token-ca-cert-hash sha256:c8cce296aefee5e04133ebc7a60668b1c0053728238e67e0b656a6b9e8f65014 \
-    --control-plane \
-    --certificate-key f079cbf44605ff545156fc79726e35c49e717c22c64d12171f1258003e37338a \
-    --node-name a3 # Append this last flag for hostname override (stability)
-```
 
 ```bash
 kubectl proxy # K8s API @ http://127.0.0.1:8001 (Blocks) 
@@ -64,26 +42,10 @@ kubectl proxy # K8s API @ http://127.0.0.1:8001 (Blocks)
 curl http://127.0.0.1:8001/healthz #> ok
 ```
 
-## Delete/Rejoin Nodes of Control Plane
+## Delete/Re-join a Control-Plane Node
 
-Say we modify Pod CIDR at a control node :
-
-```bash
-sudo vi /etc/kubernetes/manifests/kube-controller-manager.yaml
-```
-```yaml
-spec:
-  containers:
-  - command:
-    - kube-controller-manager
-    ...
-    - --allocate-node-cidrs=true
-    - --cluster-cidr=10.22.0.0/16
-    - --node-cidr-mask-size=20
-    ...
-```
-
-To be sure, applying modifications of Static Pod manifest(s) does not typically require `drain`/`delete`/`join` of (control-plane) nodes. However, some changes require it:
+Modifications to Static Pod manifest(s) do not typically require `drain`/`delete`/`join` of (control-plane) nodes. 
+However, some changes require it:
 
 - Pod CIDR Allocations
     - Existing nodes will not adopt changes to Pod CIDR, 
@@ -93,50 +55,26 @@ To be sure, applying modifications of Static Pod manifest(s) does not typically 
       rejoining nodes may be necessary.
 - Adding New Control-Plane Nodes.
 
-__UPDATE__ : __This ChatGPT scheme__ is internally inconsitent, 
-and therefore not trustworthy.
 
-### 1. Generate new key, hash and token: 
+### Drain/Delete/Join
 
-See [`scripts/kubeadm-join-certs.sh`](scripts/kubeadm-join-certs.sh)
+From remote (admin) host:
 
 ```bash
-echo |tee Makefile.settings
-make join-certs
-make join-prep
-```
-
-Add/Edit @ `/etc/kubernetes/kube-controller-manager-config.yaml`
-
-```yaml
----
-apiVersion: kubecontrollermanager.config.k8s.io/v1alpha1
-kind: KubeControllerManagerConfiguration
-## https://kubernetes.io/docs/reference/config-api/kube-controller-manager-config.v1alpha1/#kubecontrollermanager-config-k8s-io-v1alpha1-KubeControllerManagerConfiguration
-nodeIPAMController:
-  podCIDR: K8S_POD_CIDR
-  serviceCIDR: K8S_SERVICE_CIDR
-  nodeCIDRMaskSize: K8S_NODE_CIDR_MASK
-```
-
-### 2. Drain/Delete/Join
-
-For each control node:
-
-```bash
-no=a1
+user=u1
+node=a1
 # Delete
-kubectl drain $no --delete-local-data --force --ignore-daemonsets
-kubectl delete node $no
-ssh -tt u1@$no /bin/bash -c '
+kubectl drain $node --delete-local-data --force --ignore-daemonsets
+kubectl delete node $node
+ssh $user@$node /bin/bash -c '
+    sudo systemctl stop kubelet 
     sudo rm -rf /etc/kubernetes/manifests/*
     sudo rm -rf /var/lib/kubelet/*
     sudo rm -rf /var/lib/etcd/*
+    sudo systemctl start kubelet 
 '
-#... !!! so can't edit to include the target changes (Node CIDR mask) !!!
-
 # Join
-ssh u1@$no sudo kubeadm join --config kubeadm-config-join.yaml
+ssh $user@$node sudo kubeadm join --config kubeadm-config-join.yaml
 
 ```
 
@@ -168,68 +106,13 @@ k get node a1 -o yaml |yq .spec.taints
 k taint node a1 node-role.kubernetes.io/control-plane:NoSchedule-
 node/a1 untainted
 
-k taint node a2 node-role.kubernetes.io/control-plane:NoSchedule-
-node/a2 untainted
-
-k taint node a3 node-role.kubernetes.io/control-plane:NoSchedule-
-node/a3 untainted
 ```
-
-Now delete one of the CoreDNS pods, 
-so control plane rechedules it 
-onto another (newly untainted) node:
-
-```bash
-k delete pod coredns-76f75df574-lwlnr
-pod "coredns-76f75df574-lwlnr" deleted
-```
-
-Expect :
-
-```bash
-☩ kw
-=== a1 : 6/6
-coredns-76f75df574-sqxsb     1/1     Running   0          18m   10.22.0.3        a1     <none>           <none>
-etcd-a1                      1/1     Running   17         18m   192.168.11.101   a1     <none>           <none>
-kube-apiserver-a1            1/1     Running   0          18m   192.168.11.101   a1     <none>           <none>
-kube-controller-manager-a1   1/1     Running   0          18m   192.168.11.101   a1     <none>           <none>
-kube-router-z9hct            1/1     Running   0          17m   192.168.11.101   a1     <none>           <none>
-kube-scheduler-a1            1/1     Running   29         18m   192.168.11.101   a1     <none>           <none>
-=== a2 : 5/5
-etcd-a2                      1/1     Running   0          16m   192.168.11.102   a2     <none>           <none>
-kube-apiserver-a2            1/1     Running   0          16m   192.168.11.102   a2     <none>           <none>
-kube-controller-manager-a2   1/1     Running   0          16m   192.168.11.102   a2     <none>           <none>
-kube-router-gphvl            1/1     Running   0          16m   192.168.11.102   a2     <none>           <none>
-kube-scheduler-a2            1/1     Running   29         16m   192.168.11.102   a2     <none>           <none>
-=== a3 : 6/6
-coredns-76f75df574-f7p42     1/1     Running   0          8s    10.22.2.2        a3     <none>           <none>
-etcd-a3                      1/1     Running   0          16m   192.168.11.100   a3     <none>           <none>
-kube-apiserver-a3            1/1     Running   0          16m   192.168.11.100   a3     <none>           <none>
-kube-controller-manager-a3   1/1     Running   0          16m   192.168.11.100   a3     <none>           <none>
-kube-router-2cjd8            1/1     Running   0          16m   192.168.11.100   a3     <none>           <none>
-kube-scheduler-a3            1/1     Running   34         16m   192.168.11.100   a3     <none>           <none>
-```
-
 
 ## CNI
 
-The eBPF-based variants of CNI projects are purportedly ready for production. However, they have a large number of methods, protocols and configuration parameters per option making it quite challenging to implement a fully functioning network. That stands even after "properly" configuring and passing all their smoke tests. Here's an attempt to deploy the K8s `metrics-server` on such a Calico network:
-
-
-```bash
-Warning  FailedCreatePodSandBox  3m22s                   kubelet            Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "f25db3628f5e8f1cddc1dc0a0497b3602505ff73993cad9e7e2ec861af61cadd": plugin type="calico" failed (add): error getting ClusterInformation: connection is unauthorized: Unauthorized
-  Normal   SandboxChanged          3m18s (x12 over 3m29s)  kubelet            Pod sandbox changed, it will be killed and re-created.
-  Warning  FailedCreatePodSandBox  3m18s (x4 over 3m21s)   kubelet            (combined from similar events): Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "60d5b58999efe9297d87d6fa83f934b57c12abb54d27de1a5233a2da877bc01a": plugin type="calico" failed (add): error getting ClusterInformation: connection is unauthorized: Unauthorized
-
-```
-
-It is not unusual to have recurring failures, endlessly revealing new fail modes.
-Similarly for Cilium, although that one has 10x higher data rate (relative to similarly configured Calico) when it "works". 
-
+The eBPF-based variants of CNI projects are purportedly ready for production. However, they have a large number of methods, protocols and configuration parameters per option making it quite challenging to implement a fully functioning network. That stands even after "properly" configuring and passing all their smoke tests. It is not unusual to have recurring failures, evermore revealing some new fail mode.
 
 ## Modify `kubelet` Configuration 
-
-UPDATE : __Not a viable option for reserving resources__; [Node Allocatable](https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable) (cgroup) settings are applied by default `kubeadm init`/`join`. Modifying this after init requires many kernel-level modifications and systemd unit files and reconfigurations. Better to destroy the cluster and start again.
 
 __View__ current configuration files
 

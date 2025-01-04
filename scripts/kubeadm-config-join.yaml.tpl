@@ -1,12 +1,11 @@
 ---
 ## The JoinConfiguration is IGNORED on init
-## kubeadm-config @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/ 
-## @ https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinConfiguration
+## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinConfiguration
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: JoinConfiguration
-discovery:
-  ## Use file OR bootstrapToken
-  ## File method requires only K8S_CERTIFICATE_KEY and K8S_JOIN_KUBECONFIG
+discovery: # TLS Bootstrap process
+  ## Use *either* method: file *or* bootstrapToken
+  ## The file method is simpler, requiring only K8S_CERTIFICATE_KEY and K8S_JOIN_KUBECONFIG
   file:
     kubeConfigPath: K8S_JOIN_KUBECONFIG
   # bootstrapToken:
@@ -22,20 +21,19 @@ discovery:
   #   ## Create a caCertHash
   #   ## (The SHA-256 hash of the public key extracted from ca.crt)
   #   ## --ca-cert-hashes="sha256:$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt |openssl rsa -pubin -outform der 2>/dev/null |openssl dgst -sha256 -hex |sed 's/^.* //')"
-  #   #caCertHashes: []
   #   caCertHashes: 
   #   - K8S_CA_CERT_HASH
-  # # unsafeSkipCAVerification: false  ## true (default)
-  # # timeout: 5m
-  # # tlsBootstrapToken: K8S_BOOTSTRAP_TOKEN 
+  #   unsafeSkipCAVerification: false
+  timeout: 1m
+  # tlsBootstrapToken: K8S_BOOTSTRAP_TOKEN 
 nodeRegistration: 
-  #ignorePreflightErrors:
-  #- Mem
-  # imagePullPolicy: IfNotPresent ## Always|Never|IfNotPresent (default)
+  # ignorePreflightErrors:
+  # - Mem           # Useful at VM having dynamically-allocated memory.
+  # imagePullPolicy: IfNotPresent # Always|Never|IfNotPresent(default)
   criSocket: K8S_CRI_SOCKET 
   name: THIS_NODE_NAME
-  # taints: null ## For default taints
-  taints: []   ## For no taints
+  # taints: null    # For default taints
+  taints: []        # For no taints
   # kubeletExtraArgs: 
   ## See kubelet --help
   ## Some kubeletExtraArgs are exclusive to Standalone mode,
@@ -48,5 +46,5 @@ controlPlane:
   localAPIEndpoint: 
     advertiseAddress: THIS_NODE_IP
     bindPort: K8S_CONTROL_PLANE_PORT
-  ## certificateKey is ephemeral, and REVEALED only ONCE per key gen.
+  ## certificateKey is ephemeral and revealed only *once* per key gen.
   certificateKey: K8S_CERTIFICATE_KEY

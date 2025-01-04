@@ -81,7 +81,7 @@ Configuration
 If a BGP daemon is running and there is multiple native subnets to the cluster network, optionally give each node L2 connectivity in each zone without traffic always needing to be routed by the BGP routers:
 
 - `direct-routing-skip-unreachable: true` 
-- `auto-direct-node-routes` 
+- `auto-direct-node-routes: true` 
 
 ### [CLI method](https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/)
 
@@ -103,6 +103,8 @@ cilium install
 - `--context lime` 
     - Must be one of `kubeconfig`.
 - `--kubeconfig ~/.kube/config`
+- `--set routingMode=native`
+- `--set tunnelProtocol=""`
 - `--set bgpControlPlane.enabled=true`
 - `--set ipam.mode=kubernetes` 
     - To abide `podCIDR` of `kubeadm init`

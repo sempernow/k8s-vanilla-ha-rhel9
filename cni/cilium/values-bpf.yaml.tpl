@@ -1900,7 +1900,7 @@ k8s:
   requireIPv4PodCIDR: true
   # -- requireIPv6PodCIDR enables waiting for Kubernetes to provide the PodCIDR
   # range via the Kubernetes node resource
-  requireIPv6PodCIDR: true
+  requireIPv6PodCIDR: false
 # -- Keep the deprecated selector labels when deploying Cilium DaemonSet.
 keepDeprecatedLabels: false
 # -- Keep the deprecated probes when deploying Cilium DaemonSet

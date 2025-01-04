@@ -6,13 +6,14 @@ _install(){
     values=values-bpf.yaml
     
     pushd "${BASH_SOURCE%/*}" || pushd . || return 11
+    
     [[ -r ${APP}-$v.tgz ]] || {
+        helm repo add $APP https://helm.cilium.io/
         helm repo update $APP
         helm pull $APP/$APP
     }
     tar -xaf ${APP}-$v.tgz &&
-        helm upgrade --install -f $values $APP $APP/ &&
-            rm -rf $APP
+        helm upgrade --install -f $values $APP $APP/ #&& rm -rf $APP
 
     # kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-cilium": "true"}}}}}'
 
