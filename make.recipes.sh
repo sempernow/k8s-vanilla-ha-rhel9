@@ -18,6 +18,7 @@ settings_inject(){
         |sed "s,K8S_CLUSTER_NAME,${K8S_CLUSTER_NAME},g" \
         |sed "s,K8S_INIT_NODE,${K8S_INIT_NODE},g" \
         |sed "s,K8S_REGISTRY,${K8S_REGISTRY},g" \
+        |sed "s,K8S_NETWORK_DEVICE,${K8S_NETWORK_DEVICE},g" \
         |sed "s,K8S_CONTROL_PLANE_IP,${K8S_CONTROL_PLANE_IP},g" \
         |sed "s,K8S_CONTROL_PLANE_PORT,${K8S_CONTROL_PLANE_PORT},g" \
         |sed "s,K8S_ENDPOINT,${K8S_ENDPOINT},g" \

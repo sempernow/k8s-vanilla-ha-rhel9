@@ -85,17 +85,39 @@ If a BGP daemon is running and there is multiple native subnets to the cluster n
 
 ### [CLI method](https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/)
 
+@ [`cilium.sh`](cilium.sh)
+
+
+
+
 ```bash 
-☩ cilium install [flags]
+cilium install [flags]
 
-☩ cilium install ... --dry-run-helm-values
-```
-- Generates YAML, but __not__ that of 
-  the project's Helm chart `values.yaml`
+cilium install ... --dry-run-helm-values
 
-```bash
-cilium install  
+cilium install \
+    --set tunnelProtocol="" \
+    --set routingMode=native \
+    --set enableIPv4=true \
+    --set enableIPv4Masquerade=true \
+    --set enableIPMasqAgent=false \
+    --set autoDirectNodeRoutes=true \
+    --set directRoutingSkipUnreachable=true \
+    --set bgpControlPlane.enabled=true \
+    --set ipam.mode=kubernetes \
+    --set k8s.requireIPv4PodCIDR=true \
+    --set ipv4NativeRoutingCIDR="$K8S_POD_CIDR" \
+    --set ipam.operator.clusterPoolIPv4PodCIDRList[0]="$K8S_POD_CIDR" \
+    --set ipam.operator.clusterPoolIPv4MaskSize=$K8S_NODE_CIDR_MASK \
+    --set nodeIPAM.enabled=true \
+    --set k8sServiceHost=${K8S_CONTROL_PLANE_IP} \
+    --set k8sServicePort=${K8S_CONTROL_PLANE_PORT} \
+    --version 1.16.5
+
+cilium upgrade --set ... --set ... ...
 ```
+- `--dry-run-helm-values` flag generates YAML, 
+  but __not__ that of project's Helm chart `values.yaml`
 - `--version 1.16.5`
 - `--values cilium.values.yaml` 
     - Note [`cilium.values.yaml](cilium.values.yaml) 
@@ -109,12 +131,14 @@ cilium install
 - `--set ipam.mode=kubernetes` 
     - To abide `podCIDR` of `kubeadm init`
     - `--set k8s.requireIPv4PodCIDR=true`
-    - `--set k8s.requireIPv6PodCIDR=true`
+    - `--set k8s.requireIPv6PodCIDR=false`
 - `--set nodeIPAM.enabled=true`
-- `--set kubeProxyReplacement=true`
+- `--set kubeProxyReplacement=true` : 
+  [To replace `kube-proxy`](https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#kubeproxy-free) 
+  : Requires:
     - `--set k8sServiceHost=${K8S_CONTROL_PLANE_IP}`
     - `--set k8sServicePort=${K8S_CONTROL_PLANE_PORT}`
-    - [Replace `kube-proxy`](https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#kubeproxy-free)
+    - 
 - Add Hubble
     - `--set hubble.ui.enabled=true`
     - `--set hubble.relay.enabled=true`

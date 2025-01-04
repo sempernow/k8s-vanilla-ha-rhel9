@@ -334,29 +334,21 @@ kuberouter-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-teardown.log
 
+#cilium : cilium-gen cilium-helm
+cilium : cilium-cli
+cilium-cli :
+	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh install_by_cli \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-cli.log
 export cilium_values := values-bpf.yaml
-cilium : cilium-gen cilium-helm
 cilium-gen : 
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/cni/cilium/${cilium_values} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-gen.log
-cilium-cli :
-	cilium install \
-		--version 1.16.5 \
-		--set bgpControlPlane.enabled=true \
-		--set ipam.mode=kubernetes \
-		--set k8s.requireIPv4PodCIDR=true \
-		--set k8s.requireIPv6PodCIDR=true \
-		--set nodeIPAM.enabled=true \
-		--set kubeProxyReplacement=true \
-		--set k8sServiceHost=${K8S_CONTROL_PLANE_IP} \
-		--set k8sServicePort=${K8S_CONTROL_PLANE_PORT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-cli.log
 cilium-helm : 
-	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium-helm.sh _install \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-helm-install.log
+	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh install_by_helm \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-helm.log
 cilium-teardown :
-	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium-helm.sh _teardown \
+	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-teardown.log
 
 calico : calico-operator
