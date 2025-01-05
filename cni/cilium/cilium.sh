@@ -9,7 +9,7 @@ install_by_cli(){
         --set cluster.name=${K8S_CLUSTER_NAME} \
         --set l2announcements.enabled='true' \
         --set l2announcements.interface="$K8S_NETWORK_DEVICE" \
-        --set bgp.enabled='true' \
+        --set bgp.enabled='false' \
         --set bgp.announce.loadbalancerIP='true' \
         --set bgp.announce.podCIDR='true' \
         --set bgpControlPlane.enabled='true' \
@@ -46,7 +46,10 @@ install_by_cli(){
         --set operator.rollOutPods='true' \
         --set nodeinit.enabled='true' \
         --set preflight.enabled='true' \
-        --version="$v" #--chart-directory="$APP"
+        --version="$v" #--dry-run-helm-values
+        
+        #--chart-directory="$APP"
+        
 }
 install_by_helm(){
     values=values-bpf.yaml

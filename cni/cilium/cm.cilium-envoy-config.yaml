@@ -323,10 +323,10 @@ metadata:
   annotations:
     meta.helm.sh/release-name: cilium
     meta.helm.sh/release-namespace: kube-system
-  creationTimestamp: "2024-12-01T20:46:22Z"
+  creationTimestamp: "2025-01-04T21:39:47Z"
   labels:
     app.kubernetes.io/managed-by: Helm
   name: cilium-envoy-config
   namespace: kube-system
-  resourceVersion: "1115"
-  uid: 734a8e48-4313-4a81-8a2b-c600448c8fdc
+  resourceVersion: "103491"
+  uid: 106b4166-8dce-4826-aad5-990c77d5d430

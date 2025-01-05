@@ -168,13 +168,112 @@ Add Hubble
 
 ```bash
 cilium upgrade \
-    --set hubble.ui.enabled=true \
-    --set hubble.relay.enabled=true
+    --reuse-values \
+    --set hubble.ui.enabled='true' \
+    --set hubble.relay.enabled='true'
 
+cilium status --wait
+```
+```plaintext
+    /¯¯\
+ /¯¯\__/¯¯\    Cilium:             OK
+ \__/¯¯\__/    Operator:           OK
+ /¯¯\__/¯¯\    Envoy DaemonSet:    OK
+ \__/¯¯\__/    Hubble Relay:       OK
+    \__/       ClusterMesh:        disabled
+
+DaemonSet              cilium             Desired: 3, Ready: 3/3, Available: 3/3
+DaemonSet              cilium-envoy       Desired: 3, Ready: 3/3, Available: 3/3
+Deployment             cilium-operator    Desired: 2, Ready: 2/2, Available: 2/2
+Deployment             hubble-relay       Desired: 1, Ready: 1/1, Available: 1/1
+Deployment             hubble-ui          Desired: 1, Ready: 1/1, Available: 1/1
+Containers:            cilium             Running: 3
+                       cilium-envoy       Running: 3
+                       cilium-operator    Running: 2
+                       hubble-relay       Running: 1
+                       hubble-ui          Running: 1
+```
+```bash
 cilium hubble ui
    #> Opening "http://localhost:12000" in your browser...
 
 ```
+
+## [Star Wars Demo](https://docs.cilium.io/en/stable/gettingstarted/demo/)
+
+```bash
+☩ curl -fsSLO https://raw.githubusercontent.com/cilium/cilium/1.16.5/examples/minikube/http-sw-app.yaml
+
+☩ kn default
+
+☩ k apply -f  http-sw-app.yaml
+service/deathstar created
+deployment.apps/deathstar created
+pod/tiefighter created
+pod/xwing created
+
+☩ k get pod,svc -o wide
+NAME                            READY   STATUS    RESTARTS   AGE     IP             NODE   NOMINATED NODE   READINESS GATES
+pod/deathstar-b4b8ccfb5-2lpn9   1/1     Running   0          2m45s   10.244.1.5     a2     <none>           <none>
+pod/deathstar-b4b8ccfb5-bfbpz   1/1     Running   0          2m45s   10.244.2.135   a3     <none>           <none>
+pod/tiefighter                  1/1     Running   0          2m45s   10.244.0.89    a1     <none>           <none>
+pod/xwing                       1/1     Running   0          2m45s   10.244.0.87    a1     <none>           <none>
+
+NAME                 TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE     SELECTOR
+service/deathstar    ClusterIP   10.103.37.253   <none>        80/TCP    2m45s   class=deathstar,org=empire
+service/kubernetes   ClusterIP   10.96.0.1       <none>        443/TCP   24h     <none>
+```
+
+Sans policy, both fighters are allowed to land on deathstar
+
+```bash
+☩ kubectl exec xwing -- curl -s -XPOST deathstar.default.svc.cluster.local/v1/request-landing
+Ship landed
+
+☩ kubectl exec tiefighter -- curl -s -XPOST deathstar.default.svc.cluster.local/v1/request-landing
+Ship landed
+```
+
+[Apply an __L3/L4 Policy__](https://docs.cilium.io/en/stable/gettingstarted/demo/#apply-an-l3-l4-policy)
+
+```bash
+☩ curl -fsSLO https://raw.githubusercontent.com/cilium/cilium/1.16.5/examples/minikube/sw_l3_l4_policy.yaml
+
+☩ k apply -f  sw_l3_l4_policy.yaml
+ciliumnetworkpolicy.cilium.io/rule1 created
+
+☩ kubectl exec tiefighter -- curl -s -XPOST deathstar.default.svc.cluster.local/v1/request-landing
+Ship landed
+
+☩ kubectl exec xwing -- curl -s -XPOST deathstar.default.svc.cluster.local/v1/request-landing
+command terminated with exit code 28 #... after looooong wait
+```
+- [`sw_l3_l4_policy.yaml`](sw_l3_l4_policy.yaml)
+
+Pods with the __label__ `org=empire` and `class=deathstar` now have __ingress policy__ enforcement __`Enabled`__
+
+```bash
+☩ kubectl -n kube-system exec cilium-vv8rf -c cilium-agent -- cilium-dbg endpoint list
+ENDPOINT   POLICY (ingress)   POLICY (egress)   IDENTITY   LABELS (source:key[=value])                                                  IPv6   IPv4           STATUS
+           ENFORCEMENT        ENFORCEMENT
+...
+2464       Enabled            Disabled          46474      k8s:app.kubernetes.io/name=deathstar                                                10.244.2.135   ready
+                                                           k8s:class=deathstar
+                                                           ...
+                                                           k8s:org=empire
+...
+```
+- `cilium-vv8rf` is on __same node__ as `deathstar` pod;
+  different namespaces.
+
+Cilium Network Policy (`cnp`)
+
+```bash
+kubectl get cnp rule1 -o yaml
+```
+
+### [Apply and Test HTTP-aware __L7 Policy__](https://docs.cilium.io/en/stable/gettingstarted/demo/#apply-and-test-http-aware-l7-policy)
+
 
 ### [Helm method](https://docs.cilium.io/en/stable/installation/k8s-install-helm/ "docs.cilium.io") | [Helm params reference](https://docs.cilium.io/en/stable/helm-reference/#helm-reference)
 

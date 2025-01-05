@@ -253,50 +253,70 @@ Environment="KUBELET_EXTRA_ARGS=--system-reserved=cpu=500m,memory=1Gi --kube-res
 
 ```
 
+Verify eBPF Datapath mode
 
+```bash
+☩ k get cm cilium-config -o yaml |yq .data.routing-mode
+native
 
-## Bandwidth test
+☩ k get cm cilium-config -o yaml |yq .data.datapath-mode
+veth
+```
 
-### `iperf3` : [`nicolaka/netshoot`](https://github.com/nicolaka/netshoot)
+## Data Rate Test
+
+Measure __East-west traffic__ capacity using `iperf3` 
 
 @ Server
 
 ```bash
-☩ kubectl run nbox --image=nicolaka/netshoot -- iperf3 -s
-pod/nbox created
-
-☩ k get pod -o wide
+k -n default run nbox --image=nicolaka/netshoot -- iperf3 -s
+k -n default get pod -o wide
+```
+```plaintext
 NAME   READY   STATUS    RESTARTS   AGE   IP           NODE  ...
 nbox   1/1     Running   0          80s   10.22.0.14   a1    ...
 ```
+- [`nicolaka/netshoot`](https://github.com/nicolaka/netshoot)
 
-@ Client 
+@ Server
 
 ```bash
-☩ kubectl run nbox2 -it --rm --image=nicolaka/netshoot -- iperf3 -c 10.22.0.14
+☩ k -n default run nbox --image=nicolaka/netshoot -- iperf3 -s
+pod/nbox created
+
+☩ kw
+nbox   1/1     Running   0          21s   10.244.0.30   a1     <none>           <none>
+
+☩ ip=10.244.0.30
+```
+
+@ Client : __Cross nodes__
+
+```bash
+☩ k -n default run nbox2 -it --rm     --image=nicolaka/netshoot      --overrides='{"spec": {"nodeName": "a2"}}'     --restart=Never -- iperf3 -c $ip
 ```
 ```plaintext
-If you don't see a command prompt, try pressing enter.
-[ ID] Interval           Transfer     Bitrate         Retr  Cwnd
-[  5]   0.00-1.00   sec  4.23 GBytes  36.3 Gbits/sec  583    758 KBytes
-[  5]   1.00-2.00   sec  4.65 GBytes  39.9 Gbits/sec    0    954 KBytes
-[  5]   2.00-3.00   sec  4.68 GBytes  40.2 Gbits/sec    3    983 KBytes
-[  5]   3.00-4.00   sec  4.89 GBytes  42.0 Gbits/sec  304    984 KBytes
-[  5]   4.00-5.00   sec  4.80 GBytes  41.2 Gbits/sec  210    987 KBytes
-[  5]   5.00-6.00   sec  4.73 GBytes  40.6 Gbits/sec    2    990 KBytes
-[  5]   6.00-7.00   sec  4.79 GBytes  41.1 Gbits/sec  332    932 KBytes
-[  5]   7.00-8.00   sec  4.79 GBytes  41.1 Gbits/sec  180    935 KBytes
-[  5]   8.00-9.00   sec  4.72 GBytes  40.6 Gbits/sec    0    997 KBytes
-[  5]   9.00-10.00  sec  4.82 GBytes  41.4 Gbits/sec   45   1.00 MBytes
+...
 - - - - - - - - - - - - - - - - - - - - - - - - -
 [ ID] Interval           Transfer     Bitrate         Retr
-[  5]   0.00-10.00  sec  47.2 GBytes  40.5 Gbits/sec  1659             sender
-[  5]   0.00-10.00  sec  47.2 GBytes  40.5 Gbits/sec                  receiver
-
-iperf Done.
-Session ended, resume using 'kubectl attach nbox2 -c nbox2 -i -t' command when the pod is running
-pod "nbox2" deleted
+[  5]   0.00-10.00  sec  8.73 GBytes  7.50 Gbits/sec  1113             sender
+[  5]   0.00-10.00  sec  8.72 GBytes  7.49 Gbits/sec                  receiver
 ```
+
+@ Client : __Same node__
+
+```bash
+☩ k -n default run nbox2 -it --rm     --image=nicolaka/netshoot      --overrides='{"spec": {"nodeName": "a1"}}'     --restart=Never -- iperf3 -c $ip
+```
+```plaintext
+...
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Retr
+[  5]   0.00-10.00  sec  54.9 GBytes  47.1 Gbits/sec  2026             sender
+[  5]   0.00-10.00  sec  54.9 GBytes  47.1 Gbits/sec                  receiver
+```
+
 
 ## Observability
 
