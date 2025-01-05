@@ -145,7 +145,7 @@ agent: true
 # -- Agent container name.
 name: cilium
 # -- Roll out cilium agent pods automatically when configmap is updated.
-rollOutCiliumPods: false
+rollOutCiliumPods: true
 # -- Agent container image.
 image:
   # @schema
@@ -367,7 +367,11 @@ l2podAnnouncements:
 bgp:
   # -- Enable BGP support inside Cilium; embeds a new ConfigMap for BGP inside
   # cilium-agent and cilium-operator
-  enabled: true
+  # WARNING:  This DOES NOT DO THAT. 
+  #           It rather expects that ConfigMap, which must be created out-of-band.
+  #           If `bgp.enabled=true`, then some pods of `cilium install` fail,
+  #           endlessly awaiting that expected ConfigMap if not present.
+  enabled: false
   announce:
     # -- Enable allocation and announcement of service LoadBalancer IPs
     loadbalancerIP: true
@@ -377,6 +381,8 @@ bgp:
 # CiliumBGPPeeringPolicy CRDs.
 bgpControlPlane:
   # -- Enables the BGP control plane.
+  # WARNING: This DOES NOTHING UNLESS/UNTIL `bpg.enabled=true`. 
+  #          This only augments that, so okay to enable regardless.
   enabled: true 
   # -- SecretsNamespace is the namespace which BGP support will retrieve secrets from.
   secretsNamespace:
@@ -707,7 +713,7 @@ ciliumEndpointSlice:
 envoyConfig:
   # -- Enable CiliumEnvoyConfig CRD
   # CiliumEnvoyConfig CRD can also be implicitly enabled by other options.
-  enabled: false
+  enabled: true
   # -- SecretsNamespace is the namespace in which envoy SDS will retrieve secrets from.
   secretsNamespace:
     # -- Create secrets namespace for CiliumEnvoyConfig CRDs.
@@ -1949,7 +1955,7 @@ localRedirectPolicy: false
 #   format: json
 
 # -- Enables periodic logging of system load
-logSystemLoad: false
+logSystemLoad: true
 # -- Configure maglev consistent hashing
 maglev: {}
 # -- tableSize is the size (parameter M) for the backend table of one
@@ -2163,7 +2169,7 @@ envoy:
   # -- Enable Envoy Proxy in standalone DaemonSet.
   # This field is enabled by default for new installation.
   # @default -- `true` for new installation
-  enabled: ~
+  enabled: true
   # -- (int)
   # Set Envoy'--base-id' to use when allocating shared memory regions.
   # Only needs to be changed if multiple Envoy instances will run on the same node and may have conflicts. Supported values: 0 - 4294967295. Defaults to '0'
