@@ -353,20 +353,25 @@ cilium-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-teardown.log
 
-calico : calico-operator
+export calico_operator := custom-resources-bpf-bgp.yaml
+calico : calico-operator-gen calico-operator
+calico-operator-gen : 
+	bash make.recipes.sh settings_inject \
+		${ADMIN_SRC_DIR}/cni/calico/operator-method/${calico_operator} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico-operator-gen.log
 calico-operator :
-	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh apply
+	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh apply ${calico_operator}
 calico-manifest :
 	kubectl create -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
 	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.calico.log
 calico-teardown :
-	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh teardown
+	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh teardown ${calico_operator} || echo
 	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml || echo 
 	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml || echo 
 
-export selector := non-cilium
+export selector := non-cni
 kubeproxy-cleanup :
 	kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"${selector}": "true"}}}}}' || echo 
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
@@ -425,7 +430,7 @@ watch :
 	watch kubectl get pod -A -o wide
 psk :
 	ansibash psk
-crictl : crictl-ps crictl-pods crictl-images
+crictl : crictl-images crictl-ps crictl-pods
 crictl-ps crictl-ctnr :
 	ansibash sudo crictl ps 
 crictl-pods :

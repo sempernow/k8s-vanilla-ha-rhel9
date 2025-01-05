@@ -4,7 +4,6 @@
 VER='v3.29.1'
 BASE=https://raw.githubusercontent.com/projectcalico/calico/$VER/manifests
 operator=tigera-operator.yaml
-manifest=custom-resources-bpf-bgp.yaml
 
 kubeproxy_cleanup(){
     # Per-node cleanup of kube-proxy's iptables and such
@@ -20,26 +19,23 @@ kubeproxy_cleanup(){
 
 # Operator Method
 apply(){
+    manifest=$1
     # Operator
     [[ -f $operator ]] || curl -fsSLO $BASE/$operator || return 11
-
     # CRDs and app
     [[ -f $manifest ]] || {
-        curl -fsSL $BASE/custom-resources -o $manifest || return 12
-        echo "=== EDIT $manifest to fit environment, and then install."
-        return 13
+        curl -fsSLO $BASE/custom-resources.yaml || return 13
+        echo "=== EDIT the default manifest to fit environment, and then install."
+        return 14
     }
     [[ $(kubectl get ns |grep 'tigera-op') ]] ||
         kubectl create -f $operator
-
     kubectl apply -f $manifest
-
     #kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico": "true"}}}}}'
-    
     kubectl get pod -o wide -A -w
 }
 teardown(){
-    kubectl delete -f $manifest
+    kubectl delete -f $1
     kubectl delete -f $operator 
 }
 

@@ -26,7 +26,7 @@ networking:
   podSubnet: "10.244.0.0/16"
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
-kind: KubeletConfiguration  ## /var/lib/kubelet/config.yaml
+kind: KubeletConfiguration  
 containerLogMaxSize: 1Mi  # Default is 10Mi
 containerLogMaxFiles: 5   # Default is 5
 containerRuntimeEndpoint: unix:///var/run/containerd/containerd.sock
