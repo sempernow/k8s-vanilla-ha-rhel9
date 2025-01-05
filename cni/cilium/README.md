@@ -1,6 +1,8 @@
-# [Cilium](https://github.com/cilium/cilium) | [eBPF Datapath](https://docs.cilium.io/en/stable/network/ebpf/intro/)
+# [Cilium](https://github.com/cilium/cilium)  | [ArtifactHUB.io](https://artifacthub.io/packages/helm/cilium/cilium/)
 
+## Features
 
+- [eBPF Datapath](https://docs.cilium.io/en/stable/network/ebpf/intro/)
 - [LB IPAM](https://docs.cilium.io/en/stable/network/lb-ipam/) : Allows Cilium to assign IP addresses to `Service`s of type `LoadBalancer`. This functionality is __usually left up to a cloud provider__, however, when deploying in a private cloud environment, these facilities are not always available. This feature is always enabled, yet dormant until controller is awoken when the first IP Pool (`CiliumLoadBalancerIPPool`) is added to the cluster. See "`kubectl get ippools`"
     - [BGP Control Plane](https://docs.cilium.io/en/stable/network/bgp-control-plane/bgp-control-plane-v2/#bgp-cluster-configuration)
     - [L2 Announcements / L2 Aware LB](https://docs.cilium.io/en/stable/network/l2-announcements/#l2-announcements) (Beta)
@@ -17,107 +19,72 @@ kubectl -n kube-system exec ds/cilium -- cilium-dbg status \
 
 The driver for Cilium is eBPF AKA DirectPath mode, yet properly configuring that is a labyrinth of methods, protocols and parameters.
 
-## Download 
+## Download : `download` of [cilium.sh](cilium.sh)
+
+## Routing
+
+Direct (__eBPF Datapath__; L3) v. Encapsulated (Overlay/VXLAN)
+
+For the best performance on east-west traffic in a single-subnet cluster, the Direct Datapath is usually the industry recommendation.
+
+Verify routing:
 
 ```bash
-ok(){
-    # CLI : https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/
-    dir="cilium/cilium-cli"
-    ./$dir/cilium version 2>&1 || {
-        mkdir -p $dir
-        pushd $dir 
-        url=https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt
-        ver=$(curl -s $url) # v0.16.20
-        echo $ver |grep 'v' || return 1
-        arch=${ARCH:-amd64}
-        [[ "$(uname -m)" = "aarch64" ]] && arch=arm64
-        tarball="cilium-linux-${arch}.tar.gz"
-        url=https://github.com/cilium/cilium-cli/releases/download/${ver}/$tarball{,.sha256sum}
-        curl -L --fail --remote-name-all $url &&
-            sha256sum --check $tarball.sha256sum &&
-                sudo tar xzvfC $tarball . &&
-                    rm $tarball{,.sha256sum}
-        popd
-    }
+cilium config view |grep tunnel
+```
+- If `tunnel` is set to `vxlan` or `geneve`, it’s __Encapsulated__.
+- If `tunnel` is unst, it’s __Datapath Direct__.
 
-    # Chart : https://artifacthub.io/packages/helm/cilium/cilium/
-    # Images : https://github.com/cilium/cilium/releases
-    ver='1.16.4' 
-    dir="cilium"
-    pushd $dir 
-    repo='cilium'
-    chart='cilium'
-    helm repo update $repo
-    helm pull $repo/$chart --version $ver &&
-        tar -xaf ${chart}-$ver.tgz &&
-            cp -p $chart/values.yaml . &&
-                type -t hdi >/dev/null 2>&1 &&
-                    hdi $chart                
-    rm -rf $chart
-    popd
-}
-ok
+Cilium defaults do not enabling its __eBPF Datapath__ (`native`). It's default routing mode is rather by __encapsulation__ (`vxlan` or `geneve`)
 
+The `native` packet forwarding mode leverages the routing capabilities of the network Cilium runs on instead of performing encapsulation.
+
+@ `cm.cilium-config.data`
+
+```yaml
+ipam: kubernetes
+routing-mode: native
+datapath-mode: veth
+ipv4-native-routing-cidr: 10.244.0.0/16
+k8s-require-ipv4-pod-cidr: "true"
+```
+
+If a BGP daemon is running and there is multiple native subnets to the cluster network, optionally give each node L2 connectivity in each zone without traffic always needing to be routed by the BGP routers:
+
+@ `cm.cilium-config.data`
+
+```yaml
+direct-routing-skip-unreachable: "true"
+auto-direct-node-routes: "true"
 ```
 
 ## [Install](https://chatgpt.com/c/6749a5f4-ad00-8009-9166-ad815bc10bfc "ChatGPT")
 
-Both install methods are of Helm chart
+Install by __`cilium`__ host __CLI__ or `helm` CLI. 
+Regardless of install method, the project's Helm chart is applied.
+Cilium configuration state is kept in `ConfigMap` `cilium-config` of `Namespace` `kube-system`, which may be edited directly, else per CLI.
 
-### Routing : VXLAN or Geneve  
+Note the `cilium-*` (__Cilium Agent__) Pods have their own CLI, __`cilium-dbg`__, which is widely referenced in documentation, though without context.
 
-Cilium defaults to not enabling eBPF Directpath mode. It's default routing mode is by __encapsulation__ (VXLAN or Geneve)
+### [CLI method](https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/) 
 
-### Routing : eBPF (Native)
-
-The native packet forwarding mode leverages the routing capabilities of the network Cilium runs on instead of performing encapsulation.
-
-Configuration
-
-- `routing-mode: native`
-
-- `ipv4-native-routing-cidr: x.x.x.x/y`
-
-If a BGP daemon is running and there is multiple native subnets to the cluster network, optionally give each node L2 connectivity in each zone without traffic always needing to be routed by the BGP routers:
-
-- `direct-routing-skip-unreachable: true` 
-- `auto-direct-node-routes: true` 
-
-### [CLI method](https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/)
 
 @ [`cilium.sh`](cilium.sh)
-
-
-
 
 ```bash 
 cilium install [flags]
 
 cilium install ... --dry-run-helm-values
 
-cilium install \
-    --set tunnelProtocol="" \
-    --set routingMode=native \
-    --set enableIPv4=true \
-    --set enableIPv4Masquerade=true \
-    --set enableIPMasqAgent=false \
-    --set autoDirectNodeRoutes=true \
-    --set directRoutingSkipUnreachable=true \
-    --set bgpControlPlane.enabled=true \
-    --set ipam.mode=kubernetes \
-    --set k8s.requireIPv4PodCIDR=true \
-    --set ipv4NativeRoutingCIDR="$K8S_POD_CIDR" \
-    --set ipam.operator.clusterPoolIPv4PodCIDRList[0]="$K8S_POD_CIDR" \
-    --set ipam.operator.clusterPoolIPv4MaskSize=$K8S_NODE_CIDR_MASK \
-    --set nodeIPAM.enabled=true \
-    --set k8sServiceHost=${K8S_CONTROL_PLANE_IP} \
-    --set k8sServicePort=${K8S_CONTROL_PLANE_PORT} \
-    --version 1.16.5
+cilium install --values $values --version 1.16.5
 
-cilium upgrade --set ... --set ... ...
+cilium upgrade --reuse-values --set ... --set ... ...
 ```
-- `--dry-run-helm-values` flag generates YAML, 
-  but __not__ that of project's Helm chart `values.yaml`
+- `--reuse-values` on upgrade __else all existing configuration is deleted__ from `ConfigMap` `cilium-config`, except for those at current imperatives; "`--set ... --set ...`"
+- `--dry-run-helm-values` flag generates YAML for subsequent use;
+    however, does no linting; 
+    is a pure mapping to YAML per syntax; 
+    will map "`--set foo[0].bar=2`" to `foo: [{"bar": 2}]`
 - `--version 1.16.5`
 - `--values cilium.values.yaml` 
     - Note [`cilium.values.yaml](cilium.values.yaml) 
@@ -128,6 +95,8 @@ cilium upgrade --set ... --set ... ...
 - `--set routingMode=native`
 - `--set tunnelProtocol=""`
 - `--set bgpControlPlane.enabled=true`
+    - Augments `bgp.enabled=true`, otherwise is dormant; 
+      however that requires an out-of-band ConfigMap.
 - `--set ipam.mode=kubernetes` 
     - To abide `podCIDR` of `kubeadm init`
     - `--set k8s.requireIPv4PodCIDR=true`
@@ -140,31 +109,53 @@ cilium upgrade --set ... --set ... ...
     - `--set k8sServicePort=${K8S_CONTROL_PLANE_PORT}`
     - 
 - Add Hubble
-    - `--set hubble.ui.enabled=true`
-    - `--set hubble.relay.enabled=true`
+    - `--set hubble.ui.enabled='true'`
+    - `--set hubble.relay.enabled='true'`
 
-After install ...
+See function __`install_by_cli`__ of [__cilium.sh__](cilium.sh)
+
+Verify install ...
 
 ```bash
-☩ helm list
+cilium status --wait
+cilium config view
+helm list -n kube-system
+```
+```plaintext
 NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART           APP VERSION
 cilium  kube-system     4               2025-01-03 15:26:50.168436737 -0500 EST deployed        cilium-1.16.3   1.16.3
 ```
-&nbsp;
-
-Default install does not implement eBPF Datapath
 
 ```bash
-cilium install --version 1.16.5
-cilium status --wait
-cilium connectivity test 
-kubectl get cm cilium-config -o yaml |yq .data.tunnel-protocol #> <nothing> if eBPF Datapath, else "vxlan"
-kubectl get cm cilium-config -o yaml |yq .data.routing-mode #> native if eBPF Datapath
-kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg status 
+kubectl get cm cilium-config -o yaml \
+    |yq .data.tunnel-protocol 
+    #> <nothing> if eBPF Datapath, else "vxlan"
+
+kubectl get cm cilium-config -o yaml \
+    |yq .data.routing-mode 
+    #> native if eBPF Datapath
+
+kubectl -n kube-system exec ds/cilium -c cilium-agent -- \
+    cilium-dbg status 
 
 ```
 
-Add Hubble
+Test : applies objects to Namespace `cilium-test-1`
+
+```bash
+cilium connectivity test |& tee cilium.connectivity.test.log
+```
+
+### [Helm method](https://docs.cilium.io/en/stable/installation/k8s-install-helm/ "docs.cilium.io") | [Helm params reference](https://docs.cilium.io/en/stable/helm-reference/#helm-reference)
+
+```bash
+helm upgrade cilium cilium/cilium --install --values $values
+
+```
+
+See function __`install_by_helm`__ of [__cilium.sh__](cilium.sh)
+
+### Enable Hubble
 
 ```bash
 cilium upgrade \
@@ -198,161 +189,6 @@ cilium hubble ui
    #> Opening "http://localhost:12000" in your browser...
 
 ```
-
-## [Star Wars Demo](https://docs.cilium.io/en/stable/gettingstarted/demo/)
-
-```bash
-☩ curl -fsSLO https://raw.githubusercontent.com/cilium/cilium/1.16.5/examples/minikube/http-sw-app.yaml
-
-☩ kn default
-
-☩ k apply -f  http-sw-app.yaml
-service/deathstar created
-deployment.apps/deathstar created
-pod/tiefighter created
-pod/xwing created
-
-☩ k get pod,svc -o wide
-NAME                            READY   STATUS    RESTARTS   AGE     IP             NODE   NOMINATED NODE   READINESS GATES
-pod/deathstar-b4b8ccfb5-2lpn9   1/1     Running   0          2m45s   10.244.1.5     a2     <none>           <none>
-pod/deathstar-b4b8ccfb5-bfbpz   1/1     Running   0          2m45s   10.244.2.135   a3     <none>           <none>
-pod/tiefighter                  1/1     Running   0          2m45s   10.244.0.89    a1     <none>           <none>
-pod/xwing                       1/1     Running   0          2m45s   10.244.0.87    a1     <none>           <none>
-
-NAME                 TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE     SELECTOR
-service/deathstar    ClusterIP   10.103.37.253   <none>        80/TCP    2m45s   class=deathstar,org=empire
-service/kubernetes   ClusterIP   10.96.0.1       <none>        443/TCP   24h     <none>
-```
-
-Sans policy, both fighters are allowed to land on deathstar
-
-```bash
-☩ kubectl exec xwing -- curl -s -XPOST deathstar.default.svc.cluster.local/v1/request-landing
-Ship landed
-
-☩ kubectl exec tiefighter -- curl -s -XPOST deathstar.default.svc.cluster.local/v1/request-landing
-Ship landed
-```
-
-[Apply an __L3/L4 Policy__](https://docs.cilium.io/en/stable/gettingstarted/demo/#apply-an-l3-l4-policy)
-
-```bash
-☩ curl -fsSLO https://raw.githubusercontent.com/cilium/cilium/1.16.5/examples/minikube/sw_l3_l4_policy.yaml
-
-☩ k apply -f  sw_l3_l4_policy.yaml
-ciliumnetworkpolicy.cilium.io/rule1 created
-
-☩ kubectl exec tiefighter -- curl -s -XPOST deathstar.default.svc.cluster.local/v1/request-landing
-Ship landed
-
-☩ kubectl exec xwing -- curl -s -XPOST deathstar.default.svc.cluster.local/v1/request-landing
-command terminated with exit code 28 #... after looooong wait
-```
-- [`sw_l3_l4_policy.yaml`](sw_l3_l4_policy.yaml)
-
-Pods with the __label__ `org=empire` and `class=deathstar` now have __ingress policy__ enforcement __`Enabled`__
-
-```bash
-☩ kubectl -n kube-system exec cilium-vv8rf -c cilium-agent -- cilium-dbg endpoint list
-ENDPOINT   POLICY (ingress)   POLICY (egress)   IDENTITY   LABELS (source:key[=value])                                                  IPv6   IPv4           STATUS
-           ENFORCEMENT        ENFORCEMENT
-...
-2464       Enabled            Disabled          46474      k8s:app.kubernetes.io/name=deathstar                                                10.244.2.135   ready
-                                                           k8s:class=deathstar
-                                                           ...
-                                                           k8s:org=empire
-...
-```
-- `cilium-vv8rf` is on __same node__ as `deathstar` pod;
-  different namespaces.
-
-Cilium Network Policy (`cnp`)
-
-```bash
-kubectl get cnp rule1 -o yaml
-```
-
-### [Apply and Test HTTP-aware __L7 Policy__](https://docs.cilium.io/en/stable/gettingstarted/demo/#apply-and-test-http-aware-l7-policy)
-
-
-### [Helm method](https://docs.cilium.io/en/stable/installation/k8s-install-helm/ "docs.cilium.io") | [Helm params reference](https://docs.cilium.io/en/stable/helm-reference/#helm-reference)
-
-
-```bash
-app=cilium
-ver=1.16.5 
-ver=1.15.11 
-values=values.yaml
-tar -xaf ${app}-$ver.tgz &&
-    helm upgrade --install -f $values $app $app/ &&
-        rm -rf $app
-
-```
-- [`values.yaml`](values.yaml)
-
-```bash
-helm install cilium cilium/cilium --version 1.15.11 \
-    --namespace kube-system \
-    --set ipam.mode=kubernetes \
-    --set=kubeProxyReplacement=true \
-    --set k8sServiceHost=${K8S_CONTROL_PLANE_IP} \
-    --set k8sServicePort=${K8S_CONTROL_PLANE_PORT} \
-    --set=securityContext.capabilities.ciliumAgent="{CHOWN,KILL,NET_ADMIN,NET_RAW,IPC_LOCK,SYS_ADMIN,SYS_RESOURCE,DAC_OVERRIDE,FOWNER,SETGID,SETUID}" \
-    --set=securityContext.capabilities.cleanCiliumState="{NET_ADMIN,SYS_ADMIN,SYS_RESOURCE}" \
-    --set=cgroup.autoMount.enabled=false \
-    --set=cgroup.hostRoot=/sys/fs/cgroup \
-    --set=k8sServiceHost=localhost \
-    --set=k8sServicePort=7445 \
-    --set hubble.relay.enabled=true \
-    --set hubble.ui.enabled=true
-
-
-helm install cilium cilium/cilium --version 1.15.11 \
-    --namespace kube-system \
-    --set kubeProxyReplacement=true \
-    --set k8sServiceHost=${API_SERVER_IP} \
-    --set k8sServicePort=${API_SERVER_PORT}
-
-```
-
-If we want Cilium to use the HA LB (vIP) 
-when communicating with K8s API server:
-
-```bash
-vip_or_domain=10.0.10.11 # OR k8s.lime.lan
-port=6444 # HALB frontend; upstreams to 6443 (kube-apiserver)
-helm install cilium cilium/cilium --namespace kube-system \
-    --set k8sServiceHost=$vip_or_domain \
-    --set k8sServicePort=$port \
-    --set kubeProxyReplacement=partial \
-    --set externalIPs.enabled=true
-```
-- `kubeProxyReplacement` :
-    - Enables partial or full replacement of kube-proxy functionality by Cilium.
-    - In most cases, partial is sufficient to integrate with external load balancers.
-- `externalIPs.enabled` :
-    - Allows the use of external IPs for services. 
-      This is necessary for external load balancers 
-      to direct traffic correctly.
-- `hostServices.enabled=true` :
-    - Optional. Enables handling of host services by Cilium, 
-      which can be helpful in environments with external load balancers.
-
-### [Optimal per ChatGPT](https://chatgpt.com/c/675905de-37fc-8009-ba64-c0f2501df333) : [`values.yaml`](values.yaml)
-
-Datapath : Direct (L3) v. Encapsulated (Overlay/VXLAN)
-
-For the best performance on east-west traffic in a single-subnet cluster, 
-the __Direct Datapath__ is usually the industry recommendation.
-
-Query 
-
-```bash
-cilium config view |grep tunnel
-```
-- If `tunnel` is set to `vxlan` or `geneve`, it’s __Encapsulated__.
-- If `tunnel` is set to `disabled`, it’s __Direct__.
-
 
 ## `cilium` (host) v. `cilium-dbg` (ctnr)
 
@@ -468,20 +304,21 @@ Use "cilium [command] --help" for more information about a command.
 
 ```
 
-## Add __Hubble__ 
+### Add __Hubble__ 
 
 ```bash
 ☩ cilium upgrade \
-    --set hubble.ui.enabled=true \
-    --set hubble.relay.enabled=true
+    --reuse-values \
+    --set hubble.ui.enabled='true' \
+    --set hubble.relay.enabled='true'
 
 ☩ cilium hubble ui
-   Opening "http://localhost:12000" in your browser...
-
+   Opening "http://localhost:12000" in your browser... # Blocks
 ```
-
 ```bash
 ☩ cilium status
+```
+```plaintext
     /¯¯\
  /¯¯\__/¯¯\    Cilium:             OK
  \__/¯¯\__/    Operator:           OK
@@ -500,11 +337,56 @@ Containers:            cilium             Running: 3
                        hubble-relay       Running: 1
                        hubble-ui          Running: 1
 Cluster Pods:          5/5 managed by Cilium
-Helm chart version:    1.16.3
-Image versions         cilium             quay.io/cilium/cilium:v1.16.3@sha256:62d...f28: 3
-                       cilium-envoy       quay.io/cilium/cilium-envoy:v1.29.9-17283...: 3
-                       cilium-operator    quay.io/cilium/operator-generic:v1.16.3@sha256:...: 2
-                       hubble-relay       quay.io/cilium/hubble-relay:v1.16.3@sha256:feb...089: 1
-                       hubble-ui          quay.io/cilium/hubble-ui-backend:v0.13.1@sha256:0e0...95b: 1
-                       hubble-ui          quay.io/cilium/hubble-ui:v0.13.1@sha256:e2e...6c6: 1
+...
+```
+
+## Data Rate test : East-west traffic : `iperf3`
+
+@ Server
+
+```bash
+☩ k -n default run nbox --image=nicolaka/netshoot -- \
+    iperf3 -s
+pod/nbox created
+
+☩ k get pod -o wide -n default
+NAME   READY   STATUS    RESTARTS   AGE   IP            NODE   NOMINATED NODE   READINESS GATES
+nbox   1/1     Running   0          12s   10.244.1.44   a2     <none>           <none>
+
+☩ ip=10.244.1.44
+```
+
+@ Client : __Same node__
+
+```bash
+☩ node=a2
+
+☩ k -n default run nbox2 -it --rm \
+    --image=nicolaka/netshoot \
+    --overrides='{"spec": {"nodeName": "'$node'"}}' \
+    --restart=Never -- \
+    iperf3 -c $ip
+...
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Retr
+[  5]   0.00-10.00  sec  55.1 GBytes  47.4 Gbits/sec  748             sender
+[  5]   0.00-10.00  sec  55.1 GBytes  47.4 Gbits/sec                  receiver
+```
+
+@ Client : __Cross node__
+
+```bash
+☩ node=a1
+
+☩ k -n default run nbox2 -it --rm \
+    --image=nicolaka/netshoot \
+    --overrides='{"spec": {"nodeName": "'$node'"}}' \
+    --restart=Never -- \
+    iperf3 -c $ip
+...
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Retr
+[  5]   0.00-10.00  sec  7.68 GBytes  6.60 Gbits/sec  404             sender
+[  5]   0.00-10.00  sec  7.68 GBytes  6.60 Gbits/sec                  receiver
+
 ```

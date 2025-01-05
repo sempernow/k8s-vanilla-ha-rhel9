@@ -1,10 +1,12 @@
 ---
-## curl -fsSLO https://raw.githubusercontent.com/cilium/cilium/1.16.5/examples/minikube/sw_l3_l4_policy.yaml
 apiVersion: "cilium.io/v2"
 kind: CiliumNetworkPolicy
+## Apply an L3/L4 Policy : https://docs.cilium.io/en/stable/gettingstarted/demo/#apply-an-l3-l4-policy
+## Manifest : curl -fsSLO https://raw.githubusercontent.com/cilium/cilium/1.16.5/examples/minikube/sw_l3_l4_policy.yaml
 metadata:
   name: "rule1"
 spec:
+  ## This policy allows all-or-none access per matchLabels
   description: "L3-L4 policy to restrict deathstar access to empire ships only"
   endpointSelector:
     matchLabels:

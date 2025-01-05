@@ -1,5 +1,7 @@
 ---
-## @ curl -fsSLO https://raw.githubusercontent.com/cilium/cilium/1.16.5/examples/minikube/http-sw-app.yaml
+## Deploy the Demo Application : https://docs.cilium.io/en/stable/gettingstarted/demo/#deploy-the-demo-application
+## Manifest : curl -fsSLO https://raw.githubusercontent.com/cilium/cilium/1.16.5/examples/minikube/http-sw-app.yaml
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -16,6 +18,7 @@ spec:
 ---
 apiVersion: apps/v1
 kind: Deployment
+## Deploymnet deathstar is the resource we want to protect 
 metadata:
   name: deathstar
   labels:
@@ -39,6 +42,7 @@ spec:
 ---
 apiVersion: v1
 kind: Pod
+## Pod tiefighter is of org empire; deathstar's org; is friendly
 metadata:
   name: tiefighter
   labels:
@@ -52,6 +56,7 @@ spec:
 ---
 apiVersion: v1
 kind: Pod
+## Pod xwing is of org alliance; is enemy of (deathstar's) empire 
 metadata:
   name: xwing
   labels:

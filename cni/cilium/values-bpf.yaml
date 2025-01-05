@@ -1,6 +1,6 @@
 upgradeCompatibility: null
 debug:
-  enabled: false
+  enabled: true
   verbose: ~
 rbac:
   create: true
@@ -12,7 +12,7 @@ k8sClientRateLimit:
   qps:
   burst:
 cluster:
-  name: default
+  name: lime 
   id: 0
 serviceAccounts:
   cilium:
@@ -69,7 +69,7 @@ serviceAccounts:
 terminationGracePeriodSeconds: 1
 agent: true
 name: cilium
-rollOutCiliumPods: false
+rollOutCiliumPods: true
 image:
   override: ~
   repository: "quay.io/cilium/cilium"
@@ -151,12 +151,12 @@ nat46x64Gateway:
 highScaleIPcache:
   enabled: false
 l2announcements:
-  enabled: false
+  enabled: true
 l2podAnnouncements:
-  enabled: false
+  enabled: true
   interface: "eth0"
 bgp:
-  enabled: true
+  enabled: false
   announce:
     loadbalancerIP: true
     podCIDR: true
@@ -247,7 +247,7 @@ ciliumEndpointSlice:
       limit: 5
       burst: 10
 envoyConfig:
-  enabled: false
+  enabled: true
   secretsNamespace:
     create: true
     name: cilium-secrets
@@ -367,7 +367,7 @@ certgen:
   extraVolumeMounts: []
   affinity: {}
 hubble:
-  enabled: true
+  enabled: false
   annotations: {}
   metrics:
     enabled: ~
@@ -438,7 +438,7 @@ hubble:
       extraDnsNames: []
       extraIpAddresses: []
   relay:
-    enabled: true
+    enabled: false
     rollOutPods: true
     image:
       override: ~
@@ -526,7 +526,7 @@ hubble:
       address: localhost
       port: 6062
   ui:
-    enabled: true
+    enabled: false
     standalone:
       enabled: false
       tls:
@@ -668,7 +668,7 @@ ipv6:
   enabled: false
 k8s:
   requireIPv4PodCIDR: true
-  requireIPv6PodCIDR: true
+  requireIPv6PodCIDR: false
 keepDeprecatedLabels: false
 keepDeprecatedProbes: false
 startupProbe:
@@ -687,7 +687,7 @@ l2NeighDiscovery:
   refreshPeriod: "30s"
 l7Proxy: true
 localRedirectPolicy: false
-logSystemLoad: false
+logSystemLoad: true
 maglev: {}
 enableIPv4Masquerade: true
 enableIPv6Masquerade: true
@@ -758,7 +758,7 @@ dashboards:
   labelValue: "1"
   annotations: {}
 envoy:
-  enabled: ~
+  enabled: true
   baseID: 0
   log:
     format: "[%Y-%m-%d %T.%e][%t][%l][%n] [%g:%#] %v"
@@ -891,7 +891,7 @@ etcd:
   ssl: false
 operator:
   enabled: true
-  rollOutPods: false
+  rollOutPods: true
   image:
     override: ~
     repository: "quay.io/cilium/operator"

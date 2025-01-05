@@ -1287,7 +1287,7 @@ hubble:
       extraIpAddresses: []
   relay:
     # -- Enable Hubble Relay (requires hubble.enabled=true)
-    enabled: true
+    enabled: false
     # -- Roll out Hubble Relay pods automatically when configmap is updated.
     rollOutPods: true
     # -- Hubble-relay container image.
@@ -1502,7 +1502,7 @@ hubble:
       port: 6062
   ui:
     # -- Whether to enable the Hubble UI.
-    enabled: true
+    enabled: false
     standalone:
       # -- When true, it will allow installing the Hubble UI only, without checking dependencies.
       # It is useful if a cluster already has cilium and Hubble relay installed and you just
@@ -2675,7 +2675,8 @@ operator:
     intervalSeconds: 15
 nodeinit:
   # -- Enable the node initialization DaemonSet
-  enabled: true
+  ## NOT NEEDED apparently
+  enabled: false
   # -- node-init image.
   image:
     # @schema
@@ -2760,7 +2761,9 @@ nodeinit:
     postScript: ""
 preflight:
   # -- Enable Cilium pre-flight resources (required for upgrade)
-  enabled: true
+  ## WARNING: DO NOT ENABLE this. 
+  ##          If enabled, then required ConfigMaps are not created. 
+  enabled: false
   # -- Cilium pre-flight image.
   image:
     # @schema

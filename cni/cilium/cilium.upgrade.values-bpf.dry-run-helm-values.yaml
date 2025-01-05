@@ -10,7 +10,6 @@ agent: true
 agentNotReadyTaintKey: node.cilium.io/agent-not-ready
 annotateK8sNode: false
 annotations: {}
-apiRateLimit: null
 authentication:
   enabled: true
   gcInterval: 5m0s
@@ -29,7 +28,6 @@ authentication:
           annotations: {}
           image:
             digest: sha256:5106ac601272a88684db14daf7f54b9a45f31f77bb16a906bd5e87756ee7b97c
-            override: null
             pullPolicy: IfNotPresent
             repository: ghcr.io/spiffe/spire-agent
             tag: 1.9.6
@@ -58,7 +56,6 @@ authentication:
         existingNamespace: false
         initImage:
           digest: sha256:d75b758a4fea99ffff4db799e16f853bbde8643671b5b72464a8ba94cbe3dbe3
-          override: null
           pullPolicy: IfNotPresent
           repository: docker.io/library/busybox
           tag: 1.36.1
@@ -77,10 +74,8 @@ authentication:
             accessMode: ReadWriteOnce
             enabled: true
             size: 1Gi
-            storageClass: null
           image:
             digest: sha256:59a0b92b39773515e25e68a46c40d3b931b9c1860bc445a79ceb45a805cab8b4
-            override: null
             pullPolicy: IfNotPresent
             repository: ghcr.io/spiffe/spire-server
             tag: 1.9.6
@@ -98,7 +93,6 @@ authentication:
             create: true
             name: spire-server
           tolerations: []
-      serverAddress: null
       trustDomain: spiffe.cilium
   queueSize: 1024
   rotatedIdentitiesQueueSize: 1024
@@ -110,18 +104,15 @@ bgp:
   announce:
     loadbalancerIP: true
     podCIDR: true
-  enabled: true
+  enabled: false
 bgpControlPlane:
   enabled: true
   secretsNamespace:
     create: false
     name: kube-system
 bpf:
-  authMapMax: null
   autoMount:
     enabled: true
-  ctAnyMax: null
-  ctTcpMax: null
   datapathMode: veth
   disableExternalIPMitigation: false
   enableTCX: true
@@ -132,22 +123,15 @@ bpf:
       enabled: true
     trace:
       enabled: true
-  hostLegacyRouting: null
   lbExternalClusterIP: false
   lbMapMax: 65536
-  mapDynamicSizeRatio: null
   masquerade: true
   monitorAggregation: medium
   monitorFlags: all
   monitorInterval: 5s
-  natMax: null
-  neighMax: null
-  nodeMapMax: null
   policyMapMax: 16384
   preallocateMaps: false
   root: /sys/fs/bpf
-  tproxy: null
-  vlanBypass: null
 bpfClockProbe: false
 certgen:
   affinity: {}
@@ -158,7 +142,6 @@ certgen:
   extraVolumes: []
   image:
     digest: sha256:169d93fd8f2f9009db3b9d5ccd37c2b753d0989e1e7cd8fe79f9160c459eef4f
-    override: null
     pullPolicy: IfNotPresent
     repository: quay.io/cilium/certgen
     tag: v0.2.0
@@ -187,7 +170,7 @@ cleanBpfState: false
 cleanState: false
 cluster:
   id: 0
-  name: default
+  name: lime
 clustermesh:
   annotations: {}
   apiserver:
@@ -220,7 +203,6 @@ clustermesh:
     healthPort: 9880
     image:
       digest: sha256:37a7fdbef806b78ef63df9f1a9828fdddbf548d1f0e43b8eb10a6bdc8fa03958
-      override: null
       pullPolicy: IfNotPresent
       repository: quay.io/cilium/clustermesh-apiserver
       tag: v1.16.5
@@ -255,23 +237,16 @@ clustermesh:
         enabled: false
         etcd:
           interval: 10s
-          metricRelabelings: null
-          relabelings: null
         interval: 10s
         kvstoremesh:
           interval: 10s
-          metricRelabelings: null
-          relabelings: null
         labels: {}
-        metricRelabelings: null
-        relabelings: null
     nodeSelector:
       kubernetes.io/os: linux
     podAnnotations: {}
     podDisruptionBudget:
       enabled: false
       maxUnavailable: 1
-      minAvailable: null
     podLabels: {}
     podSecurityContext:
       fsGroup: 65532
@@ -292,8 +267,6 @@ clustermesh:
       enableSessionAffinity: HAOnly
       externalTrafficPolicy: Cluster
       internalTrafficPolicy: Cluster
-      loadBalancerClass: null
-      loadBalancerIP: null
       nodePort: 32379
       type: NodePort
     terminationGracePeriodSeconds: 30
@@ -336,8 +309,6 @@ clustermesh:
   useAPIServer: false
 cni:
   binPath: /opt/cni/bin
-  chainingMode: null
-  chainingTarget: null
   confFileMountPath: /tmp/cni-configuration
   confPath: /etc/cni/net.d
   configMapKey: cni-config
@@ -358,19 +329,14 @@ crdWaitTimeout: ""
 customCalls:
   enabled: false
 daemon:
-  allowedConfigOverrides: null
-  blockedConfigOverrides: null
-  configSources: null
   runPath: /var/run/cilium
 dashboards:
   annotations: {}
   enabled: false
   label: grafana_dashboard
   labelValue: "1"
-  namespace: null
 debug:
-  enabled: false
-  verbose: null
+  enabled: true
 directRoutingSkipUnreachable: true
 disableEndpointCRD: false
 dnsPolicy: ""
@@ -463,8 +429,7 @@ envoy:
     admin:
       enabled: false
       port: 9901
-  dnsPolicy: null
-  enabled: null
+  enabled: true
   extraArgs: []
   extraContainers: []
   extraEnv: []
@@ -475,7 +440,6 @@ envoy:
   idleTimeoutDurationSeconds: 60
   image:
     digest: sha256:709c08ade3d17d52da4ca2af33f431360ec26268d288d9a6cd1d98acc9a1dced
-    override: null
     pullPolicy: IfNotPresent
     repository: quay.io/cilium/cilium-envoy
     tag: v1.30.8-1733837904-eaae5aca0fb988583e5617170a65ac5aa51c0aa8
@@ -496,7 +460,6 @@ envoy:
   podSecurityContext:
     appArmorProfile:
       type: Unconfined
-  priorityClassName: null
   prometheus:
     enabled: true
     port: "9964"
@@ -505,7 +468,6 @@ envoy:
       enabled: false
       interval: 10s
       labels: {}
-      metricRelabelings: null
       relabelings:
       - replacement: ${1}
         sourceLabels:
@@ -539,7 +501,7 @@ envoy:
   xffNumTrustedHopsL7PolicyEgress: 0
   xffNumTrustedHopsL7PolicyIngress: 0
 envoyConfig:
-  enabled: false
+  enabled: true
   retryInterval: 15s
   secretsNamespace:
     create: true
@@ -597,7 +559,7 @@ hubble:
     reasons:
     - auth_required
     - policy_denied
-  enabled: true
+  enabled: false
   export:
     dynamic:
       config:
@@ -625,9 +587,7 @@ hubble:
       enabled: false
       label: grafana_dashboard
       labelValue: "1"
-      namespace: null
     enableOpenMetrics: false
-    enabled: null
     port: 9965
     serviceAnnotations: {}
     serviceMonitor:
@@ -636,7 +596,6 @@ hubble:
       interval: 10s
       jobLabel: ""
       labels: {}
-      metricRelabelings: null
       relabelings:
       - replacement: ${1}
         sourceLabels:
@@ -654,7 +613,6 @@ hubble:
         mtls:
           enabled: false
           key: ca.crt
-          name: null
           useSecret: false
   peerService:
     clusterDomain: cluster.local
@@ -679,8 +637,7 @@ hubble:
               k8s-app: cilium
           topologyKey: kubernetes.io/hostname
     annotations: {}
-    dialTimeout: null
-    enabled: true
+    enabled: false
     extraEnv: []
     extraVolumeMounts: []
     extraVolumes: []
@@ -689,7 +646,6 @@ hubble:
       port: 9893
     image:
       digest: sha256:6cfae1d1afa566ba941f03d4d7e141feddd05260e5cd0a1509aba1890a45ef00
-      override: null
       pullPolicy: IfNotPresent
       repository: quay.io/cilium/hubble-relay
       tag: v1.16.5
@@ -702,7 +658,6 @@ hubble:
     podDisruptionBudget:
       enabled: false
       maxUnavailable: 1
-      minAvailable: null
     podLabels: {}
     podSecurityContext:
       fsGroup: 65532
@@ -719,11 +674,8 @@ hubble:
         enabled: false
         interval: 10s
         labels: {}
-        metricRelabelings: null
-        relabelings: null
     replicas: 1
     resources: {}
-    retryTimeout: null
     rollOutPods: true
     securityContext:
       capabilities:
@@ -735,8 +687,6 @@ hubble:
     service:
       nodePort: 31234
       type: ClusterIP
-    sortBufferDrainTimeout: null
-    sortBufferLenMax: null
     terminationGracePeriodSeconds: 1
     tls:
       client:
@@ -758,7 +708,6 @@ hubble:
       rollingUpdate:
         maxUnavailable: 1
       type: RollingUpdate
-  skipUnknownCGroupIDs: null
   socketPath: /var/run/cilium/hubble.sock
   tls:
     auto:
@@ -783,7 +732,6 @@ hubble:
       extraVolumes: []
       image:
         digest: sha256:0e0eed917653441fded4e7cdb096b7be6a3bddded5a2dd10812a27b1fc6ed95b
-        override: null
         pullPolicy: IfNotPresent
         repository: quay.io/cilium/hubble-ui-backend
         tag: v0.13.1
@@ -795,14 +743,13 @@ hubble:
       resources: {}
       securityContext: {}
     baseUrl: /
-    enabled: true
+    enabled: false
     frontend:
       extraEnv: []
       extraVolumeMounts: []
       extraVolumes: []
       image:
         digest: sha256:e2e9313eb7caf64b0061d9da0efbdad59c6c461f6ca1752768942bfeda0796c6
-        override: null
         pullPolicy: IfNotPresent
         repository: quay.io/cilium/hubble-ui
         tag: v0.13.1
@@ -826,7 +773,6 @@ hubble:
     podDisruptionBudget:
       enabled: false
       maxUnavailable: 1
-      minAvailable: null
     podLabels: {}
     priorityClassName: ""
     replicas: 1
@@ -858,7 +804,6 @@ identityAllocationMode: crd
 identityChangeGracePeriod: ""
 image:
   digest: sha256:758ca0793f5995bb938a2fa219dcce63dc0b3fa7fc4ce5cc851125281fb7361d
-  override: null
   pullPolicy: IfNotPresent
   repository: quay.io/cilium/cilium
   tag: v1.16.5
@@ -866,8 +811,6 @@ image:
 imagePullSecrets: []
 ingressController:
   default: false
-  defaultSecretName: null
-  defaultSecretNamespace: null
   enableProxyProtocol: false
   enabled: false
   enforceHttps: true
@@ -888,15 +831,10 @@ ingressController:
     name: cilium-secrets
     sync: true
   service:
-    allocateLoadBalancerNodePorts: null
     annotations: {}
     externalTrafficPolicy: Cluster
-    insecureNodePort: null
     labels: {}
-    loadBalancerClass: null
-    loadBalancerIP: null
     name: cilium-ingress
-    secureNodePort: null
     type: LoadBalancer
 initResources: {}
 installNoConntrackIptablesRules: false
@@ -913,8 +851,6 @@ ipam:
     clusterPoolIPv6MaskSize: 96
     clusterPoolIPv6PodCIDRList:
     - fd00:10:22::/64
-    externalAPILimitBurstSize: null
-    externalAPILimitQPS: null
 ipv4:
   enabled: true
 ipv4NativeRoutingCIDR: 10.244.0.0/16
@@ -923,10 +859,8 @@ ipv6:
 ipv6NativeRoutingCIDR: fd00:10:22::/64
 k8s:
   requireIPv4PodCIDR: true
-  requireIPv6PodCIDR: true
-k8sClientRateLimit:
-  burst: null
-  qps: null
+  requireIPv6PodCIDR: false
+k8sClientRateLimit: {}
 k8sNetworkPolicy:
   enabled: true
 k8sServiceHost: 192.168.11.101
@@ -940,9 +874,9 @@ l2NeighDiscovery:
   enabled: true
   refreshPeriod: 30s
 l2announcements:
-  enabled: false
+  enabled: true
 l2podAnnouncements:
-  enabled: false
+  enabled: true
   interface: eth0
 l7Proxy: true
 livenessProbe:
@@ -958,7 +892,7 @@ loadBalancer:
     ports: []
   mode: dsr
 localRedirectPolicy: false
-logSystemLoad: false
+logSystemLoad: true
 maglev: {}
 monitor:
   enabled: false
@@ -971,7 +905,6 @@ nat46x64Gateway:
 nodeIPAM:
   enabled: true
 nodePort:
-  addresses: null
   autoProtectPortRange: true
   bindProtection: true
   enableHealthCheck: true
@@ -984,13 +917,12 @@ nodeinit:
   affinity: {}
   annotations: {}
   bootstrapFile: /tmp/cilium-bootstrap.d/cilium-bootstrap-time
-  enabled: false
+  enabled: true
   extraEnv: []
   extraVolumeMounts: []
   extraVolumes: []
   image:
     digest: sha256:8d7b41c4ca45860254b3c19e20210462ef89479bb6331d6760c4e609d651b29c
-    override: null
     pullPolicy: IfNotPresent
     repository: quay.io/cilium/startup-script
     tag: c54c7edeab7fde4da68e59acd319ab24af242c3f
@@ -1043,7 +975,6 @@ operator:
     enabled: false
     label: grafana_dashboard
     labelValue: "1"
-    namespace: null
   dnsPolicy: ""
   enabled: true
   endpointGCInterval: 5m0s
@@ -1060,7 +991,6 @@ operator:
     awsDigest: sha256:97e1fe0c2b522583033138eb10c170919d8de49d2788ceefdcff229a92210476
     azureDigest: sha256:265e2b78f572c76b523f91757083ea5f0b9b73b82f2d9714e5a8fb848e4048f9
     genericDigest: sha256:f7884848483bbcd7b1e0ccfd34ba4546f258b460cb4b7e2f06a1bcc96ef88039
-    override: null
     pullPolicy: IfNotPresent
     repository: quay.io/cilium/operator
     suffix: ""
@@ -1073,7 +1003,6 @@ operator:
   podDisruptionBudget:
     enabled: false
     maxUnavailable: 1
-    minAvailable: null
   podLabels: {}
   podSecurityContext: {}
   pprof:
@@ -1090,15 +1019,12 @@ operator:
       interval: 10s
       jobLabel: ""
       labels: {}
-      metricRelabelings: null
-      relabelings: null
   removeNodeTaints: true
   replicas: 2
   resources: {}
-  rollOutPods: false
+  rollOutPods: true
   securityContext: {}
   setNodeNetworkStatus: true
-  setNodeTaints: null
   skipCRDCreation: false
   tolerations:
   - operator: Exists
@@ -1118,7 +1044,6 @@ podLabels: {}
 podSecurityContext:
   appArmorProfile:
     type: Unconfined
-policyCIDRMatchMode: null
 policyEnforcementMode: default
 pprof:
   address: localhost
@@ -1133,13 +1058,12 @@ preflight:
             k8s-app: cilium
         topologyKey: kubernetes.io/hostname
   annotations: {}
-  enabled: false
+  enabled: true
   extraEnv: []
   extraVolumeMounts: []
   extraVolumes: []
   image:
     digest: sha256:758ca0793f5995bb938a2fa219dcce63dc0b3fa7fc4ce5cc851125281fb7361d
-    override: null
     pullPolicy: IfNotPresent
     repository: quay.io/cilium/cilium
     tag: v1.16.5
@@ -1150,7 +1074,6 @@ preflight:
   podDisruptionBudget:
     enabled: false
     maxUnavailable: 1
-    minAvailable: null
   podLabels: {}
   podSecurityContext: {}
   priorityClassName: ""
@@ -1173,7 +1096,6 @@ prometheus:
   - sync-host-ips
   - sync-lb-maps-with-k8s-services
   enabled: false
-  metrics: null
   port: 9962
   serviceMonitor:
     annotations: {}
@@ -1181,7 +1103,6 @@ prometheus:
     interval: 10s
     jobLabel: ""
     labels: {}
-    metricRelabelings: null
     relabelings:
     - replacement: ${1}
       sourceLabels:
@@ -1202,7 +1123,7 @@ resourceQuotas:
     hard:
       pods: "15"
 resources: {}
-rollOutCiliumPods: false
+rollOutCiliumPods: true
 routingMode: native
 sctp:
   enabled: false
@@ -1321,7 +1242,6 @@ updateStrategy:
   rollingUpdate:
     maxUnavailable: 2
   type: RollingUpdate
-upgradeCompatibility: null
 vtep:
   cidr: ""
   enabled: false

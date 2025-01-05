@@ -335,17 +335,19 @@ kuberouter-teardown :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-teardown.log
 
 #cilium : cilium-gen cilium-helm
-cilium : cilium-cli
+export cilium_values := values-bpf.yaml
+cilium : cilium-gen cilium-cli
 cilium-cli :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh install_by_cli \
+		${cilium_values} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-cli.log
-export cilium_values := values-bpf.yaml
 cilium-gen : 
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/cni/cilium/${cilium_values} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-gen.log
 cilium-helm : 
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh install_by_helm \
+		${cilium_values} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-helm.log
 cilium-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh teardown \
