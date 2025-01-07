@@ -110,6 +110,7 @@ menu :
 	@echo "  -swap      : Configure targets' swap : Disable all swap devices"
 	@echo "reboot       : Reboot targets"
 	@echo "install      : Install K8s and all deps"
+	@echo "  -rpms      : Install host tools and K8s dep (conntrack)"
 	@echo "  -cni       : Install K8s CNI Pod network providers"
 	@echo "  -cri       : Install K8s CRI and all deps, and tools"
 	@echo "  -k8s       : Install K8s and CNI plugins"
@@ -253,7 +254,11 @@ conf-swap :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-swap.log
 
 ## Install K8s and all deps : RPM(s), binaries, systemd, and other configs
-install : install-cri install-cni install-k8s
+install : install-rpms install-cri install-cni install-k8s
+install-rpms:
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-rpms.sh \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.install-rpms.log
 install-cri :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cri.sh \

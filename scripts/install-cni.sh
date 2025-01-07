@@ -44,7 +44,7 @@ ok(){
     
     sudo mkdir -p $to
     base="https://github.com/containernetworking/plugins/releases/download/$ver"
-    curl -sSL "$base/cni-plugins-linux-${arch}-${ver}.tgz" \
+    curl -fsSL "$base/cni-plugins-linux-${arch}-${ver}.tgz" \
         |sudo tar -C $to -xz
 
     # Verify loopback else fail
@@ -59,7 +59,7 @@ ok(){
     dir=/usr/local/bin
     file=calicoctl
     [[ $(type -t $file) && $($file version |grep v$ver) ]] && return 
-    sudo curl -f -sSL -o $dir/$file $url &&
+    sudo curl -fsSL -o $dir/$file $url &&
         sudo chmod 0755 $dir/$file &&
             sudo KUBECONFIG=$KUBECONFIG $file version |grep $ver ||
                 return 404
@@ -82,7 +82,7 @@ ok(){
     [[ $(type -t $file) && $($file version |grep v$ver) ]] &&
         return 
 
-    curl -f -sSL --remote-name-all $url &&
+    curl -fsSL --remote-name-all $url &&
         sha256sum --check $tarball.sha256sum &&
             sudo tar xzvfC $tarball . &&
                 rm $tarball{,.sha256sum} &&

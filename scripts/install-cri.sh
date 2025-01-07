@@ -29,7 +29,7 @@ ok(){
     arch=${ARCH:-amd64}
     url="https://github.com/opencontainers/runc/releases/download/v${ver}/runc.$arch"
     dst=/usr/local/sbin
-    sudo curl -o $dst/runc -sSL $url &&
+    sudo curl -o $dst/runc -fsSL $url &&
         sudo chmod 0755 $dst/runc ||
             return 11
     [[ $(runc -v 2>&1 |grep $ver) ]] || return 12
@@ -47,7 +47,7 @@ ok(){
     [[ $(containerd --version 2>&1 |grep v$ver) ]] && return 0
     disableContainerd
     base=https://github.com/containerd/containerd/releases/download/v$ver
-    curl -sSL $base/$tarball |sudo tar -C /usr/local -xz || return 20
+    curl -fsSL $base/$tarball |sudo tar -C /usr/local -xz || return 20
     [[ $(containerd --version 2>&1 |grep v$ver) ]] || return 21
 }
 ok || exit $?
@@ -59,72 +59,73 @@ ok(){
 
     ## Local (insecure) registry perhaps :
     registry=$REGISTRY
-
-    conf=/etc/containerd/config.toml
-    [[ -f $conf ]] && return 0
+    
+    ## Select config : default|minimal|custom
+    config=minimal
+    toml=/etc/containerd/config.toml
+    [[ -f $toml ]] && return 0
     disableContainerd
     sudo mkdir -p /etc/containerd
     
-    ## Select : default | minimal | custom
-
     default(){
-        containerd config default |sudo tee $conf
+        containerd config default |sudo tee $toml
     }
-    #default 
-
     minimal(){
-				cat <<-EOH |sudo tee $conf
-				## Configured for K8s : runc, systemd cgroup, GC
-				version = 2
-				[debug]
-				  level = "info"
-				[metrics]
-				  address = "127.0.0.1:1338"
-				[plugins]
-				  [plugins."io.containerd.gc.v1.scheduler"]
-				    deletion_threshold = 20
-				    mutation_threshold = 20
-				    pause_threshold = 0.8
-				    schedule_delay = "1m"
-				    startup_delay = "10s"
-				  [plugins."io.containerd.grpc.v1.cri"]
-				    sandbox_image = "registry.k8s.io/pause:3.9"
-				    [plugins."io.containerd.grpc.v1.cri".containerd]
-				      discard_unpacked_layers = true
-				      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
-				        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-				          runtime_type = "io.containerd.runc.v2"
-				            [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-				              SystemdCgroup = true
-				EOH
+		cat <<-EOH |sudo tee $toml
+		## Configured for K8s : runc, systemd cgroup, GC
+		version = 2
+		[debug]
+		  level = "info"
+		[metrics]
+		  address = "127.0.0.1:1338"
+		[plugins]
+		  [plugins."io.containerd.gc.v1.scheduler"]
+		    deletion_threshold = 20
+		    mutation_threshold = 20
+		    pause_threshold = 0.8
+		    schedule_delay = "1m"
+		    startup_delay = "10s"
+		  [plugins."io.containerd.grpc.v1.cri"]
+		    sandbox_image = "registry.k8s.io/pause:3.9"
+		    [plugins."io.containerd.grpc.v1.cri".containerd]
+		      discard_unpacked_layers = true
+		      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+		        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+		          runtime_type = "io.containerd.runc.v2"
+		            [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+		              SystemdCgroup = true
+		EOH
     }
-    minimal
-
     custom(){
-				cat <<-EOH |sudo tee $conf
-				## Configured for K8s : runc, systemd, and local insecure registry 
-				version = 2
-				[plugins]
-				  [plugins."io.containerd.grpc.v1.cri"]
-				    sandbox_image = "$registry/pause:3.9"
-				    [plugins."io.containerd.grpc.v1.cri".containerd]
-				      discard_unpacked_layers = true
-				      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
-				        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-				          runtime_type = "io.containerd.runc.v2"
-				          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-				            SystemdCgroup = true
-				    [plugins."io.containerd.grpc.v1.cri".registry]
-				      [plugins."io.containerd.grpc.v1.cri".registry.configs]
-				        [plugins."io.containerd.grpc.v1.cri".registry.configs."$registry"]
-				          endpoint = ["http://$registry"]
-				          [plugins."io.containerd.grpc.v1.cri".registry.configs."$registry".tls]
-				            insecure_skip_verify = true
-				EOH
+        [[ $registry ]] || return 33
+		cat <<-EOH |sudo tee $toml
+		## Configured for K8s : runc, systemd, and local insecure registry 
+		version = 2
+		[debug]
+		  level = "info"
+		[metrics]
+		  address = "127.0.0.1:1338"
+		[plugins]
+		  [plugins."io.containerd.grpc.v1.cri"]
+		    sandbox_image = "$registry/pause:3.9"
+		    [plugins."io.containerd.grpc.v1.cri".containerd]
+		      discard_unpacked_layers = true
+		      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+		        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+		          runtime_type = "io.containerd.runc.v2"
+		          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+		            SystemdCgroup = true
+		    [plugins."io.containerd.grpc.v1.cri".registry]
+		      [plugins."io.containerd.grpc.v1.cri".registry.configs]
+		        [plugins."io.containerd.grpc.v1.cri".registry.configs."$registry"]
+		          endpoint = ["http://$registry"]
+		          [plugins."io.containerd.grpc.v1.cri".registry.configs."$registry".tls]
+		            insecure_skip_verify = true
+		EOH
     }
-    #custom
+    $config || return $?
 
-    [[ $(sudo cat $conf |grep $registry) ]] || return 30
+    [[ $(sudo cat $toml |grep '\[debug\]') ]] || return 35
 }
 ok || exit $?
 
@@ -135,7 +136,7 @@ ok(){
     [[ -f $sys/containerd.service ]] && return 0
     disableContainerd
     sudo mkdir -p $sys
-    sudo curl -o $sys/containerd.service -sSL $url || return 40
+    sudo curl -o $sys/containerd.service -fsSL $url || return 40
 }
 ok || exit $?
 
@@ -162,10 +163,10 @@ ok(){
 
     sbin=/usr/local/sbin
     [[ $(crictl --version 2>&1 |grep $ver) ]] ||
-        curl -sSL "$base/crictl-$suffix" |sudo tar -C $sbin -xz
+        curl -fsSL "$base/crictl-$suffix" |sudo tar -C $sbin -xz
 
     [[ $(critest --version 2>&1 |grep $ver) ]] ||
-        curl -sSL "$base/critest-$suffix" |sudo tar -C $sbin -xz
+        curl -fsSL "$base/critest-$suffix" |sudo tar -C $sbin -xz
 
     bin=/usr/local/bin
     [[ $(crictl --version 2>&1 |grep $ver) ]] &&

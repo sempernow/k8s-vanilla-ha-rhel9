@@ -37,7 +37,7 @@ ok(){
     # Client, server and node, where client and node are subsets of server
     base="https://dl.k8s.io/${ver}" 
     tarball="kubernetes-server-linux-${arch}.tar.gz"
-    curl -sSL $base/$tarball |tar -xz ||
+    curl -fsSL $base/$tarball |tar -xz ||
         return 22
     src=kubernetes/server/bin 
     to=/usr/local/bin # Abide LFS conventions for binary (non-pkg) installs

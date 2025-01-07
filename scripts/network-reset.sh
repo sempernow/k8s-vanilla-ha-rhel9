@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-
+################################################
+## DEPRICATED : Use teardown.sh
+################################################
 [[ "$(whoami)" == 'root' ]] || exit 11
 
 systemctl disable --now firewalld
