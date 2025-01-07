@@ -97,6 +97,7 @@ menu :
 	$(INFO) 'Install K8s onto all target hosts : RHEL9 is expected'
 	@echo "env          : Print Makefile environment"
 	@echo "mode         : Fix file mode of this source"
+	@echo "html         : Process all MD files to HTML"
 	@echo "push         : Commit and push this source"
 	@echo "============== "
 	@echo "status       : Print targets' status"
