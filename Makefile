@@ -145,6 +145,8 @@ menu :
 	@echo "psrss        : ps sorted by RSS usage"
 	@echo "crictl       : CRI status"
 	@echo "============== "
+	@echo "ingress-nginx: Install Ingress NGINX"
+	@echo "============== "
 	@echo "metrics      : Install metrics-server, enabling: kubectl top ..."
 	@echo "dashboard    : Install K8s Dashboard : Web UI for K8s API"
 	@echo "trivy        : Install Trivy Operator by Helm"
@@ -458,6 +460,9 @@ metrics-down:
 	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh delete
 dashboard :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/dashboard/dashboard.sh
+
+iperftest :
+	bash make.recipes.sh iperftest
 
 # k apply -f observability/metrics/dashboard/recommended.yaml
 # k -n kubernetes-dashboard create token kubernetes-dashboard

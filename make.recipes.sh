@@ -122,5 +122,37 @@ kubeconfig(){
 
     } || echo 'ERR : Failed to pull kubeconfig'
 }
+iperftest(){
+    ns=default
+    pod=nbox
+    img=nicolaka/netshoot
+
+    # Server
+    kubectl -n $ns run $pod --image=$img --wait -- iperf3 -s
+    sleep 3
+    node=$(kubectl -n $ns get pod $pod -o jsonpath='{.spec.nodeName}')
+    ip=$(kubectl -n $ns get pod $pod -o jsonpath='{.status.podIP}')
+
+    # Clients
+
+    echo === Pod traffic : Same node
+    kubectl -n $ns run ${pod}-client -it --rm \
+        --image=$img \
+        --overrides='{"spec": {"nodeName": "'$node'"}}' \
+        --restart=Never -- \
+        iperf3 -c $ip
+
+    sleep 3
+
+    echo === Pod traffic : Cross nodes
+    node=$(kubectl get node --no-headers |cut -d' ' -f1 |grep -v $node |head -n1)
+    kubectl -n $ns run ${pod}-client -it --rm \
+        --image=$img \
+        --overrides='{"spec": {"nodeName": "'$node'"}}' \
+        --restart=Never -- \
+        iperf3 -c $ip
+
+    kubectl -n $ns delete pod $pod
+}
 
 "$@"

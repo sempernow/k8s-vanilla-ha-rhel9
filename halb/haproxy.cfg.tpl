@@ -2,8 +2,9 @@
 # /etc/haproxy/haproxy.cfg
 #
 # This configures HAProxy as a Highly Available Load Balancer (HALB) 
-# to run on each LB node as a reverse proxy in TCP mode, utilizing VRRP.
-# HAProxy monitors backend servers, handling such failover (HA) dynamically.
+# to run on each K8s node as a reverse proxy in TCP mode, utilizing VRRP.
+# HAProxy monitors backend servers (TLS handshake check), 
+# curating its LB list (pool) of those upstreams accordingly.
 # Node failover (HA) is provided externally by Keepalived.
 # 
 # Documentation : http://www.haproxy.org/download/2.9/doc/
@@ -59,7 +60,7 @@ frontend k8s-apiserver
 backend k8s-apiserver
     #option      httpchk GET /healthz
     #http-check  expect status 200
-    #option      ssl-hello-chk
+    option      ssl-hello-chk
     balance     roundrobin
     server      LB_1_FQDN LB_1_IPV4:6443 
     server      LB_2_FQDN LB_2_IPV4:6443 
@@ -94,3 +95,16 @@ backend k8s-ingress-https
     server      LB_1_FQDN LB_1_IPV4:30443 send-proxy
     server      LB_2_FQDN LB_2_IPV4:30443 send-proxy
     server      LB_3_FQDN LB_3_IPV4:30443 send-proxy
+
+; ## Frontend for Other Ingress HTTPS
+; frontend other-ingress-https
+;     bind                *:OTHER_TLS
+;     default_backend     other-ingress-https
+    
+; ## Backend for Other Ingress HTTPS
+; backend other-ingress-https
+;     option      ssl-hello-chk
+;     balance     roundrobin
+;     server      LB_1_FQDN LB_1_IPV4:30443 send-proxy
+;     server      LB_2_FQDN LB_2_IPV4:30443 send-proxy
+;     server      LB_3_FQDN LB_3_IPV4:30443 send-proxy
