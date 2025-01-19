@@ -334,24 +334,27 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     app.kubernetes.io/version: 1.12.0
-data: null
-#data:
-#  allow-snippet-annotations: "false"
-#  ## use-proxy-protocol : Must set this key to "true" if the downstream 
-#  ## (external HA)LB uses PROXY protocol, else must set to "false".
-#  ## 
-#  ## In TCP (TLS-passthrough) mode, HAProxy (LB) configured for "send-proxy" 
-#  ## adds cleartext PROXY-protocol header(s) to TLS payload. 
-#  ## NGINX responds HTTP 400 if not so informed of PROXY protocol/mode.
-#  ## https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#use-proxy-protocol
-#  use-proxy-protocol: "false"   
-#  ## enable-real-ip : To preserve client-endpoint IP address under PROXY protocol.
-#  enable-real-ip: "true"
-#  forwarded-for-header: ""
-#  proxy-real-ip-cidr: "" 
-#  client_max_body_size: "0" # No limit; HTTP 413 if over limit
-#  #client_max_body_size: "4096m" # E.g., uploading OCI image 
-#  ssl-protocols: "TLSv1.2 TLSv1.3"
+data:
+ client_max_body_size: "4096m"
+ ssl-protocols: "TLSv1.2 TLSv1.3"
+  ## allow-snippet-annotations : Enable only if we TRUST users with permission to create Ingress objects; may allow programmatic mods to nginx.conf file.
+  allow-snippet-annotations: "true"
+  annotation-value-word-blocklist: "load_module,lua_package,_by_lua,location,root,proxy_pass,serviceaccount,{,},',\""
+  ## client-body-buffer-size : "0" # No limit, else HTTP 413 if over limit.
+  client-body-buffer-size: "4096m" # E.g., allow OCI-image uploads
+  ssl-protocols: "TLSv1.2 TLSv1.3" # Restrict TLS versions
+  ssl-ciphers: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES256-GCM-SHA384." #... the default list
+  ## use-proxy-protocol : Must set this key to "true" if the downstream 
+  ## (external HA)LB uses PROXY protocol, else must set to "false".
+  ## In TCP (TLS-passthrough) mode, HAProxy (LB) configured for "send-proxy" 
+  ## adds cleartext PROXY-protocol header(s) to TLS payload. 
+  ## NGINX responds HTTP 400 if not so informed of PROXY protocol/mode.
+  ## https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#use-proxy-protocol
+  #use-proxy-protocol: "true" # Default: "false"
+  ## enable-real-ip : To preserve client-endpoint IP address under PROXY protocol.
+  #enable-real-ip: "true"
+  #forwarded-for-header: "X-Forwarded-For" # Default: "X-Forwarded-For"
+  #proxy-real-ip-cidr: "192.168.11.0/24"   # Default: "0.0.0.0/0"
 ---
 apiVersion: v1
 kind: Service

@@ -8,25 +8,27 @@
 # -----------------------------------------------------------------------------
 manifest=${2:-ingress-nginx-baremetal-v1.12.0.yaml}
 usage=ingress-nginx-usage.yaml
-v=v1.11.3
 v=v1.12.0
 url=https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-$v/deploy/static/provider/baremetal/deploy.yaml
 
-install(){
-    # Install from (edited) manifest else of url 
-    pushd ${BASH_SOURCE%/*} 2>/dev/null || push . || exit 
-    [[ -r $manifest ]] || curl -sSL $url -o $manifest
+_download(){
+    [[ -r $manifest ]] && return 200 ||
+        curl -fsSL $url -o $manifest || return $?
+    
+    return 0
+}
+export -f _download
+update(){
+    _download && return 400 #... else install/update
 
-    [[ $(kubectl -n ingress-nginx get pod 2>/dev/null |grep ingress-nginx-controller) ]] || {
-        [[ -r $manifest ]] && kubectl apply -f $manifest || {
-            [[ -r $url ]] && kubectl apply -f $url
-        } &&
-            kubectl wait -n ingress-nginx \
-                --for=condition=ready pod \
-                --selector=app.kubernetes.io/component=controller \
-                --timeout=90s
-    }
-    popd
+    # Install/update from (edited) manifest else of url 
+    [[ -r $manifest ]] && kubectl apply -f $manifest || {
+        [[ $url ]] && kubectl apply -f $url
+    } &&
+        kubectl wait -n ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=90s
 }
 e2e(){
     _e2e(){
@@ -34,7 +36,6 @@ e2e(){
         [[ $(kubectl -n stack-test get pod -l app=foo 2>/dev/null) ]] ||
             kubectl config set-context --current --namespace stack-test
         
-        pushd ${BASH_SOURCE%/*} 2>/dev/null || push . || exit 
         kubectl apply -f $usage
         for pod in foo bar;do 
             kubectl wait -n stack-test \
@@ -48,7 +49,6 @@ e2e(){
                 return 1
             }
         done
-        popd 
     }
     get(){
         # Each control node is a cluster endpoint, so find first:
@@ -76,11 +76,11 @@ e2e(){
 }
 teardown(){
 
-    pushd ${BASH_SOURCE%/*} 2>/dev/null || push . || exit 
     kubectl delete -f $usage
     kubectl delete -f $manifest || kubectl delete -f $url
-    popd 
     kubectl get $all,validatingwebhookconfigurations,clusterrole,clusterrolebinding |grep -- -nginx
 }
 
+pushd ${BASH_SOURCE%/*} 2>/dev/null || push . || exit 
 "$@"
+popd
