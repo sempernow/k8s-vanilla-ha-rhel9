@@ -80,6 +80,7 @@ teardown(){
     kubectl delete -f $usage
     kubectl delete -f $manifest || kubectl delete -f $url
     popd 
+    kubectl get $all,validatingwebhookconfigurations,clusterrole,clusterrolebinding |grep -- -nginx
 }
 
 "$@"
