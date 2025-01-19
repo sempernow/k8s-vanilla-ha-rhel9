@@ -145,7 +145,9 @@ menu :
 	@echo "psrss        : ps sorted by RSS usage"
 	@echo "crictl       : CRI status"
 	@echo "============== "
-	@echo "ingress-nginx: Install Ingress NGINX"
+	@echo "ingress-nginx: Install Ingress NGINX Controller"
+	@echo "  -down      : Teardown"
+	@echo "  -e2e       : End-to-end test"
 	@echo "============== "
 	@echo "metrics      : Install metrics-server, enabling: kubectl top ..."
 	@echo "dashboard    : Install K8s Dashboard : Web UI for K8s API"
@@ -451,8 +453,13 @@ crictl-ready :
 	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl stopp'
 	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl rmp'
 
-ingress-nginx : 
-	pushd ingress/ingress-nginx && bash ingress-nginx-install.sh
+export ingress_manifest := ingress-nginx-baremetal-v1.12.0.yaml
+ingress-nginx ingress-nginx-up : 
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh install ${ingress_manifest}
+ingress-nginx-e2e : 
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh e2e
+ingress-nginx-teardown ingress-nginx-down : 
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh teardown
 
 metrics metrics-up :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh apply

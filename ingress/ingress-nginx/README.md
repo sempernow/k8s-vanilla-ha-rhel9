@@ -1,5 +1,8 @@
 # [Ingress-NGINX Controller](https://kubernetes.github.io/ingress-nginx/deploy/#bare-metal-clusters "kubernetes.github.io") | [Releases](https://github.com/kubernetes/ingress-nginx/releases) | [Configuration](https://github.com/kubernetes/ingress-nginx/blob/main/docs/user-guide/nginx-configuration/index.md)
 
+## [Configuration Options](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#configuration-options)
+
+Modify the `ConfigMap` (`cm.ingress-nginx-controller`) __to overwrite any parameter__
 
 ## `Ingress` : Rewrite ([`rewrite-target`](https://github.com/kubernetes/ingress-nginx/blob/main/docs/examples/rewrite/README.md "github.com/kubernetes/ingress-nginx")) Syntax
 
@@ -112,12 +115,22 @@ Else by Helm chart (untested) :
 
 ```bash
 v=4.11.3
+v=4.12.0
 release=ingress-nginx
 chart=$release
 repo=https://kubernetes.github.io/$chart
 values=values.yaml
+# To use manifest method : k apply -f $manifest
+# Use helm chart to generate the manifest; edit as desired.
+# Configured here for external (HA)LB using PROXY protocol to preserve client IP.
+manifest=helm.template.$chart.$version.yaml
+helm template $chart \
+    --repo $repo \
+    --version $v \
+    --set controller.service.externalTrafficPolicy=Local \
+    |tee $manifest
 
-# Using remote chart
+# To use remote chart
 helm show values $chart --repo $repo |tee $values
 vi $values # Edit to fit environment
 helm upgrade \
@@ -129,7 +142,7 @@ helm upgrade \
     --create-namespace \
     $release $chart
 
-# Using local chart
+# To use local chart
 helm pull $chart --repo $repo --version $v
 tar -xaf ${chart}-${v}.tgz
 cp $chart/$values .
