@@ -37,6 +37,22 @@ export LOG_PREFIX := make.$(shell date '+%Y-%m-%dT%H.%M.%Z')
 #export CNCF_REGISTRY_ENDPOINT ?= ${CNCF_REGISTRY_HOST}:${CNCF_REGISTRY_PORT}
 #export CNCF_REGISTRY_STORE    ?= /mnt/registry
 
+##############################################################################
+## HAProxy/Keepalived :
+### VIP within targets' network mask
+export HALB_VIP      ?= 10.11.111.234
+### anet Network is segmented (/27; 5 bit mask) so 30 hosts per (user? program?)
+export HALB_MASK     ?= 27
+### CIDR: 10.11.111.234/27 : IP Range : 224-255
+export HALB_CIDR     ?= ${HALB_VIP}/${HALB_MASK}
+export HALB_VIP6     ?= 0:0:0:0:0:ffff:0aa0:7164
+export HALB_PORT     ?= 8443
+export HALB_DEVICE   ?= ens192
+export HALB_FQDN_1   ?= foo128.bar
+export HALB_FQDN_2   ?= foo129.bar
+export HALB_FQDN_3   ?= foo130.bar
+
+export HALB_ENDPOINT ?= ${HALB_VIP}:${HALB_PORT}
 
 ##############################################################################
 ## Cluster
@@ -115,6 +131,11 @@ menu :
 	@echo "  -cni       : Install K8s CNI Pod network providers"
 	@echo "  -cri       : Install K8s CRI and all deps, and tools"
 	@echo "  -k8s       : Install K8s and CNI plugins"
+	@echo "============== "
+	@echo "lbmake       : Generate HA-LB configurations from .tpl files"
+	@echo "lbconf       : Configure HA LB on all control nodes"
+	@echo "lbverify     : Verify HA-LB dynamics"
+	@echo "lbshow       : Show HA-LB status"
 	@echo "============== "
 	@echo "init         : Create 1st control node of the cluster" 
 	@echo "  -gen       : Generate ${K8S_KUBEADM_CONF_INIT} from template (.yaml.tpl)"
@@ -276,6 +297,42 @@ install-k8s :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.install-k8s.log
+
+#lbclean :
+#ansibash -s ${ADMIN_SRC_DIR}/halb/clean-halb.sh ${HALB_VIP} ${HALB_DEVICE}
+#ansibash -s ${ADMIN_SRC_DIR}/halb/configure-halb.sh ${HALB_VIP} ${HALB_DEVICE}
+
+#ansibash sudo ip addr del ${HALB_VIP}/24 dev ${HALB_DEVICE}
+
+#bash make.recipes.sh halb
+lbmake lbbuild :
+	bash ${ADMIN_SRC_DIR}/halb/build-halb.sh
+	
+#bash halb/push-halb.sh
+lbconf :
+	scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_1}.conf ${GITOPS_USER}@${HALB_FQDN_1}:keepalived.conf \
+		&& scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_2}.conf ${GITOPS_USER}@${HALB_FQDN_2}:keepalived.conf \
+		&& scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_3}.conf ${GITOPS_USER}@${HALB_FQDN_3}:keepalived.conf \
+		&& ansibash -u ${ADMIN_SRC_DIR}/halb/systemd/99-keepalived.conf \
+		&& ansibash -u ${ADMIN_SRC_DIR}/halb/keepalived-check_apiserver.sh \
+		&& ansibash -u ${ADMIN_SRC_DIR}/halb/haproxy.cfg \
+		&& ansibash -u ${ADMIN_SRC_DIR}/halb/haproxy-rsyslog.conf \
+		&& ansibash -u ${ADMIN_SRC_DIR}/halb/etc.hosts \
+		&& ansibash -u ${ADMIN_SRC_DIR}/halb/etc.environment \
+		&& ansibash -s ${ADMIN_SRC_DIR}/halb/configure-halb.sh ${HALB_CIDR} ${HALB_DEVICE} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.lbconf.log
+
+lbverify : 
+	bash ${ADMIN_SRC_DIR}/halb/verify-instruct.sh
+
+lbshow lblook :
+#ansibash ip -4 -brief addr show dev ${HALB_DEVICE} |grep -e ${HALB_VIP} -e ===
+	ansibash ip -4 -brief addr show dev ${HALB_DEVICE} 
+	ansibash 'sudo journalctl -eu keepalived |grep -e Entering -e @'
+
+lbfix :	
+	ssh gitops@vm124 /bin/bash -s <${ADMIN_SRC_DIR}/halb/firewalld-halb.sh ${HALB_VIP} ${HALB_VIP6} ${HALB_PORT} ${HALB_DEVICE}
+
 
 ## K8s cluster creation
 
