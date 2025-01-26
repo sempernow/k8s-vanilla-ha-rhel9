@@ -1,14 +1,16 @@
-## AD CS
+## TLS : AD CS
 
-AD CS of default Windows Server 2019 accepts only RSA type CSRs.
+By default, 
+the AD CS role of Windows Server 2019 provides 
+only RSA type TLS certificates.
 
-Success at obtaining a TLS certificate for web server usage 
+We successfully obtained a TLS certificate for web server usage 
 from AD CS web form of its Certificate Server at `https://dc1.lime.lan/certsrv/`
 
-It responds with two certificates (end-entity and full-chain cert), 
-both __in PKCS#7 format__ (.p7b), 
+The server responds with two (end-entity and full-chain) certificates, 
+both __in PKCS#7 format__ (`.p7b`), 
 and so must be converted to PEM for use in most servers.
-Their odd format is useful only at Microsoft and other legacy 
+Their odd format is useful only at Microsoft IIS and other legacy 
 or non-standard servers such as Apache Tomcat.
 
 - `certnew.p7b`
@@ -22,10 +24,28 @@ openssl pkcs7 -print_certs -in certnew.p7b -out $cn.crt
 openssl x509 -noout -issuer -subject -startdate -enddate -ext subjectAltName -in $cn.crt
 ```
 
+```plaintext
+issuer=DC = lan, DC = lime, CN = lime-DC1-CA
+subject=C = US, ST = MD, L = AAC, O = DisselTree, OU = ops, CN = kube.lime.lan, emailAddress = admin@lime.lan
+notBefore=Jan 25 14:32:36 2025 GMT
+notAfter=Jan 25 14:32:36 2027 GMT
+X509v3 Subject Alternative Name:
+    DNS:kube.lime.lan, DNS:*.kube.lime.lan
+```
+
 ### CSR
 
+AD CS requires CSR in PKCS#10/#7 (New/Renew) format.
+OpenSSL generates the request (`*.csr`) in that format by default.
+
+Regarding Windows Server 2019 and prior, 
+AD CS offers __only RSA-based certificates__ 
+unless that role is configured otherwise, 
+which is a non-trivial task that nearly no organization performs.
+
 ```bash
-cn=kube.lime.lan
+root=lime.lan
+cn=kube.$root
 TLS_ST=MD
 TLS_L=AAC
 TLS_O=DisselTree
@@ -47,7 +67,7 @@ ST              = ${TLS_ST:-NY}         # State or Province
 L               = ${TLS_L:-Gotham}      # Locality name
 O               = ${TLS_O:-Foobar Inc}  # Organization name
 OU              = ${TLS_OU:-GitOps}     # Organizational Unit name
-emailAddress    = admin@$cn 
+emailAddress    = admin@$root
 [ v3_req ]
 subjectAltName      = @alt_names
 keyUsage            = digitalSignature
@@ -57,7 +77,7 @@ DNS.1 = $cn
 DNS.2 = *.$cn   # Wildcard. CA must allow, else declare each subdomain.
 EOH
 
-# RSA
+# RSA (Use only this if the certificate server is AD CS)
 openssl req -new -noenc -config $cn.cnf -extensions v3_req -newkey rsa:2048 -keyout $cn.key -out $cn.csr 
 # ED25519
 openssl req -new -noenc -config $cn.cnf -extensions v3_req -newkey ed25519 -keyout $cn.key -out $cn.csr
