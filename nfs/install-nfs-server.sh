@@ -26,8 +26,8 @@ EOH
 sed -i -f $sedfile /etc/nfs.conf
 rm -f $sedfile
 
-# Disable NFSv3
-systemctl mask --now rpc-statd.service rpcbind.service rpcbind.socket
+# Disable NFSv3 : May also disable NFSv4 at clients !!!
+# systemctl mask --now rpc-statd.service rpcbind.service rpcbind.socket
 
 # Configure rpc.mountd (once) to not listen for NFSv3 mount requests.
 dir=/etc/systemd/system/nfs-mountd.service.d/

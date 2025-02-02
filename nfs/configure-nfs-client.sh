@@ -11,7 +11,7 @@
 
 systemctl list-unit-files |grep 'nfs-server.service' ||
     dnf update &&
-        dnf -y install nfs-utils
+        dnf -y install nfs-utils krb5-workstation
 
 # Mount
 nfs_srv=$1
@@ -22,7 +22,7 @@ mkdir -p $local_mnt
 #mount -t nfs4 -o vers=4.2 $nfs_srv:$nfs_mnt/ $local_mnt/
 # Persistently : Add to fstab (once)
 cat /etc/fstab |grep "$nfs_srv:$nfs_mnt" ||
-    echo "$nfs_srv:$nfs_mnt $local_mnt nfs4 vers=4.2,_netdev,auto 0 0" |tee -a /etc/fstab
+    echo "$nfs_srv:$nfs_mnt $local_mnt nfs4 vers=4.2,_netdev,sec=krb5,auto 0 0" |tee -a /etc/fstab
 
 systemctl daemon-reload
 mount -a
