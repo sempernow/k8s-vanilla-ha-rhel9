@@ -2,6 +2,9 @@
 
 ## TL;DR
 
+Tigera Operator is unstable under Hyper-v and perhaps other hypervisors. 
+It spawns hundreds of pods having status `ContainerStatusUnknown`, 
+perhaps per reboot of parent OS.
 
 ## Download
 
@@ -68,7 +71,7 @@ ok || echo "ERR: $?"
 
 ## Install 
 
-### `calicoctl` CLI on Host
+### `calicoctl` CLI 
 
 ```bash
 bin=/usr/local/bin/calicoctl
@@ -84,6 +87,7 @@ sudo mv calico $bin &&
 ☩ calicoctl get ippools -o wide
 NAME                  CIDR            NAT    IPIPMODE   VXLANMODE   DISABLED   DISABLEBGPEXPORT   SELECTOR
 default-ipv4-ippool   10.244.0.0/24   true   Never      Never       false      false              all()
+
 
 ☩ calicoctl ipam show --show-blocks
 +----------+-----------------+-----------+------------+-----------+
@@ -121,13 +125,21 @@ At admin node:
 
 ```bash
 # Install
-sudo curl -sSL https://github.com/projectcalico/calico/releases/download/v3.29.1/calicoctl-linux-amd64 -o /usr/local/bin/kubectl-calico
+bin=/usr/local/bin/kubectl-calico
+url=https://github.com/projectcalico/calico/releases/download/v3.29.1/calicoctl-linux-amd64
+sudo curl -sSL $url -o $bin &&
+    sudo chmod +x $bin &&
+        echo ok
 
 # Use
 kubectl calico -h
 kubectl calico get node
 kubectl calico get ippool
 kubectl calico ipam check
+kubectl calico ipam show --show-blocks
+kubectl calico ipam show --show-configuration
+kubectl calico ipam show ---ip=$podIP
+
 
 ```
 
@@ -163,8 +175,72 @@ apiserver   True        False         False      57m
 calico      True        False         False      22m
 ippools     True        False         False      58m
 
-☩ kubectl logs -n calico-system -l k8s-app=calico-node
+☩ k -n calico-system logs -l k8s-app=calico-node
+
+☩ k -n calico-system get ds calico-node -o yaml \
+    |yq .spec.template.spec.containers[].env
 ```
+```yaml
+- name: DATASTORE_TYPE
+  value: kubernetes
+- name: WAIT_FOR_DATASTORE
+  value: "true"
+- name: CLUSTER_TYPE
+  value: k8s,operator,bgp
+- name: CALICO_DISABLE_FILE_LOGGING
+  value: "false"
+- name: FELIX_DEFAULTENDPOINTTOHOSTACTION
+  value: ACCEPT
+- name: FELIX_HEALTHENABLED
+  value: "true"
+- name: FELIX_HEALTHPORT
+  value: "9099"
+- name: NODENAME
+  valueFrom:
+    fieldRef:
+      apiVersion: v1
+      fieldPath: spec.nodeName
+- name: NAMESPACE
+  valueFrom:
+    fieldRef:
+      apiVersion: v1
+      fieldPath: metadata.namespace
+- name: FELIX_TYPHAK8SNAMESPACE
+  value: calico-system
+- name: FELIX_TYPHAK8SSERVICENAME
+  value: calico-typha
+- name: FELIX_TYPHACAFILE
+  value: /etc/pki/tls/certs/tigera-ca-bundle.crt
+- name: FELIX_TYPHACERTFILE
+  value: /node-certs/tls.crt
+- name: FELIX_TYPHAKEYFILE
+  value: /node-certs/tls.key
+- name: FIPS_MODE_ENABLED
+  value: "false"
+- name: NO_DEFAULT_POOLS
+  value: "true"
+- name: FELIX_TYPHACN
+  value: typha-server
+- name: CALICO_MANAGE_CNI
+  value: "true"
+- name: CALICO_NETWORKING_BACKEND
+  value: bird
+- name: IP
+  value: autodetect
+- name: IP_AUTODETECTION_METHOD
+  value: first-found
+- name: IP6
+  value: none
+- name: FELIX_IPV6SUPPORT
+  value: "false"
+- name: KUBERNETES_SERVICE_HOST
+  value: 192.168.11.101
+- name: KUBERNETES_SERVICE_PORT
+  value: "6443"
+```
+
+Not all `calicoctl` commands can be run under `kubectl calico`.
+Some require sudo:
 
 ```bash
 ☩ ansibash sudo calicoctl node status
@@ -184,6 +260,7 @@ IPv6 BGP status
 No IPv6 peers found.
 ...
 ```
+
 #### 2. [Configure BGP peering](https://docs.tigera.io/calico/latest/networking/configuring/bgp)
 
 This is advised as best of [__Networking Options__](https://docs.tigera.io/calico/latest/networking/determine-best-networking#on-prem) for __On-prem__

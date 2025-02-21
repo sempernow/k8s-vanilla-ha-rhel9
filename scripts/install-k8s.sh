@@ -35,7 +35,7 @@ ok(){
     [[ $(type -t kubelet) && $(kubeadm version |grep $ver) ]] &&
         return 0
     # Client, server and node, where client and node are subsets of server
-    base="https://dl.k8s.io/${ver}" 
+    base="https://dl.k8s.io/v${ver}" 
     tarball="kubernetes-server-linux-${arch}.tar.gz"
     curl -fsSL $base/$tarball |tar -xz ||
         return 22

@@ -421,6 +421,8 @@ cilium-teardown :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-teardown.log
 
 export calico_operator := custom-resources-bpf-bgp.yaml
+calicoctl : 
+	ansibash sudo calicoctl node status
 calico : calico-operator-gen calico-operator
 calico-operator-gen : 
 	bash make.recipes.sh settings_inject \
