@@ -1,66 +1,119 @@
 # [RHEL NFS Server](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/8/html/deploying_different_types_of_servers/deploying-an-nfs-server_deploying-different-types-of-servers)
 
-## @ Server : [`install-nfs-server.sh`](install-nfs-server.sh)
 
-__This only after host is joined into domain__.
+## Kerberos
+
+When a RHEL system is joined to an Active Directory (AD) domain using `realm join`, `sssd` is responsible for handling authentication, including Kerberos ticketing.
+The `/etc/krb5.conf` file is not necessarily required because SSSD uses its own internal Kerberos settings derived from the AD domain join.
+
+
+
+## @ Server : [`install-nfs-server.sh`](install-nfs-server.sh)
 
 @ `a0` as `root`
 
-```bash
-sudo dnf -y install nfs-utils
-```
-
-~~Configure to serve NFSv4.2 only~~
-
-UPDATE: Want both NFSv3 and NFSv4.2
-
-NFSv4 does not allow for granular Linux file permissions, 
-e.g., declaring the anonymous UID:GID.
-
-```bash
-sudo vi /etc/nfs.conf
-```
-```ini
-[nfsd]
-vers3=y
-# vers4=y
-vers4.0=n
-vers4.1=n
-vers4.2=y
-```
+Configure the share __only after host is joined into domain__.
 
 
-~~Disable NFSv3~~
+### [Kerberos](https://chatgpt.com/share/67c47f8a-ca60-8009-bd32-99d0d10bebf7)
 
-```bash
-#systemctl mask --now rpc-statd.service rpcbind.service rpcbind.socket
-systemctl unmask rpc-statd.service rpcbind.service rpcbind.socket
-systemctl enable --now rpc-statd.service rpcbind.service rpcbind.socket
-
-```
-
-~~Configure `rpc.mountd` to not listen for NFSv3 mount requests.~~
-
-```bash
-dir=/etc/systemd/system/nfs-mountd.service.d/
-sudo mkdir -p $dir
-vi $dir/v4only.conf
-```
-```ini
-[Service]
-ExecStart=
-ExecStart=/usr/sbin/rpc.mountd --no-tcp --no-udp
-```
-- No. Don't disable NFSv3
-
-Configure the share 
-
-- Do not add Kerberos option unless configured for it.
-  `sssd` on this NFS server (host `a0`) is configured for AD, but not Kerberos.  
+Do not add Kerberos option at NFS server unless host is configured for it.
+  If `sssd` is of host joined into AD by `realm join`, then it is automatically configured for Kerberos.  
   See `/etc/sssd/sssd.conf`, `man sssd-krb5` and `man sssd.conf`
 
+#### Verify
 
-Declare the domain
+@ `u1@a0`
+
+```bash
+u1@a0 [08:05:27] [1] [#0] ~
+☩ kinit admin@LIME.LAN
+Password for admin@LIME.LAN:
+
+u1@a0 [08:06:40] [1] [#0] ~
+☩ klist
+Ticket cache: KCM:1000
+Default principal: admin@LIME.LAN
+
+Valid starting     Expires            Service principal
+03/02/25 08:06:36  03/02/25 18:06:36  krbtgt/LIME.LAN@LIME.LAN
+        renew until 03/09/25 09:06:14
+```
+
+```bash
+☩ kinit u1@LIME.LAN
+Password for u1@LIME.LAN:
+
+☩ klist
+Ticket cache: KCM:1000:28381
+Default principal: u1@LIME.LAN
+
+Valid starting     Expires            Service principal
+03/02/25 08:11:22  03/02/25 18:11:22  krbtgt/LIME.LAN@LIME.LAN
+        renew until 03/09/25 09:11:17
+
+☩ klist -l
+Principal name                 Cache name
+--------------                 ----------
+u1@LIME.LAN                    KCM:1000:28381
+admin@LIME.LAN                 KCM:1000
+```
+- So Kerberos ticket is good for __7 days__
+
+
+Yet for NFS access, each user of each client needs a valid tiket
+
+```bash
+kinit -S nfs/a0.lime.lan@LIME.LAN $user
+
+```
+
+Get ticket 
+
+```bash
+☩ ansibash
+...
+  ANSIBASH_TARGET_LIST='a1 a2 a3'
+  ANSIBASH_USER='u2'
+
+☩ ansibash kinit -S nfs/a0.lime.lan@LIME.LAN u2
+```
+
+Validate
+
+```bash
+☩ ansibash ls -hal /mnt
+=== u2@a1
+drwxr-xr-x.  3 root root            20 Feb  1 18:38 .
+dr-xr-xr-x. 18 root root           235 Dec 13 12:35 ..
+drwxrws---+  3 root ad-linux-users  24 Mar  2 16:38 nfs_01
+=== u2@a2
+drwxr-xr-x.  3 root root            20 Mar  1 16:22 .
+dr-xr-xr-x. 18 root root           235 Dec 13 12:41 ..
+drwxrws---+  3 root ad-linux-users  24 Mar  2 16:38 nfs_01
+=== u2@a3
+drwxr-xr-x.  3 root root            20 Mar  1 16:22 .
+dr-xr-xr-x. 18 root root           235 Dec 13 12:42 ..
+drwxrws---+  3 root ad-linux-users  24 Mar  2 16:38 nfs_01
+```
+
+```bash
+☩ ansibash ls -hal /mnt/nfs_01
+=== u2@a1
+...
+drwxrws---+ 2 u2   ad-linux-users 15 Mar  1 17:19 a
+-rw-rw----. 1 u1   ad-linux-users  0 Mar  2 16:38 b
+=== u2@a2
+...
+drwxrws---+ 2 u2   ad-linux-users 15 Mar  1 17:19 a
+-rw-rw----. 1 u1   ad-linux-users  0 Mar  2 16:38 b
+=== u2@a3
+...
+drwxrws---+ 2 u2   ad-linux-users 15 Mar  1 17:19 a
+-rw-rw----+ 1 u1   ad-linux-users  0 Mar  2 16:38 b
+```
+
+### Declare the domain
 
 ```bash
 sudo vi /etc/idmapd.conf
@@ -120,3 +173,64 @@ mkdir -p $local_mnt
 mount -t nfs4 -o vers=4.2 $nfs_server:$nfs_mount/ $local_mnt/
 mount.nfs4: access denied by server while mounting a0.lime.lan:/mnt/nfs_01/
 ```
+
+### Kerberos config 
+
+Auto get ticket on user login and  auto renew
+
+See `nfs/kerberos/`. Mod to configs:
+
+- `/etc/sssd/sssd.conf`
+- `/etc/pam.d/sshd`
+- `/etc/krb5.conf`
+
+
+Install all
+
+```bash
+tar -caf kerberos.tgz nfs/kerberos
+ansibash -u kerberos.tgz
+ansibash tar -xaf  kerberos.tgz
+ansibash sudo cp nfs/kerberos/sssd.conf /etc/sssd/
+ansibash sudo ls -hl /etc/sssd/
+ansibash sudo cat /etc/sssd/sssd.conf |grep krb5
+ansibash sudo cp nfs/kerberos/pam.d.sshd /etc/pam.d/sshd
+ansibash sudo ls -hl /etc/pam.d/sshd
+ansibash sudo cp nfs/kerberos/krb5.conf /etc/krb5.conf
+ansibash sudo ls -hl /etc/krb5.conf
+ansibash ls -hl nfs/kerberos/
+
+# Restart services
+sudo systemctl restart sssd
+sudo systemctl restart rpc-gssd
+sudo systemctl restart nfs-client.target
+```
+
+
+__Verify__
+
+```bash
+☩ ansibash klist
+=== u2@a1
+Ticket cache: KCM:322202610:62865
+Default principal: u2@LIME.LAN
+
+Valid starting     Expires            Service principal
+03/02/25 17:54:58  03/03/25 03:54:58  nfs/a0.lime.lan@LIME.LAN
+        renew until 03/09/25 18:54:52
+=== u2@a2
+Ticket cache: KCM:322202610:72575
+Default principal: u2@LIME.LAN
+
+Valid starting     Expires            Service principal
+03/02/25 17:55:02  03/03/25 03:55:02  nfs/a0.lime.lan@LIME.LAN
+        renew until 03/09/25 18:54:59
+=== u2@a3
+Ticket cache: KCM:322202610:85859
+Default principal: u2@LIME.LAN
+
+Valid starting     Expires            Service principal
+03/02/25 17:55:07  03/03/25 03:55:07  nfs/a0.lime.lan@LIME.LAN
+        renew until 03/09/25 18:55:03
+```
+

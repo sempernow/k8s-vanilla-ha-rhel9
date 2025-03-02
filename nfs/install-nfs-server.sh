@@ -4,17 +4,17 @@
 #
 # https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/8/html/deploying_different_types_of_servers/deploying-an-nfs-server_deploying-different-types-of-servers
 #
-# ARGs: SERVER_HOST  CLIENT_CIDR
+# ARGs: SERVER_MOUNT  CLIENT_CIDR
 ########################################################################
 [[ "$2" ]] || exit 1
-[[ "$1" =~ $(hostname) ]] || exit 2
 [[ "$(id -un)" == 'root' ]] || exit 3
 
-systemctl list-unit-files |grep 'nfs-server.service' ||
+systemctl is-active nfs-server.service || {
     dnf update &&
-        dnf -y install nfs-utils
+        dnf -y install nfs-utils rpcbind krb5-workstation
+}
 
-# Configure to serve NFSv3 and NFSv4.2 only (idempotent)
+# Configure to serve only NFSv3 and NFSv4.2 (idempotent)
 sedfile=/tmp/etc.nfs.conf.sed
 cat <<EOH |tee $sedfile
 /vers3=/c\vers3=y
@@ -26,8 +26,11 @@ EOH
 sed -i -f $sedfile /etc/nfs.conf
 rm -f $sedfile
 
-# Disable NFSv3 : May also disable NFSv4 at clients !!!
-# systemctl mask --now rpc-statd.service rpcbind.service rpcbind.socket
+# Disable NFSv3 : May also disable NFSv4 at clients 
+#systemctl mask --now rpc-statd.service rpcbind.service rpcbind.socket
+# Undo the mask
+#systemctl unmask rpc-statd.service rpcbind.service rpcbind.socket
+#systemctl enable --now rpc-statd.service rpcbind.service rpcbind.socket
 
 # if NFSv4 *only*, then configure rpc.mountd (once) to not listen for NFSv3 mount requests.
 # dir=/etc/systemd/system/nfs-mountd.service.d/
@@ -40,12 +43,13 @@ rm -f $sedfile
 # 	EOH
 # }
 
-# Uncomment/Re-declare domain at /etc/idmapd.conf
-sed -i '/^\(#\)\?Domain = /c\Domain = lime.lan' /etc/idmapd.conf
+# @ /etc/idmapd.conf : Uncomment/Re-declare Domain
+sed -i '/^\(#\)\?Domain = /c\Domain = '$(hostname -d) /etc/idmapd.conf
 
 # Configure the share
-share=/mnt/nfs_01
-mkdir -p $share/
+share=$1
+mkdir -p $share/ 
+[[ -d $share ]] || exit 11
 chgrp 'ad-linux-users' $share/
 
 # Set ACLs and such so that owner:group of all current and new dirs/files 
@@ -61,35 +65,39 @@ setfacl -m d:o::--- $share
 # NFSv3 supports this; NFSv4 does not, purportedly (untested)
 id=50000
 name=nfsanon
-groupadd -g $id $name
-useradd -u $id -g $name -s /sbin/nologin -d /dev/null $name
+getent group $name || groupadd -g $id $name
+id $name || useradd -u $id -g $name -s /sbin/nologin -d /dev/null $name
 
 exports=/etc/exports
-cidr1="$2"
+cidr="$2"
 cat <<EOH |tee $exports
 # NFSv4
-#$share    $cidr1(rw,sync,sec=krb5,root_squash)
+#$share    $cidr(rw,sync,sec=krb5,root_squash,no_subtree_check)
 
 # NFSv3
-#$share    $cidr1(rw,sync,sec=krb5,root_squash,no_subtree_check,anonuid=$id,anongid=$id)
-$share    $cidr1(rw,sync,root_squash,no_subtree_check,anonuid=$id,anongid=$id)
+#$share    $cidr(rw,sync,sec=krb5,root_squash,no_subtree_check,anonuid=$id,anongid=$id)
+$share    $cidr(rw,sync,root_squash,no_subtree_check,anonuid=$id,anongid=$id)
 EOH
 
+# Allow through Linux firewall
 systemctl enable --now firewalld
 firewall-cmd --permanent --add-service=nfs
 firewall-cmd --permanent --add-service=rpc-bind
 firewall-cmd --permanent --add-service=mountd
 firewall-cmd --reload
 
+# Apply the NFS configuration
 exportfs -ra
 systemctl daemon-reload
 systemctl restart nfs-mountd
 systemctl enable --now nfs-server
 
+# Verify (have v. want)
 vers="$(cat /proc/fs/nfsd/versions)"
 [[ "$vers" =~ '+3 +4 -4.0 -4.1 +4.2' ]] &&
     echo ok ||
         echo "/proc/fs/nfsd/versions : $vers"
 
+# Inspect the running configuration
 exportfs -v
-#/mnt/nfs_01     192.168.11.0/24(sync,wdelay,hide,no_subtree_check,anonuid=50000,anongid=50000,sec=sys,rw,secure,root_squash,no_all_squash)
+#=> /mnt/nfs_01  192.168.11.0/24(sync,wdelay,hide,no_subtree_check,anonuid=50000,anongid=50000,sec=sys,rw,secure,root_squash,no_all_squash)
