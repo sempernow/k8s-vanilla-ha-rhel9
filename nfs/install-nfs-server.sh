@@ -8,7 +8,8 @@
 ########################################################################
 [[ "$2" ]] || exit 1
 [[ "$(id -un)" == 'root' ]] || exit 3
-
+share=$1
+cidr="$2"
 systemctl is-active nfs-server.service || {
     dnf update &&
         dnf -y install nfs-utils rpcbind krb5-workstation
@@ -43,11 +44,11 @@ rm -f $sedfile
 # 	EOH
 # }
 
+# Configuring idmap is not necessary if joined to domain using realm and sssd
 # @ /etc/idmapd.conf : Uncomment/Re-declare Domain
-sed -i '/^\(#\)\?Domain = /c\Domain = '$(hostname -d) /etc/idmapd.conf
+#sed -i '/^\(#\)\?Domain = /c\Domain = '$(hostname -d) /etc/idmapd.conf
 
 # Configure the share
-share=$1
 mkdir -p $share/ 
 [[ -d $share ]] || exit 11
 chgrp 'ad-linux-users' $share/
@@ -62,21 +63,17 @@ setfacl -m d:g::rwx $share
 setfacl -m d:o::--- $share
 
 # Configure nfsanon (anonuid,anongid) as UID:GID of all orphaned dirs/files .
-# NFSv3 supports this; NFSv4 does not, purportedly (untested)
+# NFSv3 supports this. NFSv4 does not. Untested.
 id=50000
 name=nfsanon
 getent group $name || groupadd -g $id $name
 id $name || useradd -u $id -g $name -s /sbin/nologin -d /dev/null $name
 
-exports=/etc/exports
-cidr="$2"
-cat <<EOH |tee $exports
-# NFSv4
-#$share    $cidr(rw,sync,sec=krb5,root_squash,no_subtree_check)
-
-# NFSv3
-#$share    $cidr(rw,sync,sec=krb5,root_squash,no_subtree_check,anonuid=$id,anongid=$id)
-$share    $cidr(rw,sync,root_squash,no_subtree_check,anonuid=$id,anongid=$id)
+# NFSv4 does not support anonuid/anongid, and Kerberos does not allow anonymous user
+#$share    $cidr(rw,sync,sec=krb5p:krb5i:krb5:sys,root_squash,no_subtree_check,anonuid=$id,anongid=$id)
+sed -i "\,$cidr,d" /etc/exports
+cat <<EOH |tee /etc/exports
+$share    $cidr(rw,sync,sec=krb5p:krb5i:krb5:sys,root_squash,no_subtree_check)
 EOH
 
 # Allow through Linux firewall

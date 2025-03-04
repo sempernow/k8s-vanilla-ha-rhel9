@@ -7,6 +7,7 @@
 # ARGs: SERVER_FQDN_OR_IPv4 SERVER_MOUNT LOCAL_MOUNT
 ########################################################################
 [[ "$3" ]] || exit 1
+[[ "$1" =~ $(hostname) ]] && exit 2
 [[ "$(id -un)" == 'root' ]] || exit 3
 
 systemctl is-active nfs-client.target || {
@@ -29,18 +30,17 @@ useradd -u $id -g $name -s /sbin/nologin -d /dev/null $name
 nfs_srv=$1
 nfs_mnt=$2
 local_mnt=$3
+umount $local_mnt
 unset krb
-krb=',sec=krb5'
+#krb=',sec=krb5'
 mkdir -p $local_mnt
 # Temporarily
 #mount -t nfs4 -o vers=4.2 $nfs_srv:$nfs_mnt/ $local_mnt/
 # Persistently : Add to fstab (once)
 # NFSv4 : Does *not* abide server's anonymous UID:GID settings (anonuid,anongid)
+sed -i "\,$nfs_srv:$nfs_mnt,d" /etc/fstab
 grep "$nfs_srv:$nfs_mnt" /etc/fstab ||
     echo "$nfs_srv:$nfs_mnt $local_mnt nfs4 defaults,vers=4.2,_netdev,auto$krb 0 0" |tee -a /etc/fstab
-# NFSv3 : Does abide server's anonymous UID:GID settings (anonuid,anongid)
-#grep "$nfs_srv:$nfs_mnt" /etc/fstab ||
-    echo "$nfs_srv:$nfs_mnt $local_mnt nfs defaults,vers=3,_netdev,auto$krb 0 0" |tee -a /etc/fstab
 
 systemctl daemon-reload
 mount -a
