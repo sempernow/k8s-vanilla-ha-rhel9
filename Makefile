@@ -149,6 +149,7 @@ menu :
 	@echo "============== "
 	@echo "cilium       : Install Cilium"
 	@echo "calico       : Install Calico"
+	@echo "  -status    : calicoctl commands"
 	@echo "kuberouter   : Install Kube Router"
 	@echo "  -teardown  : Per-CNI teardown"
 	@echo "============== "
@@ -422,8 +423,16 @@ cilium-teardown :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-teardown.log
 
 export calico_operator := custom-resources-bpf-bgp.yaml
-calicoctl : 
-	ansibash sudo calicoctl node status
+calicoctl calico-status : 
+	#kubectl calico get node
+	ansibash sudo /usr/local/bin/calicoctl node status
+	kubectl get tigerastatuses
+	kubectl calico get ippool
+	#kubectl calico ipam check
+	kubectl calico ipam show --show-blocks
+	kubectl calico ipam show --show-configuration
+	kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP}
+
 calico : calico-operator-gen calico-operator
 calico-operator-gen : 
 	bash make.recipes.sh settings_inject \

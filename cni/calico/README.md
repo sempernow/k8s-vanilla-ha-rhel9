@@ -11,7 +11,7 @@ perhaps per reboot of parent OS.
 ```bash
 ok(){
     DIR=calico
-    VER='v3.29.1'
+    VER='v3.29.2' # v3.29.1
     BASE=https://raw.githubusercontent.com/projectcalico/calico/$VER/manifests
 
     # Manifest Method
@@ -132,13 +132,13 @@ sudo curl -sSL $url -o $bin &&
         echo ok
 
 # Use
-kubectl calico -h
+#kubectl calico -h
 kubectl calico get node
 kubectl calico get ippool
-kubectl calico ipam check
+#kubectl calico ipam check
 kubectl calico ipam show --show-blocks
 kubectl calico ipam show --show-configuration
-kubectl calico ipam show ---ip=$podIP
+kubectl calico ipam show --ip=$podIP
 
 
 ```
