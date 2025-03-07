@@ -162,6 +162,7 @@ menu :
 	@echo "join-command : Print join command for control-plane node : same cert key/hash; new token"
 	@echo "join-token   : kubeadm token list"
 	@echo "============== "
+	@echo "healthz      : K8s API : GET /healthz?verbose"
 	@echo "psk          : ps of K8s processes"
 	@echo "psrss        : ps sorted by RSS usage"
 	@echo "crictl       : CRI status"
@@ -497,6 +498,8 @@ upload-certs :
 
 watch : 
 	watch kubectl get pod -A -o wide
+healthz :
+	curl -ks https://${K8S_ENDPOINT}/healthz?verbose
 psk :
 	ansibash psk
 crictl : crictl-images crictl-ps crictl-pods

@@ -9,6 +9,8 @@ deploy:
 deployeach:
 	kubectl apply -f ${APP}.deploy.yaml -f ${APP}.cm.yaml -f ${APP}.svc.yaml 
 
-
+get :
+	@kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' \
+		|xargs -I{} curl -s http://{}:30080/meta/
 
 
