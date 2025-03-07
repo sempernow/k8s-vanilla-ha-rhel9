@@ -53,7 +53,6 @@ metadata:
     app: ngx
 data:
   default.conf: |-
-
     server {
         listen       80 proxy_protocol;
         listen  [::]:80 proxy_protocol;
