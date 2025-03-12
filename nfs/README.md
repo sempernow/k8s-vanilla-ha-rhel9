@@ -4,9 +4,16 @@
 ## Kerberos
 
 When a RHEL system is joined to an Active Directory (AD) domain using `realm join`, `sssd` is responsible for handling authentication, including Kerberos ticketing.
-The `/etc/krb5.conf` file is not necessarily required because SSSD uses its own internal Kerberos settings derived from the AD domain join.
 
 
+## TL:DR
+
+We were able to generate Kerberos tickets for host, and even for NFS after a fantastic amount of configuration; however, the tickets are short lived and do not renew automatically, even after meticulously configuring it to do so.  
+
+__Kerberos is simply not worth the bother.__
+The scheme has more configuration permutation than there are atoms in the Universe.
+
+Much, much more.
 
 ## @ Server : [`install-nfs-server.sh`](install-nfs-server.sh)
 
@@ -14,12 +21,16 @@ The `/etc/krb5.conf` file is not necessarily required because SSSD uses its own 
 
 Configure the share __only after host is joined into domain__.
 
-
 ### [Kerberos](https://chatgpt.com/share/67c47f8a-ca60-8009-bd32-99d0d10bebf7)
 
 Do not add Kerberos option at NFS server unless host is configured for it.
-  If `sssd` is of host joined into AD by `realm join`, then it is automatically configured for Kerberos.  
-  See `/etc/sssd/sssd.conf`, `man sssd-krb5` and `man sssd.conf`
+
+If `sssd` is of host joined into AD by `realm join`, 
+then it is configured __to allow for__ Kerberos.
+
+See `/etc/sssd/sssd.conf`, `man sssd-krb5` and `man sssd.conf`
+
+ However, creating, renewing, and otherwise maintaining __Kerberos tickets requires a labyrinth of configurations across many interrelated tools__. And such tickets are target specific. That is, tickets for use at a host differ from those for use at NFS on that host.
 
 #### Verify
 
