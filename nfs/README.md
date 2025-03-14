@@ -10,10 +10,234 @@ When a RHEL system is joined to an Active Directory (AD) domain using `realm joi
 
 We were able to generate Kerberos tickets for host, and even for NFS after a fantastic amount of configuration; however, the tickets are short lived and do not renew automatically, even after meticulously configuring it to do so.  
 
-__Kerberos is simply not worth the bother.__
-The scheme has more configuration permutation than there are atoms in the Universe.
+__Kerberos is notoriously tedious to manage.__
+The scheme requires coordinated configurations across sssd, krb5, pam.d and AD  has more configuration permutations than there are atoms in the Universe.
+Tickets failing to renew after expiry is a common fail mode.
 
-Much, much more.
+## Summary of Commands
+
+For this NFS + Kerberos + AD Integration Project
+
+## **1️⃣ Active Directory (AD) Configuration on Windows Server**
+### **🔹 Verify Kerberos KDC on AD DC**
+```powershell
+Get-Service KDC
+```
+```powershell
+PS C:\Users\Administrator> Get-Service KDC
+
+Status   Name               DisplayName
+------   ----               -----------
+Running  KDC                Kerberos Key Distribution Center
+```
+### **🔹 Verify AD Issues Kerberos Tickets**
+```powershell
+klist tickets
+```
+- These tickets regard this host only; 
+  they have nothing to do with RHEL hosts under this DC.
+
+### **🔹 Verify AD DNS Records for Kerberos**
+```powershell
+nslookup -type=SRV _kerberos._tcp.lime.lan
+```
+### **🔹 Create an NFS Service Principal in AD**
+
+If all the relevant RHEL services are configured properly, then a Service principal is created automatically for each host upon "`realm join --user=Administrator lime.lan`". 
+
+```
+host/a0.lime.lan@LIME.LAN
+RestrictedKrbHost/a0.lime.lan@LIME.LAN
+```
+However, such is not the case for the NFS server (`nfs-server`) created at a RHEL host thereafter.
+
+
+```powershell
+ktpass -out "C:\nfs_a0.keytab" `
+    -princ "nfs/a0.lime.lan@LIME.LAN" `
+    -mapuser "LIME\A0$" `
+    -crypto AES256-SHA1 `
+    -ptype KRB5_NT_PRINCIPAL `
+    -pass +rndpass
+```
+### **🔹 Verify Keytab File**
+
+A keytab file __stores encryption keys__ for service principals, allowing services to authenticate themselves to the Kerberos Key Distribution Center (KDC) without requiring manual password entry.
+
+Verify the newly-created keytab file
+
+```powershell
+klist -k C:\nfs_a0.keytab
+```
+
+---
+
+## **2️⃣ Linux: General AD & Kerberos Configuration**
+### **🔹 Verify Kerberos Authentication**
+```bash
+kinit u2@LIME.LAN # If needed
+klist
+```
+```plaintext
+Ticket cache: KCM:0
+Default principal: u2@LIME.LAN
+
+Valid starting     Expires            Service principal
+03/14/25 10:37:49  03/14/25 20:37:49  krbtgt/LIME.LAN@LIME.LAN
+        renew until 03/21/25 10:37:44
+```
+### **🔹 Request a Service Ticket for NFS**
+```bash
+kinit -S nfs/a0.lime.lan u2@LIME.LAN
+```
+```bash
+klist
+```
+Before:
+```plaintext
+Ticket cache: KCM:0:31053
+Default principal: A2$@LIME.LAN
+
+Valid starting     Expires            Service principal
+12/31/69 19:00:00  12/31/69 19:00:00  Encrypted/Credentials/v1@X-GSSPROXY:
+```
+After:
+```plaintext
+Default principal: u2@LIME.LAN
+
+Valid starting     Expires            Service principal
+03/14/25 10:29:12  03/14/25 20:29:12  nfs/a0.lime.lan@LIME.LAN
+        renew until 03/21/25 10:29:05
+```
+### **🔹 Check Kerberos Ticket Expiry**
+```bash
+klist -f
+```
+### **🔹 Renew Kerberos Ticket Manually**
+```bash
+kinit -R
+```
+### **🔹 Destroy All Kerberos Tickets**
+```bash
+kdestroy
+```
+### **🔹 Verify Keytab on NFS Server**
+```bash
+sudo klist -k /etc/krb5.keytab | grep nfs
+```
+
+---
+
+## **3️⃣ SSSD Configuration**
+### **🔹 Verify SSSD Configuration**
+```bash
+sssctl config-check
+```
+### **🔹 Restart SSSD & Apply Changes**
+```bash
+sudo systemctl restart sssd
+journalctl -u sssd --no-pager | tail -n 50
+```
+### **🔹 Clear SSSD Cache**
+```bash
+sudo sssctl cache-remove u2
+sudo systemctl restart sssd
+```
+
+---
+
+## **4️⃣ NFS Server Setup**
+### **🔹 Verify NFS Daemon Status**
+```bash
+systemctl status nfs-server
+```
+### **🔹 Restart NFS Services**
+```bash
+sudo systemctl restart nfs-server rpc-gssd
+```
+### **🔹 Check Running NFS Processes**
+```bash
+ps aux | grep nfsd
+```
+### **🔹 Verify NFS Exports**
+```bash
+exportfs -v
+```
+### **🔹 Reload NFS Exports**
+```bash
+exportfs -rv
+```
+### **🔹 Check Kernel NFS Modules**
+```bash
+lsmod | grep nfs
+```
+### **🔹 Check NFS Ports**
+```bash
+ss -tulpn | grep :2049
+```
+
+---
+
+## **5️⃣ NFS Client Configuration**
+### **🔹 Check Current NFS Mounts**
+```bash
+mount | grep nfs
+```
+### **🔹 Verify NFS Mount Security Mode**
+```bash
+nfsstat -m
+```
+### **🔹 Unmount and Remount NFS with Kerberos**
+```bash
+sudo umount -f /mnt/nfs
+sudo mount -o sec=krb5p nfs-server:/exports/data /mnt/nfs
+```
+### **🔹 Show NFS Exports from Server**
+```bash
+showmount -e a0.lime.lan
+```
+
+---
+
+## **6️⃣ Debugging & Troubleshooting**
+### **🔹 Check System Logs for NFS & Kerberos**
+```bash
+journalctl -xe | grep krb5
+journalctl -xe | grep nfs
+```
+### **🔹 Check Kernel Logs for NFS Issues**
+```bash
+dmesg | grep nfs
+```
+### **🔹 Check if KCM Cache is Used**
+```bash
+klist -C
+```
+### **🔹 Force Clear KCM Credential Cache**
+```bash
+sudo keyctl purge user
+```
+### **🔹 Verify Kernel Keyring**
+```bash
+sudo keyctl show
+```
+### **🔹 Remove Stuck Kerberos Credentials**
+```bash
+sudo sssctl cache-remove u2
+sudo systemctl restart sssd
+```
+
+---
+
+### **📌 Next Steps**
+If something is **still not working**, focus on:
+1. **Ensuring the correct Kerberos tickets exist (`klist`).**
+2. **Verifying AD authentication (`kinit -S nfs/a0.lime.lan`).**
+3. **Checking whether NFS enforces Kerberos (`nfsstat -m`).**
+4. **Examining logs (`journalctl -xe | grep krb5`).**
+
+Would you like any additional sections added? 🚀
+
 
 ## @ Server : [`install-nfs-server.sh`](install-nfs-server.sh)
 
@@ -32,7 +256,17 @@ See `/etc/sssd/sssd.conf`, `man sssd-krb5` and `man sssd.conf`
 
  However, creating, renewing, and otherwise maintaining __Kerberos tickets requires a labyrinth of configurations across many interrelated tools__. And such tickets are target specific. That is, tickets for use at a host differ from those for use at NFS on that host.
 
-#### Verify
+
+```bash
+# Create/Renew ticket : Prompts for user's AD password
+kinit # Default (AD DS USER@REALM)
+# Else declare
+realm=$(hostname -d)
+kinit $(id -un)@${realm^^}
+
+# Verify
+klist
+```
 
 @ `u1@a0`
 
@@ -72,14 +306,15 @@ admin@LIME.LAN                 KCM:1000
 - So Kerberos ticket is good for __7 days__
 
 
-Yet for NFS access, each user of each client needs a valid tiket
+Yet for NFS access, each user of each client needs a valid ticket-granting ticket (TGT).
 
 ```bash
+# Get ticket for service (-S SERVICE)
 kinit -S nfs/a0.lime.lan@LIME.LAN $user
 
 ```
 
-Get ticket 
+__Get TGT__ (ticket-granting ticket) for NFS at all clients
 
 ```bash
 ☩ ansibash
@@ -88,6 +323,22 @@ Get ticket
   ANSIBASH_USER='u2'
 
 ☩ ansibash kinit -S nfs/a0.lime.lan@LIME.LAN u2
+```
+
+Verify
+
+```bash
+u2@a1 [07:21:43] [1] [#0] ~
+☩ klist -c
+Ticket cache: KCM:322202610:62865
+Default principal: u2@LIME.LAN
+
+Valid starting     Expires            Service principal
+03/13/25 22:11:35  03/14/25 08:11:35  krbtgt/LIME.LAN@LIME.LAN
+        renew until 03/20/25 22:11:29
+03/13/25 22:12:23  03/14/25 08:11:35  nfs/a0.lime.lan@
+        renew until 03/20/25 22:11:29
+        Ticket server: nfs/a0.lime.lan@LIME.LAN
 ```
 
 Validate
@@ -245,3 +496,76 @@ Valid starting     Expires            Service principal
         renew until 03/09/25 18:55:03
 ```
 
+#### Kerberos @ AD KDC
+
+AD KDC is built into AD DS.
+
+- The Domain Controller (DC) acts as the KDC.
+- The KDC issues Kerberos tickets (TGTs & service tickets) to domain users and services.
+- When you run `kinit` on a Linux client, it contacts the KDC running on the AD DC.
+
+__Recreate Kerberos `*.keytab`__ having all SPNs.
+Do this __only if necessary__; 
+only if `klist` is not recognize the NFS server.
+That is, if `klist` does not report the NFS server 
+as a "Service principal" of a ticket-generating ticket (TGT).
+
+After adding an NFS server at host `a0`
+
+1. `realm leave` at all RHEL hosts that are NFS clients
+2. Run this PowerShell script at the domain controller (AD KDC)
+3. `realm join` at all RHEL hosts that are NFS clients
+
+@ `dc1.lime.lan` (host of Windows Server)
+
+```powershell
+$Realm      = "LIME.LAN"
+$Domain     = "LIME"   # NetBIOS domain name used by AD KDC (See -mapuser)
+$Machine    = "A0"
+$KeytabPath = "C:\$Machine.keytab"
+
+# Get all SPNs assigned to the machine
+$SPNs = setspn -L "$Machine$" | Select-String -Pattern "^\s+\S+" | ForEach-Object { $_.ToString().Trim() }
+
+# Check if SPNs were found
+if (-not $SPNs) {
+    Write-Host "No SPNs found for $Machine$ in domain $Realm"
+    exit 1
+}
+
+# Generate keytab for the first SPN (without -append)
+$FirstSPN = $SPNs[0]
+$FirstPrincipal = "$FirstSPN@$Realm"
+Write-Host "Adding $FirstPrincipal to keytab..."
+ktpass -out "$KeytabPath" `
+    -princ $FirstPrincipal `
+    -mapuser "$Domain\$Machine$" ` 
+    -crypto AES256-SHA1 `
+    -ptype KRB5_NT_PRINCIPAL `
+    -pass +rndpass
+# ktpass -out nfs.keytab `
+#     -princ nfs/a0.lime.lan@LIME.LAN `
+#     -mapuser LIME\A0$ `
+#     -crypto AES256-SHA1 `
+#     -ptype KRB5_NT_PRINCIPAL `
+#     -pass +rndpass
+
+
+
+# Add remaining SPNs with -append
+$SPNs | Select-Object -Skip 1 | ForEach-Object {
+    $SPN = $_
+    $Principal = "$SPN@$Realm"
+    Write-Host "Appending $Principal to keytab..."
+    
+    ktpass -out "$KeytabPath" `
+        -princ $Principal `
+        -mapuser "$Domain\$Machine$" `
+        -crypto AES256-SHA1 `
+        -ptype KRB5_NT_SRV_HST `
+        -pass +rndpass `
+        -append
+}
+
+Write-Host "Keytab generated at $KeytabPath"
+```

@@ -1,0 +1,2 @@
+# Allow client to downgrade security, yet default to hightest (krb5p) 
+/mnt/nfs_01    192.168.11.0/24(rw,sync,sec=krb5p:krb5i:krb5:sys,root_squash,no_subtree_check)

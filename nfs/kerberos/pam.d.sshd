@@ -19,4 +19,3 @@ session    include      postlogin
 # Kerberos : Auto renew tickets
 auth       optional     pam_krb5.so use_first_pass
 session    optional     pam_krb5.so
-
