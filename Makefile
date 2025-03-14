@@ -60,8 +60,8 @@ export HALB_ENDPOINT ?= ${HALB_VIP}:${HALB_PORT}
 ## ansibash 
 ### Public-key string of ssh user must be in ~/.ssh/authorized_keys of ADMIN_USER at all targets.
 #export ADMIN_USER          ?= $(shell id -un)
-export ADMIN_USER          ?= u1
-export ADMIN_KEY           ?= ${HOME}/.ssh/vm_common
+export ADMIN_USER          ?= u2
+export ADMIN_KEY           ?= ${HOME}/.ssh/vm_lime
 export ADMIN_NODES_CONTROL ?= a1 a2 a3
 export ADMIN_NODES_WORKER  ?= 
 export ADMIN_TARGET_LIST   ?= ${ADMIN_NODES_CONTROL} ${ADMIN_NODES_WORKER}
