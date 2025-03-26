@@ -1,4 +1,7 @@
 #%PAM-1.0
+# Kerberos : Auto renew tickets
+auth       optional     pam_krb5.so use_first_pass
+session    optional     pam_krb5.so
 auth       substack     password-auth
 auth       include      postlogin
 account    required     pam_sepermit.so
@@ -15,7 +18,3 @@ session    optional     pam_keyinit.so force revoke
 session    optional     pam_motd.so
 session    include      password-auth
 session    include      postlogin
-
-# Kerberos : Auto renew tickets
-auth       optional     pam_krb5.so use_first_pass
-session    optional     pam_krb5.so

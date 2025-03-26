@@ -14,6 +14,132 @@ __Kerberos is notoriously tedious to manage.__
 The scheme requires coordinated configurations across sssd, krb5, pam.d and AD  has more configuration permutations than there are atoms in the Universe.
 Tickets failing to renew after expiry is a common fail mode.
 
+## NFS Server/Client Services
+
+The services required for the **NFS server** and **NFS client** depend on the **NFS version** and the **specific configuration** (e.g., Kerberos authentication, Active Directory integration). Below is a summary of the required services for both the server and client in your environment.
+
+---
+
+### **NFS Server Services**
+The following services are typically required on the **NFS server**:
+
+```bash
+dnf install -y nfs-utils rpcbind krb5-workstation chrony authselect
+```
+
+1. **`rpcbind`**:
+   - Required for **NFSv3** to map RPC services to their corresponding ports.
+   - Not strictly required for **NFSv4**, but often enabled for backward compatibility.
+
+2. **`nfs-server`**:
+   - The main NFS server service that handles NFS exports and client requests.
+
+3. **`nfs-mountd`**:
+   - Required for **NFSv3** to handle mount requests.
+   - Optional for **NFSv4**, but often enabled for backward compatibility or mixed environments.
+
+4. **`rpc-statd`**:
+   - Required for **NFSv3** to handle file locking and crash recovery.
+   - Not required for **NFSv4**, but often enabled for backward compatibility or mixed environments.
+
+5. **`chronyd`**:
+   - Ensures time synchronization with the domain controller and clients.
+   - Critical for Kerberos authentication.
+
+6. **Optional: `rpc-svcgssd`**:
+   - Required for **Kerberos authentication** on the NFS server.
+   - Handles server-side Kerberos security.
+
+---
+
+### **NFS Client Services**
+The following services are typically required on the **NFS client**:
+
+```bash
+dnf install -y nfs-utils rpcbind krb5-workstation chrony authselect
+```
+
+1. **`nfs-client.target`**:
+   - A target that ensures all necessary NFS client services are running.
+
+2. **`rpc-gssd`**:
+   - Required for **Kerberos authentication** on the NFS client.
+   - Handles client-side Kerberos security.
+
+3. **`rpcbind`**:
+   - Required for **NFSv3** to map RPC services to their corresponding ports.
+   - Not strictly required for **NFSv4**, but often enabled for backward compatibility.
+
+4. **`nfs-idmapd`**:
+   - Required for **NFSv4** to map user and group IDs between the client and server.
+   - Ensures consistent UID/GID mapping for files and directories.
+
+5. **`chronyd`**:
+   - Ensures time synchronization with the domain controller and server.
+   - Critical for Kerberos authentication.
+
+---
+
+### **Summary of Services**
+
+#### **NFS Server**
+| Service          | Required for NFSv3 | Required for NFSv4 | Notes                                   |
+|------------------|--------------------|--------------------|-----------------------------------------|
+| `rpcbind`        | Yes                | Optional           | Required for NFSv3, optional for NFSv4. |
+| `nfs-server`     | Yes                | Yes                | Main NFS server service.                |
+| `nfs-mountd`     | Yes                | Optional           | Required for NFSv3, optional for NFSv4. |
+| `rpc-statd`      | Yes                | Optional           | Required for NFSv3, optional for NFSv4. |
+| `chronyd`        | Yes                | Yes                | Critical for Kerberos authentication.   |
+| `rpc-svcgssd`    | Optional           | Optional           | Required for Kerberos authentication.   |
+
+#### **NFS Client**
+| Service              | Required for NFSv3 | Required for NFSv4 | Notes                                   |
+|----------------------|--------------------|--------------------|-----------------------------------------|
+| `nfs-client.target`  | Yes                | Yes                | Ensures all NFS client services are running. |
+| `rpc-gssd`           | Optional           | Yes                | Required for Kerberos authentication.   |
+| `rpcbind`            | Yes                | Optional           | Required for NFSv3, optional for NFSv4. |
+| `nfs-idmapd`         | No                 | Yes                | Required for NFSv4 ID mapping.          |
+| `chronyd`            | Yes                | Yes                | Critical for Kerberos authentication.   |
+
+---
+
+### **Example Commands to Enable and Start Services**
+
+#### **On the NFS Server**
+```bash
+sudo systemctl enable rpcbind nfs-server nfs-mountd rpc-statd chronyd
+sudo systemctl start rpcbind nfs-server nfs-mountd rpc-statd chronyd
+```
+
+If using Kerberos:
+```bash
+sudo systemctl enable rpc-svcgssd
+sudo systemctl start rpc-svcgssd
+```
+
+#### **On the NFS Client**
+```bash
+sudo systemctl enable nfs-client.target rpc-gssd rpcbind nfs-idmapd chronyd
+sudo systemctl start nfs-client.target rpc-gssd rpcbind nfs-idmapd chronyd
+```
+
+---
+
+### **Key Considerations**
+1. **NFS Version**:
+   - For **NFSv3**, ensure `rpcbind`, `nfs-mountd`, and `rpc-statd` are running on both the server and client.
+   - For **NFSv4**, focus on `nfs-idmapd` and `rpc-gssd` (for Kerberos).
+
+2. **Kerberos Authentication**:
+   - Ensure `rpc-gssd` is running on the client and `rpc-svcgssd` is running on the server.
+
+3. **Time Synchronization**:
+   - Ensure `chronyd` is running on both the server and client for Kerberos to work properly.
+
+4. **Firewall Configuration**:
+   - Open the necessary ports for NFS, rpcbind, and Kerberos on both the server and client.
+
+
 ## Summary of Commands
 
 For this NFS + Kerberos + AD Integration Project
