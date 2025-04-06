@@ -566,9 +566,9 @@ csi-rook-down :
 	ansibash 'sudo wipefs --all /dev/${rbd} && sudo dd if=/dev/zero of=/dev/${rbd} bs=1M count=10'
 
 efk-up :
-	bash ${ADMIN_SRC_DIR}/observability/logging/efk/efk.sh apply
+	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh apply
 efk-down :
-	bash ${ADMIN_SRC_DIR}/observability/logging/efk/efk.sh delete
+	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh delete
 
 teardown : calico-teardown cilium-teardown kuberouter-teardown
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \

@@ -64,6 +64,8 @@ menu :
 	@echo "============== "
 	@echo "server       : Show NFS server"
 	@echo "client       : Show NFS client"
+	@echo "============== "
+	@echo "k8s-nfs      : Install nfs-client provisioner"
 
 env : 
 	$(INFO) 'Environment'
@@ -128,3 +130,6 @@ client :
 	        && ls -hl ${NFS_EXPORT_PATH}/${file} \
 	        && rm ${NFS_EXPORT_PATH}/${file} \
 	'
+
+k8s-nfs :
+	bash nfs-subdir-provisioner.sh

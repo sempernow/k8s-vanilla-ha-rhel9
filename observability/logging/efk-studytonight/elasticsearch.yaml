@@ -92,7 +92,7 @@ spec:
         app: elasticsearch
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: do-block-storage
+      storageClassName: nfs
       resources:
         requests:
           storage: 10Gi

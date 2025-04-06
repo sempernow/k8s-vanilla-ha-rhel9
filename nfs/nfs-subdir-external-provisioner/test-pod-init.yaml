@@ -1,0 +1,43 @@
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: test-pvc
+  labels:
+    why: test-access
+spec:
+  storageClassName: nfs-client
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secure-nfs-pod
+  labels:
+    why: test-access
+spec:
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: test-pvc
+  initContainers:
+    - name: init-perms
+      image: busybox
+      command: ["sh", "-c", "chown 1000:1000 /mnt/data && chmod 0700 /mnt/data"]
+      volumeMounts:
+        - name: data
+          mountPath: /mnt/data
+  containers:
+    - name: app
+      image: busybox
+      command: ["sh", "-c", "echo Secure write >> /data/hello.txt && sleep 3600"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
