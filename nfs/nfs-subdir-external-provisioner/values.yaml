@@ -8,10 +8,13 @@ image:
 imagePullSecrets: []
 
 nfs:
-  server:
-  path: /nfs-storage
-  mountOptions:
-  volumeName: nfs-subdir-external-provisioner-root
+  server: 192.168.11.104
+  path: /srv/nfs/k8s
+  # mountOptions:
+  # - dir_mode=0770
+  # - file_mode=0660
+
+  volumeName: nfs-provisioner-root
   # Reclaim policy for the main nfs volume
   reclaimPolicy: Retain
 
@@ -20,11 +23,14 @@ storageClass:
   create: true
 
   # Set a provisioner name. If unset, a name will be generated.
-  # provisionerName:
+  provisionerName: cluster.local/nfs-provisioner
 
   # Set StorageClass as the default StorageClass
   # Ignored if storageClass.create is false
-  defaultClass: false
+  defaultClass: true
+
+  # Add parameters.mountOptions by Patch. (Ignored here.)
+  # kubectl patch storageclass <storageclass-name> -p '{"parameters": {"mountOptions": "dir_mode=0770,file_mode=0660"}}'
 
   # Set a StorageClass name
   # Ignored if storageClass.create is false
@@ -90,7 +96,7 @@ serviceAccount:
 
   # The name of the ServiceAccount to use.
   # If not set and create is true, a name is generated using the fullname template
-  name:
+  name: nfs-provisioner
 
 resources: {}
   # limits:

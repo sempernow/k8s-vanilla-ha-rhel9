@@ -1,14 +1,17 @@
 ---
+# Demonstrate that our NFS export, nfs-client SC, and External Provisioner 
+# allow for init containers to set owner:group and access mode 
+# on the dynamically-created subdirectory of their PVC.
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: test-pvc
+  name: secure-nfs-pod
   labels:
-    why: test-access
+    why: test-init-pv
 spec:
   storageClassName: nfs-client
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: 1Mi
@@ -18,16 +21,19 @@ kind: Pod
 metadata:
   name: secure-nfs-pod
   labels:
-    why: test-access
+    why: test-init-pv
 spec:
   volumes:
     - name: data
       persistentVolumeClaim:
-        claimName: test-pvc
+        claimName: secure-nfs-pod
   initContainers:
     - name: init-perms
       image: busybox
-      command: ["sh", "-c", "chown 1000:1000 /mnt/data && chmod 0700 /mnt/data"]
+      # @ K8s nodes
+      # UID : id nfsanon : uid=50000(nfsanon) gid=50000(nfsanon) groups=50000(nfsanon)
+      # GID : getent group ad-linux-users : ad-linux-users:*:322202601:admin,u2,u1
+      command: ["sh", "-c", "chown 50000:322202601 /mnt/data && chmod 0770 /mnt/data"]
       volumeMounts:
         - name: data
           mountPath: /mnt/data
@@ -39,5 +45,6 @@ spec:
         - name: data
           mountPath: /data
       securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
+        runAsUser: 50000
+        runAsGroup: 322202601
+

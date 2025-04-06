@@ -4,6 +4,9 @@ K8s (CSI-compliant) External Provisioner that dynamically provisions NFS (client
 
     SERVER:MOUNT/${namespace}-${pvcName}-${pvName}
 
+UPDATE : Use [__NFS Subdir CSI Driver__](https://github.com/kubernetes-csi/csi-driver-nfs) | [via Helm](https://github.com/kubernetes-csi/csi-driver-nfs/blob/master/charts/README.md)
+
+## Install
 
 See [`nfs-subdir-provisioner.sh`](nfs-subdir-provisioner.sh)
 
@@ -259,3 +262,66 @@ spec:
 
 
 # Tighten security 
+
+Without changing the export parameters, mod the export's FS owner, group and mode (`chown`,`chmod`)
+
+@ `a0:/srv/nfs/k8s` (`0770`)
+
+```bash
+sudo find /srv/nfs/k8s -mindepth 1 -type d -exec chmod 0770 {} \+
+sudo find /srv/nfs/k8s -mindepth 1 -type f -exec chmod 0660 {} \+
+sudo chown -R root:ad-linux-users /srv/nfs/k8s
+```
+```bash
+☩ ssh a0 ls -ahl /srv/nfs/k8s
+total 4.0K
+drwxrwx---. 7 root ad-linux-users 4.0K Apr  6 12:42 .
+drwxr-xr-x. 3 root root             17 Apr  6 08:17 ..
+-rw-rw----. 1 root ad-linux-users    0 Apr  6 08:36 a
+drwxrwx---. 2 root ad-linux-users   21 Apr  6 12:22 archived-default-test-claim-pvc-1531e25c-e4ca-4e14-8c16-bf714817836d
+drwxrwx---. 2 root ad-linux-users   21 Apr  6 11:03 archived-default-test-claim-pvc-c7663062-dc60-4d22-b900-69bdc2cc724f
+drwxrwx---. 2 root ad-linux-users   23 Apr  6 12:41 archived-default-test-pv-init-access-pvc-0b62a27c-721f-44c8-9b39-0b73946028a4
+drwxrwx---. 2 root ad-linux-users   23 Apr  6 12:26 archived-default-test-pv-init-access-pvc-6db66903-5398-4cb6-baeb-4df6da7e76bf
+-rw-rw----. 1 root ad-linux-users    0 Apr  6 10:34 b
+drwxrwx---. 2 root ad-linux-users   15 Apr  6 10:41 bb
+```
+
+@ admin (Ubuntu)
+
+```yaml
+apiVersion: v1
+kind: Pod
+...
+spec:
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: secure-nfs-pod
+  initContainers:
+    - name: init-perms
+      image: busybox
+      # @ K8s nodes
+      # UID : id nfsanon : uid=50000(nfsanon) gid=50000(nfsanon) groups=50000(nfsanon)
+      # GID : getent group ad-linux-users : ad-linux-users:*:322202601:admin,u2,u1
+      command: ["sh", "-c", "chown 50000:322202601 /mnt/data && chmod 0770 /mnt/data"]
+      volumeMounts:
+        - name: data
+          mountPath: /mnt/data
+...
+```
+- [`secure-nfs-pod.yaml`](secure-nfs-pod.yaml)
+    - Set `UID:GID` (`nfsanon:ad-linux-users`) and `MODE` (`770`)
+
+```bash
+kubectl apply -f secure-nfs-pod.yaml --wait 
+kubectl get pod,pvc,pv
+kubectl delete -f secure-nfs-pod.yaml
+
+```
+
+```bash
+☩ ssh a0 ls -hl /srv/nfs/k8s
+...
+drwxrwx---. 2 nfsanon ad-linux-users   23 Apr  6 15:03 archived-default-secure-nfs-pod-pvc-6cc2b960-f314-4b88-936f-f98149d888e5
+```
+- `archived-${namespace}-${pvcName}-${pvName}`
