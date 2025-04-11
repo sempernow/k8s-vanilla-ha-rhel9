@@ -2,7 +2,11 @@
 
 @ [__`efk-studytonight`__](https://www.studytonight.com/post/efk-stack-setup-elasticsearch-fluentbit-and-kibana-for-kubernetes-log-management)
 
-See [`efk.sh`](efk.sh)
+## TL;DR 
+
+Success! Logs are being aggregated by the EFK stack.
+
+## Install | [`efk.sh`](efk.sh)
 
 ```bash
 kubectl apply -f ns.yaml
@@ -87,7 +91,7 @@ kibana-85fd454f74-m55b6   1/1     Running   0          3m32s
 ```
 
 
-Access
+## Access
 
 ```bash
 ☩ kubectl port-forward $(k get pod -l app=kibana --no-headers |cut -d' ' -f1) 5601:5601 &
@@ -103,7 +107,7 @@ HTTP/1.1 200 OK
 
 [Debug Kibana's ubiquitous "No Elasticsearch indices match your pattern." issue.](https://chat.deepseek.com/a/chat/s/a9be45c7-1ad1-4061-8b1e-5201ca63167b) at "__Step 1.__"
 
-Expose the Elasticsearch (backend) service:
+__Expose__ the Elasticsearch (backend) service sans Ingress:
 
 ```bash
 ☩ kubectl port-forward svc/elasticsearch 9200:9200 &
@@ -123,37 +127,38 @@ green  open   .kibana_1            4ABIjZ9aRXmY2fp-x6LuyQ   1   1          4    
 green  open   .kibana_task_manager 3SOJtT_9TSmMjrvEiIljeg   1   1          2            0       83kb         45.6kb
 green  open   logstash-2025.04.06  HlfPmMdmQmeCsk3v8W_rEw   1   1     159715            0    154.1mb         78.3mb
 ```
-- Two Kibana system indices (`.kibana_1` and `.kibana_task_manager`)
+- Two Kibana system indices (`.kibana_1` and `.kibana_task_manager`), AKA "internals"
 - One log index: `logstash-2025.04.06`
-    - This is the actual log-data index
+    - This is __the actual log-data index__.
 
 So, at [Kibana's (Stack) Management / Index patterns page](http://localhost:5601/app/kibana#/management/kibana/index_pattern), 
-under "Create index pattern", enter the pattern: __logstash-*__. 
+under "Create index pattern", 
+enter the pattern: __logstash-*__. 
 
-Why?
-
-- This Fluent Bit configuration (`ConfigMap` @ `fluent-bit.yaml`) 
-  is using Logstash-style indexing (`Logstash_Format On`), 
-  which creates daily indices with the `logstash-YYYY.MM.DD` pattern:
-    ```yaml
-    output-elasticsearch.conf: |
-    [OUTPUT]
-        Name            es
-        Match           *
-        Host            ${FLUENT_ELASTICSEARCH_HOST}
-        Port            ${FLUENT_ELASTICSEARCH_PORT}
-        Logstash_Format On
-    ```
-- The index you see (`logstash-2025.04.06`) matches this pattern.
-- Kibana needs the wildcard pattern (`logstash-*`) to match all daily indices.
-
-
-Kibana reports:
+__Kibana reports__:
 
 "
-Success! Your index pattern matches 1 index.  
-logstash-2025.04.06
+__Success!__ Your index pattern matches 1 index.  
+`logstash-2025.04.06`
 "
+
+Note that our Fluent Bit configuration (`ConfigMap` @ `fluent-bit.yaml`) 
+is using __Logstash-style indexing__ (`Logstash_Format On`), 
+
+```yaml
+output-elasticsearch.conf: |
+[OUTPUT]
+    Name            es
+    Match           *
+    Host            ${FLUENT_ELASTICSEARCH_HOST}
+    Port            ${FLUENT_ELASTICSEARCH_PORT}
+    Logstash_Format On
+```
+
+which creates daily indices with the `logstash-YYYY.MM.DD` pattern, 
+so the __wildcard pattern__ (`logstash-*`) __matches all daily indices__.
+
+
 
 Moving on to "Next", select `@timestamp` filter to create/filter the index of our pattern.
 

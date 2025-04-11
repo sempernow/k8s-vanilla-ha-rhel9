@@ -99,6 +99,44 @@ total 0
 
 The NFS client provisioner project documents nothing whatsoever about filesystem permissions issues, and yet we know that's the fly in the ointment for all container storage PV/PVC mounts. What's going on here?
 
+UPDATE: 
+
+Use `initContainers` to set `chown`/`chmod`, 
+and `securityContext` at `containers` to secure it.
+
+```yaml
+  initContainers:
+    - name: init-volume
+      image: busybox
+      # @ NFS-server host
+      # UID : id nfsanon : uid=50000(nfsanon) gid=50000(nfsanon) groups=50000(nfsanon)
+      # GID : getent group ad-linux-users : ad-linux-users:*:322202601:admin,u2,u1
+      command: ["sh", "-c", "chown 50000:322202601 /mnt/data && chmod 0770 /mnt/data"]
+      volumeMounts:
+        - name: data
+          mountPath: /mnt/data
+  containers:
+    - name: app
+      image: busybox
+      command: ["sh", "-c", "echo Secure write >> /data/hello.txt && sleep 100"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
+      securityContext:
+        runAsUser: 50000
+        runAsGroup: 322202601
+```
+- @ [`test-nfs-secure-pod.yaml`](test-nfs-secure-pod.yaml)
+
+```bash
+Ubuntu (master) [12:38:38] [1] [#0] /s/DEV/devops/infra/kubernetes/k8s-vanilla-ha-rhel9/nfs/nfs-subdir-external-provisioner
+☩ k exec test-nfs-secure-pod -- ls -hal /data
+...
+drwxrwx---    2 50000    322202601      23 Apr 11 16:38 .
+drwxr-xr-x    1 root     root          63 Apr 11 16:38 ..
+-rw-r--r--    1 50000    322202601      13 Apr 11 16:38 hello.txt
+```
+
 ## A:
 
 You're absolutely right — the [`nfs-subdir-external-provisioner`](https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner) project is *very* sparse when it comes to addressing the practical realities of filesystem permissions, UID/GID mapping, and security contexts — which are *critical* in almost every real-world deployment. It's one of the biggest footguns for people trying to get NFS-backed storage to "just work."

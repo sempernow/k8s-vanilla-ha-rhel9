@@ -22,7 +22,7 @@ metadata:
   name: nfs-client
   annotations:
     storageclass.kubernetes.io/is-default-class: "true"
-provisioner: cluster.local/nfs-provisioner-nfs-subdir-external-provisioner
+provisioner: cluster.local/nfs-provisioner
 allowVolumeExpansion: true
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
@@ -144,17 +144,17 @@ spec:
           securityContext:
             {}
           volumeMounts:
-            - name: nfs-subdir-external-provisioner-root
+            - name: nfs-provisioner-root
               mountPath: /persistentvolumes
           env:
             - name: PROVISIONER_NAME
-              value: cluster.local/nfs-provisioner-nfs-subdir-external-provisioner
+              value: cluster.local/nfs-provisioner
             - name: NFS_SERVER
               value: 192.168.11.104
             - name: NFS_PATH
               value: /srv/nfs/k8s
       volumes:
-        - name: nfs-subdir-external-provisioner-root
+        - name: nfs-provisioner-root
           nfs:
             server: 192.168.11.104
             path: /srv/nfs/k8s
