@@ -1,0 +1,51 @@
+.
+├── cni
+│   ├── calico
+│   │   ├── cli
+│   │   ├── manifest-method
+│   │   └── operator-method
+│   │       └── api-resources
+│   ├── cilium
+│   │   └── star-wars-demo
+│   └── kube-router
+├── csi
+│   ├── local-path-provisioner
+│   └── rook
+│       └── examples
+│           └── csi
+│               └── rbd
+├── etcdutl
+├── halb
+│   ├── nginx
+│   └── systemd
+├── ingress
+│   ├── ingress-nginx
+│   └── traefik
+├── logs
+├── nfs
+│   ├── kerberos
+│   ├── nfs-subdir-csi-driver
+│   └── nfs-subdir-external-provisioner
+├── observability
+│   ├── logging
+│   │   ├── eck
+│   │   ├── efk-devopskube
+│   │   │   ├── elasticsearch
+│   │   │   ├── fluentd
+│   │   │   └── kibana
+│   │   ├── efk-digitalocean
+│   │   └── efk-studytonight
+│   ├── metrics
+│   │   ├── dashboard
+│   │   ├── metrics-server
+│   │   └── netshoot
+│   └── tracing
+├── scripts
+│   └── systemd
+└── security
+    ├── secrets
+    │   └── vault
+    ├── tls
+    └── trivy-operator
+
+49 directories
