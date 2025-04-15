@@ -363,3 +363,49 @@ kubectl delete -f secure-nfs-pod.yaml
 drwxrwx---. 2 nfsanon ad-linux-users   23 Apr  6 15:03 archived-default-secure-nfs-pod-pvc-6cc2b960-f314-4b88-936f-f98149d888e5
 ```
 - `archived-${namespace}-${pvcName}-${pvName}`
+
+## FIO
+
+@ [`test-fio-app.yaml`](test-fio-app.yaml)
+
+```bash
+☩ k exec -it test-fio-pod -- fio --name=randrw \
+    --rw=randrw \
+    --filename=192.168.11.104:/srv/nfs/k8s/default-test-fio-claim-pvc-ee1c8faf-da8c-4a21-a4aa-fe8d74cb0e7e \
+    --size=1G \
+    --rw=randrw \
+    --bs=4k \
+    --iodepth=32 \
+    --direct=1 \
+    --runtime=60 \
+    --ioengine=libaio \
+    --group_reporting
+
+...
+  read: IOPS=2428, BW=9714KiB/s (9947kB/s)(512MiB/53961msec)
+  ...
+  write: IOPS=2429, BW=9718KiB/s (9952kB/s)(512MiB/53961msec); 0 zone resets
+  ...
+```
+
+Note client side test, `/mnt/fiotest`, is 10x worse performer:
+
+```bash
+☩ k exec -it test-fio-pod -- fio --name=randrw \
+    --rw=randrw \
+    --filename=/mnt/fiotest \
+    --size=1G \
+    --rw=randrw \
+    --bs=4k \
+    --iodepth=32 \
+    --direct=1 \
+    --runtime=60 \
+    --ioengine=libaio \
+    --group_reporting
+
+...
+  read: IOPS=239, BW=958KiB/s (981kB/s)(56.2MiB/60095msec)
+...
+  write: IOPS=238, BW=956KiB/s (979kB/s)(56.1MiB/60095msec); 0 zone resets
+...
+```
