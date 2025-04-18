@@ -570,6 +570,9 @@ efk-up :
 efk-down :
 	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh delete
 
+prune :
+	bash make.recipes.sh prune
+
 teardown : calico-teardown cilium-teardown kuberouter-teardown
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh

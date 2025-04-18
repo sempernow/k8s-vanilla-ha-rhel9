@@ -7,28 +7,34 @@
 type -t helm || exit 111
 
 # Add the provisioner's Helm repo to local helm 
+server=a0.lime.lan
 chart=nfs-subdir-external-provisioner
 origin=https://kubernetes-sigs.github.io
 helm repo add $chart $origin/$chart
 helm repo update $chart
 
 # Configure the release
-nfs_server_ip=192.168.11.104
+nfs_server_ip="$(nslookup $server |grep Address |tail -n1 |cut -d' ' -f2)"
+ping -c1 -w2 $nfs_server_ip || exit 11
+
 nfs_export=/srv/nfs/k8s
 release=nfs-provisioner
 ns=kube-system
 manifest=helm.template.$release.yaml
 
-# Generate the manifest locally
-helm template $release $chart/$chart \
-    --set nfs.server=$nfs_server_ip \
-    --set nfs.path=$nfs_export \
-    --set storageClass.name=nfs-client \
-    --set storageClass.defaultClass=true \
-    --set provisioner=cluster.local/$release \
-    --set serviceAccount.name=$release \
-    --namespace $ns \
-    |tee $manifest
+# # Generate the manifest locally
+# helm template $release $chart/$chart \
+#     --namespace $ns \
+#     --set nfs.server=$nfs_server_ip \
+#     --set nfs.path=$nfs_export \
+#     --set storageClass.name=nfs-client \
+#     --set storageClass.defaultClass=true \
+#     --set provisioner=cluster.local/$release \
+#     --set serviceAccount.name=$release \
+#     --set securityContext.runAsUser=50000 \
+#     --set securityContext.runAsGroup=50000 \
+#     --set securityContext.fsGroup=322202601 \
+#     |tee $manifest
 
 # Same, but declarative (values.yaml) v. imperative (--set *) method 
 helm template $release $chart/$chart \
@@ -38,28 +44,38 @@ helm template $release $chart/$chart \
 
 # Install the provisioner
 #kubectl apply -f $manifest
-# helm install $release $chart/$chart \
+# helm upgrade $release $chart/$chart \
+#     --install \
+#     --wait \
+#     --namespace $ns \
 #     --set nfs.server=$nfs_server_ip \
 #     --set nfs.path=$nfs_export \
 #     --set storageClass.name=nfs-client \
 #     --set storageClass.defaultClass=true \
 #     --set provisioner=cluster.local/$release \
-#     --namespace $ns \
-#     --wait |tee helm.install.$release.log
+#     --set serviceAccount.name=$release \
+#     --set securityContext.runAsUser=50000 \
+#     --set securityContext.runAsGroup=50000 \
+#     --set securityContext.fsGroup=322202601 \
+#     |tee helm.install.$release.log
 
 # Install by declarative upgrade method
 helm upgrade $release $chart/$chart \
     --install \
-    --values values.yaml \
+    --wait \
     --namespace $ns \
-    --wait |tee helm.upgrade.$release.log
+    --values values.yaml || exit 22
 
 # Capture the running manifest 
 helm -n $ns get manifest $release |tee helm.get.manifest.$release.yaml
 
 # Inspect the difference (delcared v. running)
 # Want no difference
-diff helm.get.manifest.$release.yaml $manifest 
+diff helm.get.manifest.$release.yaml $manifest ||
+    diff ${manifest/$release/$release@values} $manifest
+
+exit $?
+##########
 
 # Test dynamic provisioning : Create a claim (pvc) and a pod having a mount that refernces it.
 # Want PersistentVolume (pv) and its physical/host store (subdir) to be created dynamically.

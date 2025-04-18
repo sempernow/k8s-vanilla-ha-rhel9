@@ -4,6 +4,19 @@ K8s (CSI-compliant) External Provisioner that dynamically provisions NFS (client
 
     SERVER:MOUNT/${namespace}-${pvcName}-${pvName}
 
+
+Handles storage directly via the existing NFS server. 
+There is no requirement for NFS client mount at any K8s node. 
+
+For client access to the NFS export from any host:
+
+@ `[u2@a2 ~]`
+
+```bash
+sudo mkdir /mnt/test
+sudo mount -t nfs a0.lime.lan:/srv/nfs/k8s /mnt/test
+```
+
 UPDATE : Use [__NFS Subdir CSI Driver__](https://github.com/kubernetes-csi/csi-driver-nfs) | [via Helm](https://github.com/kubernetes-csi/csi-driver-nfs/blob/master/charts/README.md)
 
 ## Install
@@ -364,11 +377,40 @@ drwxrwx---. 2 nfsanon ad-linux-users   23 Apr  6 15:03 archived-default-secure-n
 ```
 - `archived-${namespace}-${pvcName}-${pvName}`
 
+@ `Ubuntu (master) [19:33:04] [1] [#0] /s/DEV/devops/infra/kubernetes/k8s-vanilla-ha-rhel9/nfs/nfs-subdir-external-provisioner`
+
+```bash
+☩ k exec -it test-nfs-secure-pod -- ls -hal
+...
+drwxrwx---    2 50000    322202601      23 Apr 18 23:32 data
+drwxr-xr-x    5 root     root         360 Apr 18 23:32 dev
+drwxr-xr-x    1 root     root          54 Apr 18 23:32 etc
+drwxr-xr-x    2 nobody   nobody         6 Sep 26  2024 home
+...
+
+
+☩ k exec -it test-nfs-secure-pod -- ls -hal /data
+...
+-rw-rw----    1 50000    322202601      13 Apr 18 23:32 hello.txt
+```
+
 ## FIO
 
 @ [`test-fio-app.yaml`](test-fio-app.yaml)
 
 ```bash
+☩ k exec -it test-fio-pod -- df -hT
+Filesystem                                                                                  Type     Size  Used Avail Use% Mounted on
+overlay                                                                                     overlay   17G  9.6G  6.9G  59% /
+tmpfs                                                                                       tmpfs     64M     0   64M   0% /dev
+192.168.11.104:/srv/nfs/k8s/default-test-fio-claim-pvc-ee1c8faf-da8c-4a21-a4aa-fe8d74cb0e7e nfs4      17G   14G  3.0G  83% /mnt
+/dev/mapper/rhel-root                                                                       xfs       17G  9.6G  6.9G  59% /etc/hosts
+shm                                                                                         tmpfs     64M     0   64M   0% /dev/shm
+tmpfs                                                                                       tmpfs    3.5G   12K  3.5G   1% /var/run/secrets/kubernetes.io/serviceaccount
+tmpfs                                                                                       tmpfs    1.8G     0  1.8G   0% /proc/acpi
+tmpfs                                                                                       tmpfs    1.8G     0  1.8G   0% /proc/scsi
+tmpfs                                                                                       tmpfs    1.8G     0  1.8G   0% /sys/firmware
+
 ☩ k exec -it test-fio-pod -- fio --name=randrw \
     --rw=randrw \
     --filename=192.168.11.104:/srv/nfs/k8s/default-test-fio-claim-pvc-ee1c8faf-da8c-4a21-a4aa-fe8d74cb0e7e \
@@ -388,7 +430,39 @@ drwxrwx---. 2 nfsanon ad-linux-users   23 Apr  6 15:03 archived-default-secure-n
   ...
 ```
 
-Note client side test, `/mnt/fiotest`, is 10x worse performer:
+@ New NFS export 
+
+```bash
+☩ k exec -it test-fio-pod -- fio --name=randrw \
+    --rw=randrw \
+    --size=1G \
+    --bs=4k \
+    --iodepth=32 \
+    --direct=1 \
+    --runtime=60 \
+    --ioengine=libaio \
+    --group_reporting \
+    --filename=192.168.11.100:/srv/nfs/k8s/default-test-fio-claim-pvc-a5041f1c-273d-4a37-975a-559f70c65145 \
+    |grep -e read: -e write:
+
+  read: IOPS=12.2k, BW=47.6MiB/s (50.0MB/s)(512MiB/10744msec)
+  write: IOPS=12.2k, BW=47.7MiB/s (50.0MB/s)(512MiB/10744msec); 0 zone resets
+```
+
+__5x improvment__ in IOPS and BW using NFS performance tuning : `async,no_wdelay,fsid=0`
+
+```bash
+☩ ssh a0 cat /etc/exports
+#/srv/nfs/k8s    192.168.11.0/24(rw,sync,sec=krb5p:krb5i:krb5:sys,root_squash,no_subtree_check)
+/srv/nfs/k8s    192.168.11.0/24(rw,async,no_wdelay,no_root_squash,no_subtree_check,fsid=0)
+
+☩ ssh a0 sudo exportfs -v
+/srv/nfs/k8s    192.168.11.0/24(async,no_wdelay,hide,no_subtree_check,fsid=0,sec=sys,rw,secure,no_root_squash,no_all_squash)
+
+```
+
+
+Note client side test, `/mnt/fiotest`, reveals __10x worse__ performance:
 
 ```bash
 ☩ k exec -it test-fio-pod -- fio --name=randrw \

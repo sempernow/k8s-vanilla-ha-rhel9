@@ -142,7 +142,9 @@ spec:
           image: "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2"
           imagePullPolicy: IfNotPresent
           securityContext:
-            {}
+            fsGroup: 322202601
+            runAsGroup: 50000
+            runAsUser: 50000
           volumeMounts:
             - name: nfs-provisioner-root
               mountPath: /persistentvolumes
@@ -150,11 +152,12 @@ spec:
             - name: PROVISIONER_NAME
               value: cluster.local/nfs-provisioner
             - name: NFS_SERVER
-              value: 192.168.11.104
+              value: 192.168.11.100
             - name: NFS_PATH
               value: /srv/nfs/k8s
       volumes:
         - name: nfs-provisioner-root
           nfs:
-            server: 192.168.11.104
+            server: 192.168.11.100
             path: /srv/nfs/k8s
+

@@ -34,7 +34,7 @@ export NFS_CIDR              ?= 192.168.11.0/24
 export NFS_DC_HOST           ?= dc1
 export NFS_SERVER_HOST       ?= a0
 export NFS_CLIENT_HOSTS      ?= a1 a2 a3
-export NFS_EXPORT_PATH       ?= /mnt/nfs_01
+export NFS_EXPORT_PATH       ?= /srv/nfs/k8s
 
 ## ansibash 
 ### Public-key string of ssh user must be in ~/.ssh/authorized_keys of ADMIN_USER at all targets.
@@ -58,7 +58,7 @@ menu :
 	@echo "html         : Process all MD files to HTML"
 	@echo "============== "
 	@echo "nfs          : Provision NFS Server/Clients on RHEL9 integrated with AD and Kerberos"
-	@echo "  -common    : Provision common elements of NFS"
+	@echo "  -kerberos  : Configure server and client(s) for Kerberos"
 	@echo "  -server    : Provision NFS Server on host ${NFS_SERVER_HOST}"
 	@echo "  -client    : Provision NFS Client on host ${NFS_CLIENT_HOSTS}"
 	@echo "============== "
@@ -84,9 +84,10 @@ html :
 ##############################################################################
 ## Recipes : NFS
 
-nfs : nfs-common nfs-server nfs-clients
+# UPDATE : Configure for K8s nfs exclusively (no NFS mounts at any host)
+#nfs : nfs-kerberos nfs-server nfs-clients
 
-nfs-common :
+nfs-kerberos :
 	ansibash -u ${PRJ_ROOT}/kerberos/etc.krb5.conf
 	ansibash -u ${PRJ_ROOT}/kerberos/etc.sssd.conf
 	ansibash -u ${PRJ_ROOT}/etc.chrony.conf
@@ -132,4 +133,5 @@ client :
 	'
 
 k8s-nfs :
-	bash nfs-subdir-provisioner.sh
+	pushd nfs-subdir-external-provisioner \
+		&& bash nfs-subdir-provisioner.sh

@@ -8,7 +8,7 @@ image:
 imagePullSecrets: []
 
 nfs:
-  server: 192.168.11.104
+  server: 192.168.11.100
   path: /srv/nfs/k8s
   # mountOptions:
   # - dir_mode=0770
@@ -85,7 +85,10 @@ podAnnotations: {}
 
 podSecurityContext: {}
 
-securityContext: {}
+securityContext:
+  runAsUser: 50000
+  runAsGroup: 50000
+  fsGroup: 322202601
 
 serviceAccount:
   # Specifies whether a ServiceAccount should be created

@@ -155,4 +155,16 @@ iperftest(){
     kubectl -n $ns delete pod $pod
 }
 
+prune(){
+    kubectl get pod -A -o wide |grep StatusUnk |cut -d' ' -f1,5 |xargs -n2 /bin/bash -c '
+        [[ $2 ]] && kubectl -n $1 delete pod $2
+    ' _
+
+    kubectl get pod -A -o wide |grep Completed |cut -d' ' -f1,5 |xargs -n2 /bin/bash -c '
+        [[ $2 ]] && kubectl -n $1 delete pod $2
+    ' _
+
+    kubectl get pod -A -o wide |grep -e Completed -e StatusUnk || echo 
+}
+
 "$@"
