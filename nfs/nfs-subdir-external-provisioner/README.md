@@ -426,26 +426,6 @@ FIO : performance test
 
 ```
 
-```bash
-☩ k exec -it test-fio-pod -- fio --name=randrw \
-    --rw=randrw \
-    --filename=192.168.11.104:/srv/nfs/k8s/default-test-fio-claim-pvc-ee1c8faf-da8c-4a21-a4aa-fe8d74cb0e7e \
-    --size=1G \
-    --rw=randrw \
-    --bs=4k \
-    --iodepth=32 \
-    --direct=1 \
-    --runtime=60 \
-    --ioengine=libaio \
-    --group_reporting
-
-...
-  read: IOPS=2428, BW=9714KiB/s (9947kB/s)(512MiB/53961msec)
-  ...
-  write: IOPS=2429, BW=9718KiB/s (9952kB/s)(512MiB/53961msec); 0 zone resets
-  ...
-```
-
 @ NFS server 
 
 ```bash
