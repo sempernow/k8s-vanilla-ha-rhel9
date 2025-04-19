@@ -1,5 +1,6 @@
 # NFS | NFS Subdir External Provisioner ([README](nfs-subdir-external-provisioner/README.md))
 
+## [`provision-lvm-data-nfs.sh`](nfs/provision-lvm-data-nfs.sh)
 
 ## Server : [`/etc/exports`](etc.exports)
 
