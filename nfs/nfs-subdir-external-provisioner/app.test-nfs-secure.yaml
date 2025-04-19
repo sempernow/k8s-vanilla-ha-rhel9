@@ -5,9 +5,9 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: test-nfs-secure-pod
+  name: test-nfs-secure-claim
   labels:
-    why: test-init-pv
+    app: nfs-secure
 spec:
   storageClassName: nfs-client
   accessModes:
@@ -21,30 +21,41 @@ kind: Pod
 metadata:
   name: test-nfs-secure-pod
   labels:
-    why: test-init-pv
+    app: nfs-secure
 spec:
   volumes:
     - name: data
       persistentVolumeClaim:
-        claimName: test-nfs-secure-pod
+        claimName: test-nfs-secure-claim
   initContainers:
     - name: init-volume
       image: busybox
       # @ NFS-server host 
       # UID : id nfsanon : uid=50000(nfsanon) gid=50000(nfsanon) groups=50000(nfsanon)
       # GID : getent group ad-linux-users : ad-linux-users:*:322202601:admin,u2,u1
-      command: ["sh", "-c", "chown 50000:322202601 /mnt/data && chmod 0770 /mnt/data"]
-      volumeMounts:
-        - name: data
-          mountPath: /mnt/data
-  containers:
-    - name: app
-      image: busybox
-      command: ["sh", "-c", "echo Secure write >> /data/hello.txt && sleep 100"]
+      command: ["sh", "-c", "chown 50000:322202601 /data && chmod 0770 /data"]
+      env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
       volumeMounts:
         - name: data
           mountPath: /data
+          subPathExpr: $(POD_NAME)
+  containers:
+    - name: app
+      image: busybox
+      command: ["sh", "-c", "echo Hello from $(date '+%Y-%m-%dT%H:%M:%S [%Z]') >> /data/hello.txt && sleep 100"]
+      env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      volumeMounts:
+        - name: data
+          mountPath: /data
+          subPathExpr: $(POD_NAME)
       securityContext:
-        runAsUser: 50000
-        runAsGroup: 322202601
-
+        runAsUser: 50000      # nfsanon
+        runAsGroup: 322202601 # ad-linux-users

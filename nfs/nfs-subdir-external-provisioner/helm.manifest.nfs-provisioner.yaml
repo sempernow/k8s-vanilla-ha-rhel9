@@ -136,14 +136,14 @@ spec:
     spec:
       serviceAccountName: nfs-provisioner
       securityContext:
-        {}
+        runAsGroup: 322202601
+        runAsUser: 50000
       containers:
         - name: nfs-subdir-external-provisioner
           image: "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2"
           imagePullPolicy: IfNotPresent
           securityContext:
-            fsGroup: 322202601
-            runAsGroup: 50000
+            runAsGroup: 322202601
             runAsUser: 50000
           volumeMounts:
             - name: nfs-provisioner-root
@@ -160,3 +160,4 @@ spec:
           nfs:
             server: 192.168.11.100
             path: /srv/nfs/k8s
+

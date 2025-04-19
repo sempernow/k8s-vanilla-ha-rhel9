@@ -20,6 +20,7 @@ ping -c1 -w2 $nfs_server_ip || exit 11
 nfs_export=/srv/nfs/k8s
 release=nfs-provisioner
 ns=kube-system
+values=values.lime.yaml
 manifest=helm.template.$release.yaml
 
 # # Generate the manifest locally
@@ -36,11 +37,11 @@ manifest=helm.template.$release.yaml
 #     --set securityContext.fsGroup=322202601 \
 #     |tee $manifest
 
-# Same, but declarative (values.yaml) v. imperative (--set *) method 
+# Same, but declarative ($values) v. imperative (--set *) method 
 helm template $release $chart/$chart \
-    --values values.yaml \
     --namespace $ns \
-    |tee ${manifest/$release/$release@values}
+    --values $values \
+    |tee helm.template.$release.yaml
 
 # Install the provisioner
 #kubectl apply -f $manifest
@@ -64,15 +65,16 @@ helm upgrade $release $chart/$chart \
     --install \
     --wait \
     --namespace $ns \
-    --values values.yaml || exit 22
+    --values $values || exit 22
 
 # Capture the running manifest 
-helm -n $ns get manifest $release |tee helm.get.manifest.$release.yaml
+helm -n $ns get manifest $release |tee helm.manifest.$release.yaml
 
 # Inspect the difference (delcared v. running)
 # Want no difference
-diff helm.get.manifest.$release.yaml $manifest ||
-    diff ${manifest/$release/$release@values} $manifest
+diff helm.template.$release.yaml helm.manifest.$release.yaml
+
+helm -n $ns status $release
 
 exit $?
 ##########

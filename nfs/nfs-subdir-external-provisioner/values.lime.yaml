@@ -83,12 +83,12 @@ podAnnotations: {}
 ## Set pod priorityClassName
 # priorityClassName: ""
 
-podSecurityContext: {}
+podSecurityContext: {} 
 
 securityContext:
   runAsUser: 50000
-  runAsGroup: 50000
-  fsGroup: 322202601
+  runAsGroup: 322202601
+  #fsGroup: 322202601
 
 serviceAccount:
   # Specifies whether a ServiceAccount should be created

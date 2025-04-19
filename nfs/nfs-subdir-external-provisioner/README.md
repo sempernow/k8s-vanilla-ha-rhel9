@@ -396,7 +396,7 @@ drwxr-xr-x    2 nobody   nobody         6 Sep 26  2024 home
 
 ## FIO
 
-@ [`test-fio-app.yaml`](test-fio-app.yaml)
+@ [`app.test-fio.yaml`](app.test-fio.yaml)
 
 ```bash
 ☩ k exec -it test-fio-pod -- df -hT
@@ -411,6 +411,22 @@ tmpfs                                                                           
 tmpfs                                                                                       tmpfs    1.8G     0  1.8G   0% /proc/scsi
 tmpfs                                                                                       tmpfs    1.8G     0  1.8G   0% /sys/firmware
 
+```
+
+FIO : performance test
+
+
+```bash
+☩ ssh a0 cat /etc/exports
+#/srv/nfs/k8s    192.168.11.0/24(rw,sync,sec=krb5p:krb5i:krb5:sys,root_squash,no_subtree_check)
+/srv/nfs/k8s    192.168.11.0/24(rw,async,no_wdelay,no_root_squash,no_subtree_check,fsid=0)
+
+☩ ssh a0 sudo exportfs -v
+/srv/nfs/k8s    192.168.11.0/24(async,no_wdelay,hide,no_subtree_check,fsid=0,sec=sys,rw,secure,no_root_squash,no_all_squash)
+
+```
+
+```bash
 ☩ k exec -it test-fio-pod -- fio --name=randrw \
     --rw=randrw \
     --filename=192.168.11.104:/srv/nfs/k8s/default-test-fio-claim-pvc-ee1c8faf-da8c-4a21-a4aa-fe8d74cb0e7e \
@@ -430,7 +446,7 @@ tmpfs                                                                           
   ...
 ```
 
-@ New NFS export 
+@ NFS server 
 
 ```bash
 ☩ k exec -it test-fio-pod -- fio --name=randrw \
@@ -440,46 +456,38 @@ tmpfs                                                                           
     --iodepth=32 \
     --direct=1 \
     --runtime=60 \
+    --time_based \
     --ioengine=libaio \
     --group_reporting \
-    --filename=192.168.11.100:/srv/nfs/k8s/default-test-fio-claim-pvc-a5041f1c-273d-4a37-975a-559f70c65145 \
+    --filename=192.168.11.100:/srv/nfs/k8s/default-test-fio-claim-pvc-6ec4b98e-2bac-4aec-a1f2-44dcbef828be \
     |grep -e read: -e write:
-
-  read: IOPS=12.2k, BW=47.6MiB/s (50.0MB/s)(512MiB/10744msec)
-  write: IOPS=12.2k, BW=47.7MiB/s (50.0MB/s)(512MiB/10744msec); 0 zone resets
+  read: IOPS=32.9k, BW=129MiB/s (135MB/s)(7713MiB/60001msec)
+  write: IOPS=32.9k, BW=128MiB/s (135MB/s)(7705MiB/60001msec); 0 zone resets
 ```
+- Declare either a folder or file as the target
+    - `--filename=192.168.11.100:/srv/nfs/k8s/default-test-fio-claim-pvc-6ec4b98e-2bac-4aec-a1f2-44dcbef828be`
+    - `--filename=192.168.11.100:/srv/nfs/k8s/fiotest`
 
-__5x improvment__ in IOPS and BW using NFS performance tuning : `async,no_wdelay,fsid=0`
+__10x improvment__ in IOPS and BW using NFS performance tuning : `async,no_wdelay,fsid=0`
 
-```bash
-☩ ssh a0 cat /etc/exports
-#/srv/nfs/k8s    192.168.11.0/24(rw,sync,sec=krb5p:krb5i:krb5:sys,root_squash,no_subtree_check)
-/srv/nfs/k8s    192.168.11.0/24(rw,async,no_wdelay,no_root_squash,no_subtree_check,fsid=0)
-
-☩ ssh a0 sudo exportfs -v
-/srv/nfs/k8s    192.168.11.0/24(async,no_wdelay,hide,no_subtree_check,fsid=0,sec=sys,rw,secure,no_root_squash,no_all_squash)
-
-```
-
-
-Note client side test, `/mnt/fiotest`, reveals __10x worse__ performance:
+@ Pod application : 10x performance degredation
 
 ```bash
 ☩ k exec -it test-fio-pod -- fio --name=randrw \
     --rw=randrw \
-    --filename=/mnt/fiotest \
     --size=1G \
-    --rw=randrw \
     --bs=4k \
     --iodepth=32 \
     --direct=1 \
     --runtime=60 \
+    --time_based \
     --ioengine=libaio \
-    --group_reporting
+    --group_reporting \
+    --filename=/mnt/fiotest \
+    |grep -e read: -e write:
 
-...
-  read: IOPS=239, BW=958KiB/s (981kB/s)(56.2MiB/60095msec)
-...
-  write: IOPS=238, BW=956KiB/s (979kB/s)(56.1MiB/60095msec); 0 zone resets
-...
+  read: IOPS=5617, BW=21.9MiB/s (23.0MB/s)(1317MiB/60003msec)
+  write: IOPS=5610, BW=21.9MiB/s (23.0MB/s)(1315MiB/60003msec); 0 zone resets
+
 ```
+
