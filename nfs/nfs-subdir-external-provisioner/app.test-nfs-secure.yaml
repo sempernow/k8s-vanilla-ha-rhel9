@@ -46,7 +46,7 @@ spec:
   containers:
     - name: app
       image: busybox
-      command: ["sh", "-c", "echo Hello from $(date '+%Y-%m-%dT%H:%M:%S [%Z]') >> /data/hello.txt && sleep 100"]
+      command: ["sh", "-c", "echo Hello from $(date -u '+%Y-%m-%dT%H:%M:%SZ') >> /data/hello.txt && sleep 100"]
       env:
         - name: POD_NAME
           valueFrom:

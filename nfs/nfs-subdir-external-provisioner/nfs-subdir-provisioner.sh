@@ -21,7 +21,6 @@ nfs_export=/srv/nfs/k8s
 release=nfs-provisioner
 ns=kube-system
 values=values.lime.yaml
-manifest=helm.template.$release.yaml
 
 # # Generate the manifest locally
 # helm template $release $chart/$chart \
@@ -33,9 +32,8 @@ manifest=helm.template.$release.yaml
 #     --set provisioner=cluster.local/$release \
 #     --set serviceAccount.name=$release \
 #     --set securityContext.runAsUser=50000 \
-#     --set securityContext.runAsGroup=50000 \
-#     --set securityContext.fsGroup=322202601 \
-#     |tee $manifest
+#     --set securityContext.runAsGroup=322202601 \
+#     |tee helm.template.$release.yaml
 
 # Same, but declarative ($values) v. imperative (--set *) method 
 helm template $release $chart/$chart \
@@ -56,8 +54,7 @@ helm template $release $chart/$chart \
 #     --set provisioner=cluster.local/$release \
 #     --set serviceAccount.name=$release \
 #     --set securityContext.runAsUser=50000 \
-#     --set securityContext.runAsGroup=50000 \
-#     --set securityContext.fsGroup=322202601 \
+#     --set securityContext.runAsGroup=322202601 \
 #     |tee helm.install.$release.log
 
 # Install by declarative upgrade method
