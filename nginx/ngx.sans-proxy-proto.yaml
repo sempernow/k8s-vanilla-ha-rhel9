@@ -54,8 +54,8 @@ metadata:
 data:
   default.conf: |-
     server {
-        listen       80 proxy_protocol;
-        listen  [::]:80 proxy_protocol;
+        listen       80;
+        listen  [::]:80;
         server_name  localhost;
 
         location / {
@@ -65,7 +65,7 @@ data:
 
         location /meta {
             add_header Content-Type application/json;
-            return 200 '{"host": "$hostname", "client_ip": "$proxy_protocol_addr", "date": "$time_iso8601"}';
+            return 200 '{"host": "$hostname", "client_ip": "$remote_addr", "x-forwarded-for": "$http_x_forwarded_for", "date": "$time_iso8601"}';
         }
 
         error_page   500 502 503 504  /50x.html;
