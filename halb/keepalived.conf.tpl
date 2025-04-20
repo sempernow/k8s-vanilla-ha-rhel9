@@ -16,20 +16,21 @@ global_defs {
     #vrrp_skip_check_adv_addr 
 }
 
-vrrp_script check_health {
-    user root
-    env { 
-        VIP="SET_VIP"
-        PORT="SET_PORT"
-    }
+vrrp_script check_haproxy {
+    # user root
+    # env { 
+    #     VIP="SET_VIP"
+    #     PORT="SET_PORT"
+    # }
     ## Check if HAProxy is running
     #script "/etc/keepalived/check_health.sh"
     #script "/usr/bin/killall -0 haproxy"
-    script "/usr/bin/pgrep haproxy" 
+    script "/usr/bin/pgrep haproxy"
+
     interval 2  # Check every 2 seconds
-    #weight -10  # Reduce priority by 10 if the script fails
     fall 3      # Mark the service as failed after 3 failures
     rise 2      # Mark the service as up after 2 successes
+    #weight -10  # Reduce priority by 10 if the script fails
 }
 
 vrrp_instance VI_1 {
@@ -59,6 +60,6 @@ vrrp_instance VI_1 {
     # }
     
     track_script {
-        check_health
+        check_haproxy
     }
 }

@@ -165,9 +165,16 @@ menu :
 	@echo "join-token   : kubeadm token list"
 	@echo "============== "
 	@echo "healthz      : K8s API : GET /healthz?verbose"
+	@echo "watch        : kubectl get pods -A -o wide -w"
 	@echo "psk          : ps of K8s processes"
+	@echo "nodes        : K8s Node(s) status"
+	@echo "prune        : Delete all problemed Pods of certain Status values"
 	@echo "psrss        : ps sorted by RSS usage"
-	@echo "crictl       : CRI status"
+	@echo "crictl       : containerd status"
+	@echo "  -images    : Images in containerd cache"
+	@echo "  -pods      : Pods of containerd"
+	@echo "  -ps        : Containers of containerd"
+	@echo "crictl-ready : Delete all containerd Pods in 'NotReady' status"
 	@echo "============== "
 	@echo "ingress-nginx: Install Ingress NGINX Controller"
 	@echo "  -down      : Teardown"
@@ -506,10 +513,12 @@ upload-certs :
 		--upload-certs --config ${K8S_KUBEADM_CONF_INIT} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.upload-certs.log
 
-watch : 
-	watch kubectl get pod -A -o wide
 healthz :
 	curl -ks https://${K8S_ENDPOINT}/healthz?verbose
+watch : 
+	kubectl get pod -A -o wide -w
+nodes :
+	type yq && kubectl get node -o yaml |yq '.[][].status.conditions[] |select(.status == "True")' || echo REQUIREs yq
 psk :
 	ansibash psk
 crictl : crictl-images crictl-ps crictl-pods
@@ -524,6 +533,10 @@ images :
 crictl-ready :
 	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl stopp'
 	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl rmp'
+prune :
+	bash make.recipes.sh prune
+#	bash scripts/kubectl-mass-delete-pods.sh StatusUnk
+
 
 export ingress_manifest := ingress-nginx-baremetal-v1.12.0.yaml
 ingress-nginx ingress-nginx-up : 
@@ -569,9 +582,6 @@ efk-up :
 	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh apply
 efk-down :
 	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh delete
-
-prune :
-	bash make.recipes.sh prune
 
 teardown : calico-teardown cilium-teardown kuberouter-teardown
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
