@@ -25,7 +25,8 @@ INFO    := @bash -c 'printf $(YELLOW);echo "@ $$1";printf $(RESTORE)' MESSAGE
 ## Project Meta
 
 export PRJ_ROOT   := $(shell pwd)
-export LOG_PREFIX := make.$(shell date '+%Y-%m-%dT%H.%M.%Z')
+export LOG_PRE  := make
+export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 
 ##############################################################################
 ## Registry : registry.k8s.io
@@ -210,7 +211,6 @@ html :
 push commit : html mode
 	gc && git push && gl && gs
 
-
 ##############################################################################
 ## Recipes : Cluster
 
@@ -220,9 +220,9 @@ push commit : html mode
 # - Protecting a VIP requires network admin.
 scan :
 	sudo nmap -sn ${HALB_CIDR} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.scan.nmap.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.scan.nmap.${UTC}.log
 #	sudo arp-scan --interface ${HALB_DEVICE} --localnet \
-#		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.scan.arp-scan.log
+#		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.scan.arp-scan.${UTC}.log
 
 # Smoke test this setup
 status hello :
@@ -279,34 +279,34 @@ conf : conf-kernel conf-selinux conf-swap
 conf-kernel :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-kernel.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-kernel.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-kernel.${UTC}.log
 conf-selinux :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-selinux.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-selinux.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-selinux.${UTC}.log
 conf-swap :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-swap.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.conf-swap.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-swap.${UTC}.log
 
 ## Install K8s and all deps : RPM(s), binaries, systemd, and other configs
 install : install-rpms install-cri install-cni install-k8s
 install-rpms:
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-rpms.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.install-rpms.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-rpms.${UTC}.log
 install-cri :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cri.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.install-cri.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-cri.${UTC}.log
 install-cni :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cni.sh eBPF \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.install-cni.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-cni.${UTC}.log
 install-k8s :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.install-k8s.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-k8s.${UTC}.log
 
 #lbclean :
 #ansibash -s ${ADMIN_SRC_DIR}/halb/clean-halb.sh ${HALB_VIP} ${HALB_DEVICE}
@@ -330,7 +330,7 @@ lbconf :
 		&& ansibash -u ${ADMIN_SRC_DIR}/halb/etc.hosts \
 		&& ansibash -u ${ADMIN_SRC_DIR}/halb/etc.environment \
 		&& ansibash -s ${ADMIN_SRC_DIR}/halb/configure-halb.sh ${HALB_CIDR} ${HALB_DEVICE} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.lbconf.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.lbconf.${UTC}.log
 
 lbverify : 
 	bash ${ADMIN_SRC_DIR}/halb/verify-instruct.sh
@@ -356,7 +356,7 @@ init-imperative :
 			--apiserver-advertise-address ${K8S_CONTROL_PLANE_IP} \
 			--node-name ${K8S_INIT_NODE} \
 			--cri-socket "${K8S_CRI_SOCKET}" \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kubeadm.init-imperative.log
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kubeadm.init-imperative.${UTC}.log
 
 # @ init-certs phase : config (K8S_KUBEADM_CONF_INIT) must not have PKI
 # @ final init phase : config (K8S_KUBEADM_CONF_INIT) may have PKI, but ours does not.
@@ -368,35 +368,35 @@ init-purge :
 init-gen : 
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-gen.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-gen.${UTC}.log
 init-push :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-push.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-push.${UTC}.log
 init-images :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
 			--config ${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-images.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-images.${UTC}.log
 ## Generate cluster PKI (if not exist) : Cleanup old settings
 ## This K8S_KUBEADM_CONF_INIT must NOT have PKI (key, hash, token)
 init-certs :
 	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh \
 		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
 			/bin/bash -s - ${K8S_KUBEADM_CONF_INIT} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-certs.log
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
 	scp ${K8S_INIT_NODE}:Makefile.settings .
 init-pre : 
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
 			--config ${K8S_KUBEADM_CONF_INIT} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-pre.log
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pre.${UTC}.log
 init-now :
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
 		sudo kubeadm init -v${K8S_VERBOSITY} \
 			--upload-certs \
 			--config ${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.init-now.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-now.${UTC}.log
 
 kubeconfig :
 	bash make.recipes.sh kubeconfig
@@ -404,12 +404,12 @@ kubeconfig :
 ## _install [replace_kube_proxy|pod_ntwk_only] : Default is replace else pod on fail
 kuberouter kuberouter-install :
 	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _install replace_kube_proxy \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-install.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kuberouter-install.${UTC}.log
 	kubectl get pod -A -o wide -w
 
 kuberouter-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _teardown \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.kuberouter-teardown.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kuberouter-teardown.${UTC}.log
 
 #cilium : cilium-gen cilium-helm
 export cilium_values := values-bpf.yaml
@@ -417,18 +417,18 @@ cilium : cilium-gen cilium-cli
 cilium-cli :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh install_by_cli \
 		${cilium_values} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-cli.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-cli.${UTC}.log
 cilium-gen : 
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/cni/cilium/${cilium_values} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-gen.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-gen.${UTC}.log
 cilium-helm : 
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh install_by_helm \
 		${cilium_values} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-helm.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-helm.${UTC}.log
 cilium-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh teardown \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.cilium-teardown.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-teardown.${UTC}.log
 
 export calico_operator := custom-resources-bpf-bgp.yaml
 calicoctl calico-status : 
@@ -441,18 +441,18 @@ calicoctl calico-status :
 	kubectl calico ipam show --show-configuration
 	kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP}
 
-calico : calico-operator-gen calico-operator
+#calico : calico-operator-gen calico-operator
+calico : calico-manifest
 calico-operator-gen : 
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/cni/calico/operator-method/${calico_operator} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico-operator-gen.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-operator-gen.${UTC}.log
 calico-operator :
 	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh apply ${calico_operator}
+calico_ver := v3.29.3
 calico-manifest :
-	kubectl create -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.crds.log
-	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.calico.calico.log
+	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.${calico_ver}.yaml \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-manifest.${UTC}.log
 calico-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh teardown ${calico_operator} || echo
 	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml || echo 
@@ -474,19 +474,19 @@ join-control : join-prep
 	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
 		ansibash sudo bash join-control.sh \
 			${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONF_JOIN} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-control.log
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-control.${UTC}.log
 
 join-prep : join-gen join-push 
 join-certs : init-push
 	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-join-certs.sh \
 		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
 			/bin/bash -s - ${K8S_KUBEADM_CONF_INIT} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-certs.log
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-certs.${UTC}.log
 	scp ${K8S_INIT_NODE}:Makefile.settings .
 join-gen :
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.join-gen.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-gen.${UTC}.log
 join-push :
 	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
 		ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh
@@ -502,7 +502,7 @@ join-command :
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
 		sudo kubeadm token create --print-join-command \
 		--certificate-key ${K8S_CERTIFICATE_KEY} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.print-join-command.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.print-join-command.${UTC}.log
 
 # upload-certs (re)generates a certificate key.
 # INVALIDATES all certificateKey values of kubeadm-conf-*.yaml
@@ -511,7 +511,7 @@ join-command :
 upload-certs : 
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} sudo kubeadm init phase upload-certs \
 		--upload-certs --config ${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PREFIX}.upload-certs.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.upload-certs.${UTC}.log
 
 healthz :
 	curl -ks https://${K8S_ENDPOINT}/healthz?verbose
