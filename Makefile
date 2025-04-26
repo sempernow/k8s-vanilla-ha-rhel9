@@ -275,7 +275,11 @@ reboot :
 		&& ansibash sudo reboot
 
 ## Host config
-conf : conf-kernel conf-selinux conf-swap
+conf : conf-update conf-kernel conf-selinux conf-swap
+conf-update :
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash sudo dnf -y update \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-update.${UTC}.log
 conf-kernel :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-kernel.sh \
@@ -406,7 +410,6 @@ kuberouter kuberouter-install :
 	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _install replace_kube_proxy \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kuberouter-install.${UTC}.log
 	kubectl get pod -A -o wide -w
-
 kuberouter-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kuberouter-teardown.${UTC}.log
@@ -430,28 +433,25 @@ cilium-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-teardown.${UTC}.log
 
-export calico_operator := custom-resources-bpf-bgp.yaml
-calicoctl calico-status : 
-	#kubectl calico get node
-	ansibash sudo /usr/local/bin/calicoctl node status
-	kubectl get tigerastatuses
-	kubectl calico get ippool
-	#kubectl calico ipam check
-	kubectl calico ipam show --show-blocks
-	kubectl calico ipam show --show-configuration
-	kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP}
-
 #calico : calico-operator-gen calico-operator
+calicoctl calico-status : 
+	ansibash sudo /usr/local/bin/calicoctl node status \
+	  && kubectl get tigerastatuses \
+	  && kubectl calico get ippool \
+	  && kubectl calico ipam show --show-blocks \
+	  && kubectl calico ipam show --show-configuration \
+	  && kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP} \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 calico : calico-manifest
+export calico_operator := custom-resources-bpf-bgp.yaml
 calico-operator-gen : 
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/cni/calico/operator-method/${calico_operator} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-operator-gen.${UTC}.log
 calico-operator :
 	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh apply ${calico_operator}
-calico_ver := v3.29.3
 calico-manifest :
-	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.${calico_ver}.yaml \
+	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-manifest.${UTC}.log
 calico-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh teardown ${calico_operator} || echo
@@ -475,14 +475,18 @@ join-control : join-prep
 		ansibash sudo bash join-control.sh \
 			${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONF_JOIN} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-control.${UTC}.log
-
+join-command :
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
+		sudo kubeadm token create --print-join-command \
+		--certificate-key ${K8S_CERTIFICATE_KEY} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.print-join-command.${UTC}.log
 join-prep : join-gen join-push 
-join-certs : init-push
-	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-join-certs.sh \
-		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
-			/bin/bash -s - ${K8S_KUBEADM_CONF_INIT} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-certs.${UTC}.log
-	scp ${K8S_INIT_NODE}:Makefile.settings .
+# join-certs : init-push
+# 	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-join-certs.sh \
+# 		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
+# 			/bin/bash -s - ${K8S_KUBEADM_CONF_INIT} \
+# 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-certs.${UTC}.log
+# 	scp ${K8S_INIT_NODE}:Makefile.settings .
 join-gen :
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
@@ -494,15 +498,9 @@ join-push :
 		ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN}
 	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
 		ansibash -u ~/.kube/config discovery.yaml
-
-join-token :
-	@sudo kubeadm token list |awk '{printf "%25s\t%s\t%s\n",$$1,$$2,$$4}'
 # Print command to join a node into CONTROL PLANE; same cert key/hash; new token
-join-command :
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
-		sudo kubeadm token create --print-join-command \
-		--certificate-key ${K8S_CERTIFICATE_KEY} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.print-join-command.${UTC}.log
+# join-token :
+# 	@sudo kubeadm token list |awk '{printf "%25s\t%s\t%s\n",$$1,$$2,$$4}'
 
 # upload-certs (re)generates a certificate key.
 # INVALIDATES all certificateKey values of kubeadm-conf-*.yaml
@@ -522,9 +520,9 @@ nodes :
 psk :
 	ansibash psk
 crictl : crictl-images crictl-ps crictl-pods
-crictl-ps crictl-ctnr :
+crictl-ps crictl-ctnr crictl-container crictl-containers :
 	ansibash sudo crictl ps 
-crictl-pods :
+crictl-pods crictl-pod :
 	ansibash sudo crictl pods 
 crictl-images :
 	ansibash sudo crictl images
@@ -579,15 +577,12 @@ csi-rook-down :
 	ansibash 'sudo wipefs --all /dev/${rbd} && sudo dd if=/dev/zero of=/dev/${rbd} bs=1M count=10'
 
 efk-up :
-	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh apply
+	bash ${ADMIN_SRC_DIR}/logging/efk-studytonight/efk.sh apply
 efk-down :
-	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh delete
+	bash ${ADMIN_SRC_DIR}/logging/efk-studytonight/efk.sh delete
 
 teardown : calico-teardown cilium-teardown kuberouter-teardown
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash sudo bash teardown.sh
-	tar -C ~ --exclude=cache -caf kube.tgz ~/.kube/config_* \
-		&& rm -rf ~/.kube/cache \
-		mv ~/.kube/config ~/.kube/config.$(shell date '+%F.%T' |sed s,:,.,g) || echo

@@ -1,33 +1,31 @@
 #!/usr/bin/env bash
 
 [[ "$(whoami)" == 'root' ]] || exit 11
+export PATH="/usr/local/bin:$PATH"
 
 [[ -r ~/.kube/config ]] &&
-    export KUBECONFIG=~/.kube/config ||
-        export KUBECONFIG=/etc/kubernetes/admin.conf
-[[ $(kubectl config get-contexts --no-headers) ]] && {
+    export KUBECONFIG=/etc/kubernetes/super-admin.conf ||
+        export KUBECONFIG=/etc/kubernetes/admin.conf ||
+            export KUBECONFIG=~/.kube/config
+
+[[ -f $KUBECONFIG && $(kubectl config get-contexts --no-headers) ]] && {
     helm list -A 2>&1 \
         |grep -ve WARN -ve NAME \
         |xargs -IX /bin/bash -c 'helm uninstall -n $2 $1' _ X
 
     kubectl get no |grep -v NAME |cut -d' ' -f1 \
-        |xargs -I{} kubectl drain --ignore-daemonsets=true {}
-
-    kubectl get no |grep -v NAME |cut -d' ' -f1 \
-        |xargs -I{} kubectl cordon {}
+        |xargs -I{} kubectl drain --force --ignore-daemonsets=true --delete-emptydir-data=true {}
 
     kubectl get crds |grep -v NAME |cut -d' ' -f1 \
         |xargs -I{} kubectl delete crds {}
 }
 
 manifests=/etc/kubernetes/manifests
-rm $manifests/kube-apiserver.yaml &&
-    find $manifests -type f -exec rm {} \; &&
-        sleep 10
+find $manifests -type f -exec rm -f {} \; && sleep 10
 
 # Delete residual Pods
 [[ $(systemctl is-active containerd) == 'active' ]] ||
-    systemctl start containerd
+    (systemctl start containerd && sleep 10)
 obj="$(sudo crictl pods -q)"
 echo "$obj" |xargs -I{} crictl stopp {}
 echo "$obj" |xargs -I{} crictl rmp {}
@@ -39,7 +37,7 @@ echo "$obj" |xargs -I{} crictl stop {}
 echo "$obj" |xargs -I{} crictl rm {}
 [[ $obj ]] && sleep 3
 
-# Reset kubeadm installed state
+# Reset kubeadm state 
 kubeadm reset -f 2>/dev/null
 
 # Stop kubelet and all Kubernetes related processes

@@ -58,7 +58,7 @@ ok(){
     url=https://github.com/projectcalico/calico/releases/download/$ver/calicoctl-linux-${ARCH:-amd64}
     dir=/usr/local/bin
     file=calicoctl
-    [[ $(type -t $file) && $($file version |grep v$ver) ]] && return 
+    [[ $(type -t $file) && $($file version |grep $ver) ]] && return 
     sudo curl -fsSL -o $dir/$file $url &&
         sudo chmod 0755 $dir/$file &&
             sudo KUBECONFIG=$KUBECONFIG $file version |grep $ver ||

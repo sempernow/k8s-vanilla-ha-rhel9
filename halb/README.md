@@ -1,5 +1,17 @@
 # [HAProxy / Keepalived](https://chatgpt.com/share/6804fcc4-45e0-8009-aaac-ccf8e9ed74de)
 
+## __vIP__ for VRRP @ AD DNS
+
+- Pick an available IP within the network's hosts-address range yet outside the DHCP range:
+    - `192.168.11.11` (__vIP__)
+- Add DHCP reservation 
+    - Invent a dummy MAC using prefix "`02`", which designates it as __locally administered__.
+        - __`02:00:00:00:01:01`__
+- Manually create matching DNS __`A`__ (Apex) __record__:
+    - __`k8s1.lime.lan`__
+    - Add a __CNAME record__ that resolves to that.   
+      This will be the __cluster hostname__ that is announced and otherwise __presented to external clients__:
+        - __`kube.lime.lan`__
 
 ## `default-server` block:
 

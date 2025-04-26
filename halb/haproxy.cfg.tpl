@@ -132,7 +132,9 @@ backend k8s-ingress-https
 # backend other-ingress-https
 #
 #     option      ssl-hello-chk
-#     balance     roundrobin
+#     #balance     roundrobin
+#     ## Session stickyness : use at NodePorts, LoadBalancer Services, and Stateful Apps.    
+#     balance source   # 👈 Source IP based load balancing for session stickyness
 #     server      LB_1_FQDN LB_1_IPV4:30443 send-proxy
 #     server      LB_2_FQDN LB_2_IPV4:30443 send-proxy
 #     server      LB_3_FQDN LB_3_IPV4:30443 send-proxy

@@ -11,8 +11,8 @@ spec:
     - ReadWriteOnce
   nfs:
     # FAILing
-    server: 192.168.11.104  # a0.lime.lan
-    path: "/mnt/nfs-01/elasticsearch"  # Subdirectory of export
+    server: 192.168.11.100  # a0.lime.lan
+    path: "/srv/nfs/k8s/elasticsearch"  # Subdirectory of export
   persistentVolumeReclaimPolicy: Retain
 ---
 apiVersion: v1

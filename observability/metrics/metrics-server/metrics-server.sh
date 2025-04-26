@@ -19,5 +19,5 @@ pushd ${BASH_SOURCE%/*} || exit 1
 "$@" || code=$?
 popd
 [[ $code ]] && echo " ERR : $code" || echo
-exit $code
+exit
 
