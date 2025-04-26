@@ -41,17 +41,17 @@ export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 ##############################################################################
 ## HAProxy/Keepalived :
 ### VIP within targets' network mask
-export HALB_VIP      ?= 10.11.111.234
+export HALB_VIP      ?= 192.168.11.11
 ### anet Network is segmented (/27; 5 bit mask) so 30 hosts per (user? program?)
-export HALB_MASK     ?= 27
-### CIDR: 10.11.111.234/27 : IP Range : 224-255
+export HALB_MASK     ?= 24
+### CIDR
 export HALB_CIDR     ?= ${HALB_VIP}/${HALB_MASK}
-export HALB_VIP6     ?= 0:0:0:0:0:ffff:0aa0:7164
+export HALB_VIP6     ?= 0:0:0:0:0:ffff:c0a8:0b0b
 export HALB_PORT     ?= 8443
-export HALB_DEVICE   ?= ens192
-export HALB_FQDN_1   ?= foo128.bar
-export HALB_FQDN_2   ?= foo129.bar
-export HALB_FQDN_3   ?= foo130.bar
+export HALB_DEVICE   ?= eth0
+export HALB_FQDN_1   ?= a1.lime.lan
+export HALB_FQDN_2   ?= a2.lime.lan
+export HALB_FQDN_3   ?= a3.lime.lan
 
 export HALB_ENDPOINT ?= ${HALB_VIP}:${HALB_PORT}
 
