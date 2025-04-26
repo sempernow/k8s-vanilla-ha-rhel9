@@ -63,8 +63,6 @@ tlsMinVersion: VersionTLS12
 ---
 apiVersion: kubeproxy.config.k8s.io/v1alpha1
 kind: KubeProxyConfiguration
-apiVersion: kubeproxy.config.k8s.io/v1alpha1
-kind: KubeProxyConfiguration
 mode: "ipvs"                            # Use IPVS for better performance and scalability compared to iptables.
 clusterCIDR: "10.244.0.0/16"             # Replace with your cluster's pod network CIDR.
 detectLocalMode: "ClusterCIDR"          # Detect local traffic based on the cluster CIDR.

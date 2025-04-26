@@ -280,6 +280,10 @@ conf-update :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash sudo dnf -y update \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-update.${UTC}.log
+conf-sudoer :
+	bash make.recipes.sh sudoer \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-sudoer.${UTC}.log
+
 conf-kernel :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-kernel.sh \
@@ -365,7 +369,7 @@ init-imperative :
 # @ init-certs phase : config (K8S_KUBEADM_CONF_INIT) must not have PKI
 # @ final init phase : config (K8S_KUBEADM_CONF_INIT) may have PKI, but ours does not.
 
-init : init-purge init-gen init-push init-images init-pre init-now
+init : init-purge init-gen init-push init-images init-certs init-pre init-now
 	@echo === Get kubeconfig and set K8S_CERTIFICATE_KEY @ Makefile.settings prior to join-gen
 init-purge :
 	bash make.recipes.sh settings_purge
@@ -470,7 +474,8 @@ kubeproxy-restore :
     --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
 
 ## Makefile.settings must have valid K8S_CERTIFICATE_KEY 
-join-control : join-prep
+join-control : join-prep join-now
+join-now :
 	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
 		ansibash sudo bash join-control.sh \
 			${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONF_JOIN} \
@@ -480,7 +485,7 @@ join-command :
 		sudo kubeadm token create --print-join-command \
 		--certificate-key ${K8S_CERTIFICATE_KEY} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.print-join-command.${UTC}.log
-join-prep : join-gen join-push 
+join-prep : kubeconfig join-gen join-push 
 # join-certs : init-push
 # 	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-join-certs.sh \
 # 		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \

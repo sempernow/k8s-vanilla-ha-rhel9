@@ -1,4 +1,4 @@
 ## This file is DYNAMICALLY GENERATED at make recipes
-export K8S_CERTIFICATE_KEY ?=
+export K8S_CERTIFICATE_KEY ?= 230cdd63cf007ac10c5cacee5de2285759eba1c3eb8f5a6da7a591fd26bae208
 export K8S_CA_CERT_HASH    ?=
 export K8S_BOOTSTRAP_TOKEN ?=

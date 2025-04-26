@@ -102,7 +102,7 @@ halb(){
 }
 kubeconfig(){
     [[ $K8S_INIT_NODE ]] || { echo 'ERR : K8S_INIT_NODE is UNSET'; return; }
-    ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
+    ssh ${ADMIN_USER}@${K8S_INIT_NODE} \
         'sudo cp -p /etc/kubernetes/admin.conf . && sudo chown $(id -u):$(id -g) admin.conf'
     mkdir -p ~/.kube
 
@@ -167,4 +167,16 @@ prune(){
     kubectl get pod -A -o wide |grep -e Completed -e StatusUnk || echo 
 }
 
+sudoer(){
+    group=ad-linux-sudoers
+    ANSIBASH_TARGET_LIST=${ADMIN_TARGET_LIST} &&
+        ansibash -c '
+            sudo mkdir -p /etc/sudoers.d
+			sudo tee /etc/sudoers.d/ad-linux-sudoers <<-EOH
+			%'$group'  ALL=(ALL) NOPASSWD: ALL
+			Defaults:%'$group'    secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
+			EOH
+            sudo systemctl daemon-reload
+        '
+}
 "$@"

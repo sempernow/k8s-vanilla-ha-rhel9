@@ -172,8 +172,6 @@ apiVersion: kubeproxy.config.k8s.io/v1alpha1
 kind: KubeProxyConfiguration
 ## @ `kubectl -n kube-system get cm kube-proxy -o yaml |yq -Mr '.data["config.conf"]'`
 ## https://kubernetes.io/docs/reference/config-api/kube-proxy-config.v1alpha1/#kubeproxy-config-k8s-io-v1alpha1-KubeProxyConfiguration
-apiVersion: kubeproxy.config.k8s.io/v1alpha1
-kind: KubeProxyConfiguration
 mode: "ipvs"                            # Use IPVS for better performance and scalability compared to iptables.
 clusterCIDR: "K8S_POD_CIDR"             # Replace with your cluster's pod network CIDR.
 detectLocalMode: "ClusterCIDR"          # Detect local traffic based on the cluster CIDR.
