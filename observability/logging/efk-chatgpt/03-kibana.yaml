@@ -34,7 +34,8 @@ spec:
     spec:
       containers:
       - name: kibana
-        image: docker.elastic.co/kibana/kibana:7.17.16
+        #image: docker.elastic.co/kibana/kibana:7.17.16
+        image: docker.io/bitnami/kibana:7.17.16
         ports:
         - containerPort: 5601
         env:
