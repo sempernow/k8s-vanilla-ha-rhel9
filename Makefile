@@ -371,7 +371,7 @@ init-imperative :
 # @ init-certs phase : config (K8S_KUBEADM_CONF_INIT) must not have PKI
 # @ final init phase : config (K8S_KUBEADM_CONF_INIT) may have PKI, but ours does not.
 
-init : init-purge init-gen init-push init-images init-pki init-pre init-now
+init : init-purge init-gen init-push init-images init-pki init-pre init-now kubeconfig
 init-purge :
 	bash make.recipes.sh settings_purge
 	rm logs/*.log
@@ -470,19 +470,18 @@ cilium-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-teardown.${UTC}.log
 
+calico : calico-manifest
 calico-install :
 	bash cni/calico/calico-install.sh 
-
 #calico : calico-operator-gen calico-operator
 calicoctl calico-status : 
 	ansibash sudo /usr/local/bin/calicoctl node status \
-	  && kubectl get tigerastatuses \
 	  && kubectl calico get ippool \
 	  && kubectl calico ipam show --show-blocks \
 	  && kubectl calico ipam show --show-configuration \
 	  && kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP} \
 	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
-calico : calico-manifest
+#     && kubectl get tigerastatuses 
 export calico_operator := custom-resources-bpf-bgp.yaml
 calico-operator-gen : 
 	bash make.recipes.sh settings_inject \
