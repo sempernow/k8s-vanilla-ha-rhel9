@@ -181,13 +181,14 @@ menu :
 	@echo "============== "
 	@echo "ingress-nginx: Install Ingress NGINX Controller"
 	@echo "  -down      : Teardown"
-	@echo "  -e2e       : End-to-end test"
+	@echo "  -e2e       : End-to-end test : curl -s http://\$$host:\$$nodePort/{foo,bar}/hostname"
 	@echo "============== "
 	@echo "metrics      : Install metrics-server, enabling: kubectl top ..."
 	@echo "dashboard    : Install K8s Dashboard : Web UI for K8s API"
 	@echo "trivy        : Install Trivy Operator by Helm"
 	@echo "============== "
 	@echo "csi-local    : Install local-path-provisioner"
+	@echo "csi-nfs      : Install nfs-subdir-external-provisioner"
 	@echo "csi-rook-up  : Install Rook Operator / Ceph "
 	@echo "csi-rook-down: Teardown Rook Operator / Ceph "
 	@echo "============== "
@@ -415,8 +416,8 @@ init-certs :
 	  && ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-certs.sh ${K8S_KUBEADM_CONF_INIT} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
 	scp -p ${ADMIN_USER}@${K8S_INIT_NODE}:Makefile.settings .
-join-control : join-prep join-gen join-push join-now
-join-prep : kubeconfig join-gen join-push 
+join-control : join-prep join-now
+join-prep : join-gen join-push 
 join-gen :
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
@@ -475,13 +476,12 @@ calico-install :
 	bash cni/calico/calico-install.sh 
 #calico : calico-operator-gen calico-operator
 calicoctl calico-status : 
-	ansibash sudo /usr/local/bin/calicoctl node status \
-	  && kubectl calico get ippool \
-	  && kubectl calico ipam show --show-blocks \
-	  && kubectl calico ipam show --show-configuration \
-	  && kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP} \
-	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
-#     && kubectl get tigerastatuses 
+	ansibash sudo /usr/local/bin/calicoctl node status |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	kubectl calico get ippool |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	kubectl calico ipam show --show-blocks |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	kubectl calico ipam show --show-configuration |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP} |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	kubectl get tigerastatuses && kubectl get tigerastatuses || echo |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 export calico_operator := custom-resources-bpf-bgp.yaml
 calico-operator-gen : 
 	bash make.recipes.sh settings_inject \
@@ -533,9 +533,8 @@ prune :
 #	bash scripts/kubectl-mass-delete-pods.sh StatusUnk
 
 
-export ingress_manifest := ingress-nginx-baremetal-v1.12.0.yaml
 ingress-nginx ingress-nginx-up : 
-	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh install ${ingress_manifest}
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh update
 ingress-nginx-e2e : 
 	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh e2e
 ingress-nginx-teardown ingress-nginx-down : 
@@ -574,10 +573,11 @@ csi-rook-down :
 	ansibash sudo bash ./rook.sh host_teardown
 	ansibash 'sudo wipefs --all /dev/${rbd} && sudo dd if=/dev/zero of=/dev/${rbd} bs=1M count=10'
 
+efk_stack := efk-chatgpt
 efk-up :
-	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh apply
+	bash ${ADMIN_SRC_DIR}/observability/logging/${efk_stack}/${efk_stack}.sh apply
 efk-down :
-	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh delete
+	bash ${ADMIN_SRC_DIR}/observability/logging/${efk_stack}/${efk_stack}.sh delete
 
 #teardown : calico-teardown cilium-teardown kuberouter-teardown
 teardown : 

@@ -51,8 +51,8 @@ ok(){
         mkdir -p $dir
         pushd $dir
         curl -sSL -o $file $url 
-        bin=/usr/local/bin/kubectl-calico
-        sudo install $file $bin
+        sudo install $file /usr/local/bin/
+        #sudo ln -s /usr/local/bin/$file /usr/local/bin/kubectl-calico
         popd
         #chmod 0755 $dir/$file && $dir/$file version |grep $VER || return 404
     }

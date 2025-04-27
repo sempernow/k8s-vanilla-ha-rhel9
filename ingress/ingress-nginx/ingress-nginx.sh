@@ -55,14 +55,13 @@ e2e(){
         ip=$(kubectl get node -o jsonpath='{.items[0].status.addresses[*].address}' \
                 |cut -d' ' -f1
         )
-        # Each service (http/https) port is wired to a nodePort (@ baremetal settings), 
-        # so get NodePort of HTTP svc:
+        # Each service (http/https) port is wired to a nodePort (@ baremetal settings): 
+        # GET NodePort of HTTP svc:
         p=$(kubectl get -n ingress-nginx svc ingress-nginx-controller \
                 -o jsonpath='{.spec.ports[?(@.name=="'http'")].nodePort}'
         )
         # Concat response bodies:
-        curl -s http://$ip:$p/foo/hostname &&
-            curl -s http://$ip:$p/bar/hostname #> foobar
+        curl -s http://$ip:$p/{foo,bar}/hostname
     }
     export -f get 
     echo '=== E2E connectivity test : Ingress/Service/Pod/container'

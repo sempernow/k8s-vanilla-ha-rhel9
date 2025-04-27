@@ -13,4 +13,4 @@ controlPlane:
   localAPIEndpoint: 
     advertiseAddress: THIS_NODE_IP
     bindPort: 6443
-  certificateKey: 4354bb2d32449ddf350c24680c7b2fdbe7a610bc2d41a662a53070fad11616bb
+  certificateKey: 1553b23a27792ca313f11df68633a73bd344f5590028ce9b252a9871ca53273c

@@ -11,7 +11,7 @@ perhaps per reboot of parent OS.
 ```bash
 ok(){
     DIR=calico
-    VER='v3.29.2' # v3.29.1
+    VER='v3.29.3' # v3.29.1
     BASE=https://raw.githubusercontent.com/projectcalico/calico/$VER/manifests
 
     # Manifest Method
@@ -60,6 +60,8 @@ ok(){
         mkdir -p $dir
         pushd $dir
         curl -sSL -o $file $url 
+        sudo install $file /usr/local/bin/
+        sudo ln -s /usr/local/bin/$file /usr/local/bin/kubectl-calico
         popd
         chmod 0755 $dir/$file && $dir/$file version |grep $VER || return 404
     }

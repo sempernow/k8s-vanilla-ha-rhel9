@@ -5,7 +5,11 @@
 # each having a Service (ClusterIP) available at host network 
 # via Ingress backed by this Ingress Controller.
 # 
-# k apply -f .
+# ☩ k apply -f .
+# ☩ curl http://192.168.11.101:32530/{foo,bar}/hostname
+# foobar
+# ☩ curl -k https://192.168.11.101:30242/bar/{hostname,version}
+# barNOW: 2025-04-27 16:55:46.924523769 +0000 UTC m=+423.928978532
 ---
 apiVersion: v1
 kind: Namespace
