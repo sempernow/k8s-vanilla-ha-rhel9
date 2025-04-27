@@ -14,7 +14,6 @@ apiServer:
   extraArgs:    # map[string]string : arg(s), each sans leading dashes
   extraVolumes: # []HostPathMount
   certSANs:     # []string          : SANs of API Server signing certificate.
-  certificatesDir: /etc/kubernetes/pki
 clusterName: lime
 controlPlaneEndpoint: "192.168.11.101:6443"
 controllerManager: 

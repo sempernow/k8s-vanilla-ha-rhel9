@@ -136,8 +136,7 @@ spec:
     spec:
       serviceAccountName: nfs-provisioner
       securityContext:
-        runAsGroup: 322202601
-        runAsUser: 50000
+        {}
       containers:
         - name: nfs-subdir-external-provisioner
           image: "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2"

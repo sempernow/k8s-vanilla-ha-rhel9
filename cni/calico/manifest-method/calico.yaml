@@ -1,7 +1,7 @@
-## WIP : Attempting VXLAN v. IP-in-IP (default)
 ---
 # Source: calico/templates/calico-kube-controllers.yaml
 # This manifest creates a Pod Disruption Budget for Controller to allow K8s Cluster Autoscaler to evict
+
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -5737,17 +5737,6 @@ status:
   conditions: null
   storedVersions: null
 ---
-## ADDED manually
-apiVersion: crd.projectcalico.org/v1
-kind: IPPool
-metadata:
-  name: default-ipv4-ippool
-spec:
-  cidr: 10.244.0.0/16 # MUST match K8S_POD_CIDR
-  encapsulation: VXLAN
-  natOutgoing: true
-  nodeSelector: all()
----
 # Source: calico/templates/calico-kube-controllers-rbac.yaml
 # Include a clusterrole for the kube-controllers component,
 # and bind it to the calico-kube-controllers serviceaccount.
@@ -6271,12 +6260,10 @@ spec:
               value: "autodetect"
             # Enable IPIP
             - name: CALICO_IPV4POOL_IPIP
-              #value: "Always"
-              value: "Never"
+              value: "Always"
             # Enable or Disable VXLAN on the default IP pool.
             - name: CALICO_IPV4POOL_VXLAN
-              #value: "Never"
-              value: "Always" # "CrossSubnet" if L2 connectivity within subnet
+              value: "Never"
             # Enable or Disable VXLAN on the default IPv6 IP pool.
             - name: CALICO_IPV6POOL_VXLAN
               value: "Never"

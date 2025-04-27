@@ -94,7 +94,7 @@ kibana-85fd454f74-m55b6   1/1     Running   0          3m32s
 ## Access
 
 ```bash
-☩ kubectl port-forward $(k get pod -l app=kibana --no-headers |cut -d' ' -f1) 5601:5601 &
+☩ kubectl port-forward $(kubectl get pod -l app=kibana --no-headers |cut -d' ' -f1) 5601:5601 &
 [1] 36064
 ☩ Forwarding from 127.0.0.1:5601 -> 5601
 Forwarding from [::1]:5601 -> 5601

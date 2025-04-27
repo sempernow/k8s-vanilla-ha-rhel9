@@ -54,7 +54,7 @@ ok || exit $?
 
 ok(){
     # calicoctl CLI : https://docs.tigera.io/calico/latest/operations/calicoctl/install
-    ver='v3.29.1'
+    ver='v3.29.3'
     url=https://github.com/projectcalico/calico/releases/download/$ver/calicoctl-linux-${ARCH:-amd64}
     dir=/usr/local/bin
     file=calicoctl

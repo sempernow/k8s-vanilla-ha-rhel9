@@ -2,7 +2,7 @@
 #######################################################################
 # Join THIS HOST into cluster as control node
 # 
-# ARGs: THIS_NODE_INTERFACE K8S_KUBEADM_CONF_JOIN
+# ARGs: THIS_NODE_INTERFACE  K8S_KUBEADM_CONF_JOIN
 #
 # REQUIREs: discovery file at target host ~/ : K8S_JOIN_KUBECONFIG
 #######################################################################

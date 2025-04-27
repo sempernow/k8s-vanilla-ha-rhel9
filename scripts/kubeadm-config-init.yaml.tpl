@@ -53,7 +53,6 @@ apiServer:
   extraArgs:    # map[string]string : arg(s), each sans leading dashes
   extraVolumes: # []HostPathMount
   certSANs:     # []string          : SANs of API Server signing certificate.
-  certificatesDir: /etc/kubernetes/pki
 clusterName: K8S_CLUSTER_NAME
 ## External LB endpoint else that of init node
 controlPlaneEndpoint: "K8S_ENDPOINT"

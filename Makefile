@@ -140,11 +140,13 @@ menu :
 	@echo "lbshow       : Show HA-LB status"
 	@echo "============== "
 	@echo "init         : Create 1st control node of the cluster" 
+	@echo "  -purge     : Purge Makefile.settings of stale PKI params"
 	@echo "  -gen       : Generate ${K8S_KUBEADM_CONF_INIT} from template (.yaml.tpl)"
 	@echo "  -push      : Upload ${K8S_KUBEADM_CONF_INIT} to all nodes"
 	@echo "  -images    : kubeadm config images pull …"
-	@echo "  -certs     : Generate cluster PKI (once)"
+	@echo "  -pki       : Generate cluster PKI (once)"
 	@echo "  -pre       : kubeadm init phase preflight …"
+	@echo "  -certs     : kubeadm init phase upload certs …"
 	@echo "  -now       : kubeadm init … : at 1st node (${ADMIN_USER}@${K8S_INIT_NODE})"
 	@echo "============== "
 	@echo "kubeconfig 	: Configure the client"
@@ -369,10 +371,10 @@ init-imperative :
 # @ init-certs phase : config (K8S_KUBEADM_CONF_INIT) must not have PKI
 # @ final init phase : config (K8S_KUBEADM_CONF_INIT) may have PKI, but ours does not.
 
-init : init-purge init-gen init-push init-images init-certs init-pre init-now
-	@echo === Get kubeconfig and set K8S_CERTIFICATE_KEY @ Makefile.settings prior to join-gen
+init : init-purge init-gen init-push init-images init-pki init-pre init-now
 init-purge :
 	bash make.recipes.sh settings_purge
+	rm logs/*.log
 init-gen : 
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
@@ -388,12 +390,10 @@ init-images :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-images.${UTC}.log
 ## Generate cluster PKI (if not exist) : Cleanup old settings
 ## This K8S_KUBEADM_CONF_INIT must NOT have PKI (key, hash, token)
-init-certs :
-	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh \
-		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
-			/bin/bash -s - ${K8S_KUBEADM_CONF_INIT} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
-	scp ${K8S_INIT_NODE}:Makefile.settings .
+init-pki :
+	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-pki.sh ${K8S_INIT_NODE}:. \
+		&& ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-pki.sh ${K8S_KUBEADM_CONF_INIT} \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pki.${UTC}.log
 init-pre : 
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
@@ -408,6 +408,39 @@ init-now :
 
 kubeconfig :
 	bash make.recipes.sh kubeconfig
+
+## init-certs is run only if the (bootstrap) certificate key has expired.
+init-certs :
+	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh ${ADMIN_USER}@${K8S_INIT_NODE}:. \
+	  && ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-certs.sh ${K8S_KUBEADM_CONF_INIT} \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
+	scp -p ${ADMIN_USER}@${K8S_INIT_NODE}:Makefile.settings .
+join-control : join-prep join-gen join-push join-now
+join-prep : kubeconfig join-gen join-push 
+join-gen :
+	bash make.recipes.sh settings_inject \
+		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-gen.${UTC}.log
+join-push :
+	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
+		ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh
+	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
+		ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN}
+	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
+		ansibash -u ~/.kube/config discovery.yaml
+join-now :
+	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
+		ansibash sudo bash join-control.sh \
+			${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONF_JOIN} \
+			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-control.${UTC}.log
+# Print command to join a node into CONTROL PLANE; same cert key/hash; new token
+# join-token :
+# 	@sudo kubeadm token list |awk '{printf "%25s\t%s\t%s\n",$$1,$$2,$$4}'
+join-command :
+	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
+		sudo kubeadm token create --print-join-command \
+		--certificate-key ${K8S_CERTIFICATE_KEY} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.print-join-command.${UTC}.log
 
 ## _install [replace_kube_proxy|pod_ntwk_only] : Default is replace else pod on fail
 kuberouter kuberouter-install :
@@ -436,6 +469,9 @@ cilium-helm :
 cilium-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-teardown.${UTC}.log
+
+calico-install :
+	bash cni/calico/calico-install.sh 
 
 #calico : calico-operator-gen calico-operator
 calicoctl calico-status : 
@@ -472,49 +508,6 @@ kubeproxy-cleanup :
 kubeproxy-restore :
 	kubectl patch ds -n kube-system kube-proxy \
     --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
-
-## Makefile.settings must have valid K8S_CERTIFICATE_KEY 
-join-control : join-prep join-now
-join-now :
-	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
-		ansibash sudo bash join-control.sh \
-			${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONF_JOIN} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-control.${UTC}.log
-join-command :
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
-		sudo kubeadm token create --print-join-command \
-		--certificate-key ${K8S_CERTIFICATE_KEY} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.print-join-command.${UTC}.log
-join-prep : kubeconfig join-gen join-push 
-# join-certs : init-push
-# 	cat ${ADMIN_SRC_DIR}/scripts/kubeadm-join-certs.sh \
-# 		|ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
-# 			/bin/bash -s - ${K8S_KUBEADM_CONF_INIT} \
-# 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-certs.${UTC}.log
-# 	scp ${K8S_INIT_NODE}:Makefile.settings .
-join-gen :
-	bash make.recipes.sh settings_inject \
-		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-gen.${UTC}.log
-join-push :
-	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
-		ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh
-	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
-		ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN}
-	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
-		ansibash -u ~/.kube/config discovery.yaml
-# Print command to join a node into CONTROL PLANE; same cert key/hash; new token
-# join-token :
-# 	@sudo kubeadm token list |awk '{printf "%25s\t%s\t%s\n",$$1,$$2,$$4}'
-
-# upload-certs (re)generates a certificate key.
-# INVALIDATES all certificateKey values of kubeadm-conf-*.yaml
-# - Run this only to join a control node AFTER KEY HAS EXPIRED.
-# K8S_KUBEADM_CONF_INIT file here should *not* contain any PKI params.
-upload-certs : 
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} sudo kubeadm init phase upload-certs \
-		--upload-certs --config ${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.upload-certs.${UTC}.log
 
 healthz :
 	curl -ks https://${K8S_ENDPOINT}/healthz?verbose
@@ -567,14 +560,15 @@ iperftest :
 trivy :
 	bash ${ADMIN_SRC_DIR}/security/trivy/trivy-operator-install.sh 
 
+csi-nfs :
+	pushd csi/nfs/nfs-subdir-external-provisioner \
+		&& bash nfs-subdir-provisioner.sh
 csi-local :
 	bash ${ADMIN_SRC_DIR}/csi/local-path-provisioner/local-path-provisioner.sh 
-
 csi-rook-up :
 	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh up
-
-# Reboot after teardown 
 export rbd := sdb
+## Reboot after rook teardown 
 csi-rook-down :
 	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh down
 	ansibash -u ${ADMIN_SRC_DIR}/csi/rook/rook.sh
@@ -582,11 +576,12 @@ csi-rook-down :
 	ansibash 'sudo wipefs --all /dev/${rbd} && sudo dd if=/dev/zero of=/dev/${rbd} bs=1M count=10'
 
 efk-up :
-	bash ${ADMIN_SRC_DIR}/logging/efk-studytonight/efk.sh apply
+	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh apply
 efk-down :
-	bash ${ADMIN_SRC_DIR}/logging/efk-studytonight/efk.sh delete
+	bash ${ADMIN_SRC_DIR}/observability/logging/efk-studytonight/efk.sh delete
 
-teardown : calico-teardown cilium-teardown kuberouter-teardown
+#teardown : calico-teardown cilium-teardown kuberouter-teardown
+teardown : 
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \

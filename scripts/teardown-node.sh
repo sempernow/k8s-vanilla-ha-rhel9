@@ -3,33 +3,16 @@
 [[ "$(whoami)" == 'root' ]] || exit 11
 export PATH="/usr/local/bin:$PATH"
 
-[[ -r ~/.kube/config ]] &&
-    export KUBECONFIG=/etc/kubernetes/super-admin.conf ||
-        export KUBECONFIG=/etc/kubernetes/admin.conf ||
-            export KUBECONFIG=~/.kube/config
+manifests=/etc/kubernetes/manifests
+find $manifests -type f -exec rm -f {} \; && sleep 10
 
-[[ -f $KUBECONFIG && $(kubectl config get-contexts --no-headers) ]] && {
-    helm list -A 2>&1 \
-        |grep -ve WARN -ve NAME \
-        |xargs -IX /bin/bash -c 'helm uninstall --timeout 15s -n $2 $1' _ X
-
-    kubectl get no |grep -v NAME |cut -d' ' -f1 \
-        |xargs -I{} kubectl drain --timeout=15s --force --ignore-daemonsets=true --delete-emptydir-data=true {}
-
-    kubectl get crds |grep -v NAME |cut -d' ' -f1 \
-        |xargs -I{} kubectl delete crds --timeout=15s {}
-}
-
-## Delete static-pod manifests of K8s control plane, and allow kubelet to terminate their pods
-[[ $(find /etc/kubernetes/manifests -type f -exec rm -f {} \+) ]] && sleep 30
-
-## Delete residual containers
+# Delete residual containers
 obj="$(sudo crictl ps -q)"
 echo "$obj" |xargs -I{} crictl stop {}
 echo "$obj" |xargs -I{} crictl rm {}
 [[ $obj ]] && sleep 3
 
-## Delete residual Pods
+# Delete residual Pods
 [[ $(systemctl is-active containerd) == 'active' ]] ||
     (systemctl start containerd && sleep 10)
 obj="$(sudo crictl pods -q)"
@@ -37,10 +20,10 @@ echo "$obj" |xargs -I{} crictl stopp {}
 echo "$obj" |xargs -I{} crictl rmp {}
 [[ $obj ]] && sleep 3
 
-## Reset kubeadm state 
+# Reset kubeadm state 
 kubeadm reset -f 2>/dev/null
 
-## Stop kubelet and all Kubernetes related processes
+# Stop kubelet and all Kubernetes related processes
 systemctl stop kubelet #|| exit 22
 [[ $(type -t docker) ]] && systemctl stop docker
 systemctl stop containerd #|| exit 33
@@ -57,7 +40,7 @@ rm -rf /var/lib/rook
 #rbd=sdb
 #sudo wipefs --all /dev/$rdb && sudo dd if=/dev/zero of=/dev/$rbd bs=1M count=10
 
-## If using etcd in a dedicated directory (for external etcd)
+# If using etcd in a dedicated directory (for external etcd)
 rm -rf /var/lib/etcd
 
 # Remove virtual network interfaces
@@ -78,7 +61,7 @@ systemctl disable --now firewalld
 #systemctl stop iptables
 systemctl disable --now nftables
 
-## Flush iptables : filter, nat, and mangle
+# Flush iptables : filter, nat, and mangle
 # iptables --flush
 # iptables --delete-chain
 # iptables -t nat --flush
@@ -86,38 +69,19 @@ systemctl disable --now nftables
 # iptables -t mangle --flush
 # iptables -t mangle --delete-chain
 
-## Cleanup nftables
+# Cleanup nftables
 #nft flush ruleset
 cni='cni cali cilium kube'
 tables='raw nat filter'
-# for table in $tables; do
-#     for name in $cni; do
-#         nft list table ip $table \
-#             |grep -io "chain $name-[^ ]*" \
-#             |awk '{print $2}' \
-#             |xargs -I{} nft delete chain ip $table "{}"
-#     done
-# done
-
-# Improved
 for table in $tables; do
-    # Check if the table exists
-    if nft list table ip "$table" >/dev/null 2>&1; then
-        for name in $cni; do
-            nft list table ip "$table" \
-                | grep -io "chain $name-[^ ]*" \
-                | awk '{print $2}' \
-                | while read -r chain; do
-                    # Double-check before deleting
-                    if [ -n "$chain" ]; then
-                        nft delete chain ip "$table" "$chain"
-                    fi
-                done
-        done
-    fi
+    for name in $cni; do
+        nft list table ip $table \
+            |grep -io "chain $name-[^ ]*" \
+            |awk '{print $2}' \
+            |xargs -I{} nft delete chain ip $table "{}"
+    done
 done
-
-## Persist 
+# Persist 
 #nft list ruleset > /etc/nftables.conf
 #systemctl enable --now firewalld
 #systemctl stop iptables
