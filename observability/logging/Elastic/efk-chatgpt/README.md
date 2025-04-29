@@ -2,28 +2,26 @@
 
 [__`efk-chatgpt.sh`__](efk-chatgpt.sh)
 
-@ `Ubuntu (master) [16:36:04] [1] [#0] /s/DEV/devops/infra/kubernetes/k8s-vanilla-ha-rhel9`
+- Upgraded images to OSS and newer.  
+- Kibana web UI up
+    - http://192.168.11.101:30001/
 
 ```bash
-☩ kubectl port-forward $(kubectl get pod -l app=kibana --no-headers |cut -d' ' -f1) 5601:5601 &
-[1] 180859
-
-☩ Forwarding from 127.0.0.1:5601 -> 5601
-Forwarding from [::1]:5601 -> 5601
+☩ curl -IX GET http://192.168.11.101:30001/app/home
+HTTP/1.1 200 OK
+...
 ```
+
+@ `Ubuntu (master) ... /s/DEV/devops/infra/kubernetes/k8s-vanilla-ha-rhel9`
 
 ```bash
 ☩ kubectl port-forward svc/elasticsearch 9200:9200 &
-[2] 180920
+[1] 209729
 
-☩ Forwarding from 127.0.0.1:9200 -> 9200
-Forwarding from [::1]:9200 -> 9200
-
-☩ ps -aux |grep kubectl
-x1        180859  0.1  0.1 5474388 47236 pts/0   Sl   16:36   0:00 kubectl port-forward kibana-5ffdb4fd86-5vzh8 5601:5601
-x1        180920  0.2  0.1 5474644 45824 pts/0   Sl   16:36   0:00 kubectl port-forward svc/elasticsearch 9200:9200
+☩ curl -sXGET 'http://localhost:9200/_cat/indices?v' |grep logstash
+Handling connection for 9200
+yellow open   logstash-2025.04.28              DB_8_gDdQaynKIcYNG-OZg   1   1       1085            0      1.3mb          1.3mb
 ```
-- Web: `http://localhost:5601/app/lens#/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-15m,to:now))`
 
 ```bash
 ☩ k get $all

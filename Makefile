@@ -194,6 +194,9 @@ menu :
 	@echo "============== "
 	@echo "efk-up       : Install EFK stack"
 	@echo "efk-down     : Teardown EFK stack"
+	@echo "efk-verify   : GET request to Kibana"
+	@echo "loki-up      : Install Grafana Loki chart"
+	@echo "loki-down    : Uninstall Grafana Loki chart"
 	@echo "============== "
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 
@@ -574,10 +577,18 @@ csi-rook-down :
 	ansibash 'sudo wipefs --all /dev/${rbd} && sudo dd if=/dev/zero of=/dev/${rbd} bs=1M count=10'
 
 efk_stack := efk-chatgpt
+#efk_stack := efk-studytonight
 efk-up :
-	bash ${ADMIN_SRC_DIR}/observability/logging/${efk_stack}/${efk_stack}.sh apply
+	bash ${ADMIN_SRC_DIR}/observability/logging/elastic/${efk_stack}/${efk_stack}.sh apply
 efk-down :
-	bash ${ADMIN_SRC_DIR}/observability/logging/${efk_stack}/${efk_stack}.sh delete
+	bash ${ADMIN_SRC_DIR}/observability/logging/elastic/${efk_stack}/${efk_stack}.sh delete
+efk-status :
+	bash ${ADMIN_SRC_DIR}/observability/logging/elastic/${efk_stack}/${efk_stack}.sh verify
+
+loki-up :
+	bash ${ADMIN_SRC_DIR}/observability/logging/grafana-loki/grafana-loki.sh upgrade
+loki-down :
+	bash ${ADMIN_SRC_DIR}/observability/logging/grafana-loki/grafana-loki.sh uninstall
 
 #teardown : calico-teardown cilium-teardown kuberouter-teardown
 teardown : 
