@@ -1,6 +1,7 @@
 # [`k8s-vanilla-ha-rhel9`](https://github.com/sempernow/k8s-vanilla-ha-rhel9 "GitHub : sempernow/k8s-vanilla-ha-rhel9") | [Kubernetes.io](https://kubernetes.io/docs/) | [Releases](https://github.com/kubernetes/kubernetes/releases)
 
-Install an on-prem K8s cluster of 3 control nodes using `kubeadm`.
+Install an on-prem K8s cluster of 3 control nodes using `kubeadm`. 
+
 
 ## Usage
 
