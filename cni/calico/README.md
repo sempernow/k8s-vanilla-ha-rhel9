@@ -121,6 +121,45 @@ Attributes:
 
 ```
 
+### [__Calico monitoring__ commands](https://chatgpt.com/share/68117571-ed50-8009-9a59-2b918038e3cc) 
+
+Summary 
+
+```bash
+# Run as sudo per node : Checks local Calico/node service
+echo a1 a2 a3 |xargs -n1 /bin/bash -c 'ssh $1 sudo calicoctl node status' _
+
+# Run felix per node : full dump for forensics 
+kubectl exec -n kube-system calico-node-gp7tl -c calico-node -- calico-node -felix
+
+# Run remote, unprivileged
+calicoctl ipam show --show-blocks
+calicoctl ipam show --show-configuration
+
+# Status per node (Felix/BIRD)
+kubectl get pods -n kube-system -l k8s-app=calico-node -o name \
+    |xargs -I{} kubectl exec -n kube-system {} -c calico-node -- sh -c '
+        echo "=== {}"
+        /bin/calico-node -felix-live && echo "Felix live: OK" || echo "Felix live: FAIL"
+        /bin/calico-node -felix-ready && echo "Felix ready: OK" || echo "Felix ready: FAIL"
+        /bin/calico-node -bird-live && echo "BIRD live: OK" || echo "BIRD live: FAIL"
+        /bin/calico-node -bird-ready && echo "BIRD ready: OK" || echo "BIRD ready: FAIL"
+        echo
+    '
+```
+```log
+...
+=== pod/calico-node-gp7tl
+Felix live: OK
+Felix ready: OK
+BIRD live: OK
+2025-04-30 00:54:30.895 [INFO][63657] node/health.go 202: Number of node(s) with BGP peering established = 2
+BIRD ready: OK
+...
+```
+- __Felix__ is the node-local Calico brain that reacts to cluster state and enforces networking and policy rules in the kernel.
+- __BIRD__ is a userspace BGP routing daemon; the optional Calico routing announcer used in BGP mode (bare-metal clusters, no overlay tunnels).
+
 ### `calicoctl` CLI as `kubctl` plugin 
 
 At admin node:
