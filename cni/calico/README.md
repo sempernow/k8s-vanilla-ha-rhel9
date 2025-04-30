@@ -130,20 +130,24 @@ Summary
 echo a1 a2 a3 |xargs -n1 /bin/bash -c 'ssh $1 sudo calicoctl node status' _
 
 # Run felix per node : full dump for forensics 
-kubectl exec -n kube-system calico-node-gp7tl -c calico-node -- calico-node -felix
+kubectl exec -n kube-system calico-node-$name -c calico-node -- calico-node -felix
 
 # Run remote, unprivileged
 calicoctl ipam show --show-blocks
 calicoctl ipam show --show-configuration
 
-# Status per node (Felix/BIRD)
+# calico-node
+pod=$(kubectl get pods -n kube-system -l k8s-app=calico-node -o name |head -n1)
+kubectl exec -n kube-system $pod -c calico-node -- calico-node --help
+kubectl exec -n kube-system $pod -c calico-node -- calico-node --show-status
+# calico-node : Felix/BIRD live/ready status per node
 kubectl get pods -n kube-system -l k8s-app=calico-node -o name \
     |xargs -I{} kubectl exec -n kube-system {} -c calico-node -- sh -c '
         echo "=== {}"
-        /bin/calico-node -felix-live && echo "Felix live: OK" || echo "Felix live: FAIL"
+        /bin/calico-node -felix-live  && echo "Felix live: OK"  || echo "Felix live: FAIL"
         /bin/calico-node -felix-ready && echo "Felix ready: OK" || echo "Felix ready: FAIL"
-        /bin/calico-node -bird-live && echo "BIRD live: OK" || echo "BIRD live: FAIL"
-        /bin/calico-node -bird-ready && echo "BIRD ready: OK" || echo "BIRD ready: FAIL"
+        /bin/calico-node -bird-live   && echo "BIRD live: OK"   || echo "BIRD live: FAIL"
+        /bin/calico-node -bird-ready  && echo "BIRD ready: OK"  || echo "BIRD ready: FAIL"
         echo
     '
 ```
