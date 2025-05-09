@@ -7,13 +7,15 @@ Vendor's images and manifest work *straight out of the box*.
 1. Install by manifests 
     - [`stack.sh`](stack.sh):
 2. Browse to __Kibana__ ("elastic" name/logo) 
-    - @ `http://$node_ip$:$node_port/app/home`
+    - http://192.168.11.101:30001/app/home
+        - `NODE_IP:KIBANA_SVC_NODEPORT`
 3. Select __Management > Stack Management > Kibana > Index Patterns__
     - Create Index Pattern: `logstach-*`
 4. Select __Analytics > Discover__
     - See logs
+    - http://192.168.11.101:30001/app/discover
 
-Attempting HA hits vendor lockout issues. 
+Attempting HA ([`02-es-cluster.yaml`](02-es-cluster.yaml)) hits vendor lockout issues. 
 Hence the attempted migration to OSS (bitnami) images (below).
 
 ## [__`efk-chatgpt.sh`__](efk-chatgpt.sh)
