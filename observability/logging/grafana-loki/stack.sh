@@ -10,8 +10,8 @@ upgrade(){
     helm upgrade --install $release $repo/$chart --version $v --values $values
 }
 
-uninstall(){
-    helm uninstall $release
+delete(){
+    helm delete $release
 }
 
 pushd ${BASH_SOURCE%/*} || pushd . || exit 1
