@@ -113,16 +113,6 @@ export K8S_CGROUP_DRIVER      ?= systemd
 
 menu :
 	$(INFO) 'Install K8s onto all target hosts : RHEL9 is expected'
-	@echo "env          : Print Makefile environment"
-	@echo "mode         : Fix file mode of this source"
-	@echo "html         : Process all MD files to HTML"
-	@echo "push         : Commit and push this source"
-	@echo "============== "
-	@echo "status       : Print targets' status"
-	@echo "net          : Network interfaces"
-	@echo "psrss        : Print targets' top memory usage : RSS [MiB]"
-	@echo "home         : Configure shell using latest @ github.com/sempernow/home.git"
-	@echo "============== "
 	@echo "conf         : kernel selinux swap : See scripts/configure-*"
 	@echo "  -kernel    : Configure kernel for K8s/CNI/CRI : load modules and set runtime params"
 	@echo "  -selinux   : Configure targets' SELinux : Set to Permissive"
@@ -199,6 +189,16 @@ menu :
 	@echo "loki-delete  : Uninstall Grafana Loki chart"
 	@echo "============== "
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
+	@echo "============== "
+	@echo "status       : Print targets' status"
+	@echo "net          : Network interfaces"
+	@echo "psrss        : Print targets' top memory usage : RSS [MiB]"
+	@echo "home         : Configure shell using latest @ github.com/sempernow/home.git"
+	@echo "============== "
+	@echo "env          : Print Makefile environment"
+	@echo "mode         : Fix file mode of this source"
+	@echo "html         : Process all MD files to HTML"
+	@echo "push         : Commit and push this source"
 
 env : 
 	$(INFO) 'Environment'
