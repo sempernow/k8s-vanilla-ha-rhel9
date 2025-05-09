@@ -1,8 +1,25 @@
 # [`efk-chatgpt`](https://chatgpt.com/share/680e77c5-7d68-8009-b6a4-f66d608c8714 "ChatGPT")
 
-[__`efk-chatgpt.sh`__](efk-chatgpt.sh)
+## TL;DR
+
+Vendor's images and manifest work *straight out of the box*. 
+
+1. Install by manifests 
+    - [`stack.sh`](stack.sh):
+2. Browse to __Kibana__ ("elastic" name/logo) 
+    - @ `http://$node_ip$:$node_port/app/home`
+3. Select __Management > Stack Management > Kibana > Index Patterns__
+    - Create Index Pattern: `logstach-*`
+4. Select __Analytics > Discover__
+    - See logs
+
+Attempting HA hits vendor lockout issues. 
+Hence the attempted migration to OSS (bitnami) images (below).
+
+## [__`efk-chatgpt.sh`__](efk-chatgpt.sh)
 
 - Upgraded images to OSS and newer.  
+    - Issues at Web UI
 - Kibana web UI up
     - http://192.168.11.101:30001/
 

@@ -26,6 +26,7 @@ verify(){
     ip=$(k get node -o yaml |yq -Mr '.[][].status.addresses[] |select(.type == "InternalIP").address' |head -n 1)
     p=$(k get svc kibana -o yaml |yq .spec.ports[].nodePort)
     path=app/home
+    echo -e "\n=== Kibana @ http://$ip:$p/$path"
     curl -sIX GET http://$ip:$p/$path |grep HTTP
 }
 
