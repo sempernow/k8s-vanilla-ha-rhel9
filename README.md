@@ -111,7 +111,7 @@ node/a1 untainted
 
 ## CNI
 
-The eBPF-based variants of CNI projects are purportedly ready for production. However, they have a large number of methods, protocols and configuration parameters per option making it quite challenging to implement a fully functioning network. That stands even after "properly" configuring and passing all their smoke tests. It is not unusual to have recurring failures, evermore revealing some new fail mode.
+The eBPF-based variants of CNI projects are purportedly ready for production. However, they have a large number of methods, protocols and configuration parameters per option making it quite challenging to implement a fully functioning network. That stands even after "properly" configuring and passing all their smoke tests. It is not unusual to have recurring failures, each revealing some new fail mode.
 
 ## Modify `kubelet` Configuration 
 

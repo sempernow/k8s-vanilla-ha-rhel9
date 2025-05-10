@@ -578,18 +578,18 @@ csi-rook-down :
 
 log_stack := elastic/efk-chatgpt
 efk-apply :
-	bash ${ADMIN_SRC_DIR}/observability/logging/${log_stack}/stack.sh apply
+	bash ${ADMIN_SRC_DIR}/logging/${log_stack}/stack.sh apply
 efk-forward :
-	bash ${ADMIN_SRC_DIR}/observability/logging/${log_stack}/stack.sh forward
+	bash ${ADMIN_SRC_DIR}/logging/${log_stack}/stack.sh forward
 efk-delete :
-	bash ${ADMIN_SRC_DIR}/observability/logging/${log_stack}/stack.sh delete
+	bash ${ADMIN_SRC_DIR}/logging/${log_stack}/stack.sh delete
 efk-verify :
-	bash ${ADMIN_SRC_DIR}/observability/logging/${log_stack}/stack.sh verify
+	bash ${ADMIN_SRC_DIR}/logging/${log_stack}/stack.sh verify
 
 loki-install :
-	bash ${ADMIN_SRC_DIR}/observability/logging/grafana-loki/stack.sh upgrade
+	bash ${ADMIN_SRC_DIR}/logging/grafana-loki/stack.sh upgrade
 loki-delete :
-	bash ${ADMIN_SRC_DIR}/observability/logging/grafana-loki/stack.sh uninstall
+	bash ${ADMIN_SRC_DIR}/logging/grafana-loki/stack.sh uninstall
 
 #teardown : calico-teardown cilium-teardown kuberouter-teardown
 teardown : 
