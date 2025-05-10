@@ -81,8 +81,6 @@ data:
         Match               kube.*
         Kube_Tag_Prefix     kube.var.log.containers.
         Merge_Log           On
-        Merge_Log_Key       log
-        merge_parser        inner_json
         Keep_Log            Off
         K8S-Logging.Parser  On
         K8S-Logging.Exclude On
@@ -103,14 +101,6 @@ data:
         Time_Key time
         Time_Format %Y-%m-%dT%H:%M:%S.%L
         Time_Keep On
-
-    [PARSER]
-        Name   inner_json
-        Format json
-        Time_Key @timestamp
-        Time_Format %Y-%m-%dT%H:%M:%S.%L%z
-        Time_Keep On
-
 ---
 apiVersion: apps/v1
 kind: DaemonSet

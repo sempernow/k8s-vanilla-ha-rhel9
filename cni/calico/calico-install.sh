@@ -45,14 +45,15 @@ ok(){
         # calicoctl
         # https://docs.tigera.io/calico/latest/operations/calicoctl/install
         dir="$DIR/cli"
-        url=https://github.com/projectcalico/calico/releases/download/$VER/calicoctl-linux-amd64 
+        url=https://github.com/projectcalico/calico/releases/download/$VER/calicoctl-linux-amd64
         file=calicoctl
         [[ -f $dir/$file ]] && return 0
         mkdir -p $dir
         pushd $dir
-        curl -sSL -o $file $url 
+        curl -sSL -o $file $url
         sudo install $file /usr/local/bin/
-        #sudo ln -s /usr/local/bin/$file /usr/local/bin/kubectl-calico
+        # Configure kubectl plugin for Calico, to provide `kubectl calico ...`
+        sudo ln -s /usr/local/bin/$file /usr/local/bin/kubectl-calico
         popd
         #chmod 0755 $dir/$file && $dir/$file version |grep $VER || return 404
     }
@@ -61,4 +62,4 @@ ok(){
 
 pushd "${BASH_SOURCE%/*}" || pushd . || return 1
 ok || echo "ERR: $?"
-popd 
+popd

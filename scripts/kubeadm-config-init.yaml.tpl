@@ -6,7 +6,7 @@ kind: InitConfiguration
 ## Certificate Key:
 ## See "kubeadm init" output : ... --certificate-key <KEY>
 ## --certificate-key=$(kubeadm certs certificate-key)
-# certificateKey: K8S_CERTIFICATE_KEY 
+# certificateKey: K8S_CERTIFICATE_KEY
 # bootstrapTokens:
 # ## --token=$(kubeadm token generate)
 # - token: K8S_BOOTSTRAP_TOKEN
@@ -32,15 +32,15 @@ nodeRegistration:
   #   effect: "NoSchedule"
   # ignorePreflightErrors:
   # - Mem         # Useful at VM having dynamically-allocated memory.
-  # kubeletExtraArgs:  
-  ## k-v maps to inline arg by prepending `--`, 
+  # kubeletExtraArgs:
+  ## k-v maps to inline arg by prepending `--`,
   ## so k-v `pod-cidr: <cidr>` becomes arg `--pod-cidr <cidr>` .
   ## See kubelet --help
   ## Some kubeletExtraArgs are exclusive to Standalone mode,
   ## which is enabled by omitting `--kubeconfig` flag.
-  #   v: "5" 
-  #   pod-cidr: "K8S_POD_CIDR" 
-  #   cgroup-driver: K8S_CGROUP_DRIVER 
+  #   v: "5"
+  #   pod-cidr: "K8S_POD_CIDR"
+  #   cgroup-driver: K8S_CGROUP_DRIVER
 ---
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
@@ -56,7 +56,7 @@ apiServer:
 clusterName: K8S_CLUSTER_NAME
 ## External LB endpoint else that of init node
 controlPlaneEndpoint: "K8S_ENDPOINT"
-controllerManager: 
+controllerManager:
 ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ControlPlaneComponent
 ## https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
   extraArgs:
@@ -76,19 +76,19 @@ networking:
 # scheduler: {}
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
-kind: KubeletConfiguration  
+kind: KubeletConfiguration
 ## @ /var/lib/kubelet/config.yaml
-## @ `kubectl -n kube-system get cm kubelet-config -o yaml |yq -Mr .data.kubelet` 
+## @ `kubectl -n kube-system get cm kubelet-config -o yaml |yq -Mr .data.kubelet`
 ## https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration
 ## Kubelet is PER NODE
 ## See kubelet -h
 ## kubeadm config print init-defaults --component-configs KubeletConfiguration
-## kubectl get configmap kubelet-config-1 -n kube-system -o json |jq -Mr .data.kubelet |base64 -d 
+## kubectl get configmap kubelet-config-1 -n kube-system -o json |jq -Mr .data.kubelet |base64 -d
 ## ConfigMaps, kubelet-config-1, exist PER NODE.
 ## Restart kubelet.service on any change to its --config CONFIG
 # enableServer: true
 # imageGCHighThresholdPercent: 85
-# imageGCLowThresholdPercent: 80 
+# imageGCLowThresholdPercent: 80
 ## Default authentication schemes okay:
 # authentication:
 #   anonymous:
@@ -98,24 +98,24 @@ kind: KubeletConfiguration
 #     enabled: true
 #   x509:
 #     clientCAFile: /etc/kubernetes/pki/ca.crt
-# authorization: 
+# authorization:
 #   mode: Webhook
 #   webhook:
 #     cacheAuthorizedTTL: 0s
 #     cacheUnauthorizedTTL: 0s
 ## Docker-K8s shim : /var/run/cri-docker.sock
-##   https://github.com/mirantis/cri-dockerd 
+##   https://github.com/mirantis/cri-dockerd
 ##   https://www.mirantis.com/blog/the-future-of-dockershim-is-cri-dockerd/
 ##   https://mirantis.github.io/cri-dockerd/usage/install/
 containerLogMaxSize: 1Mi  # Default is 10Mi
 containerLogMaxFiles: 5   # Default is 5
 containerRuntimeEndpoint: K8S_CRI_SOCKET
-cgroupDriver: K8S_CGROUP_DRIVER 
+cgroupDriver: K8S_CGROUP_DRIVER
 ## Node Allocatable
-## https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/ 
+## https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/
 ## Reserve ample resources for control plane, especially if node is dual use.
 ## https://unofficial-kubernetes.readthedocs.io/en/latest/tasks/administer-cluster/reserve-compute-resources/
-## Rather than Node Allocatable scheme, rely on Pod QoS : Guaranteed 
+## Rather than Node Allocatable scheme, rely on Pod QoS : Guaranteed
 ## https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/#create-a-pod-that-gets-assigned-a-qos-class-of-guaranteed
 # systemReserved:   # host
 #   cpu: "500m"
@@ -128,7 +128,7 @@ cgroupDriver: K8S_CGROUP_DRIVER
 #   - "system-reserved"
 #   - "kube-reserved"
 # clusterDomain: cluster.local
-## Hairpin mode affects Pod requests of their own Services by 
+## Hairpin mode affects Pod requests of their own Services by
 ## disallowing localhost, so Service requests *always* go through svc route (vEth/IP).
 hairpinMode: hairpin-veth
 # healthzBindAddress: 127.0.0.1
@@ -159,13 +159,13 @@ fileCheckFrequency: 20s
 httpCheckFrequency: 10s
 logging:
   flushFrequency: 5s
-  verbosity: 1
+  verbosity: 0
 shutdownGracePeriod: 30s
 shutdownGracePeriodCriticalPods: 10s
 streamingConnectionIdleTimeout: 0s
 ## TLS Params : See https://pkg.go.dev/crypto/tls#pkg-constants
 # tlsCipherSuites: []
-tlsMinVersion: VersionTLS12 
+tlsMinVersion: VersionTLS12
 ---
 apiVersion: kubeproxy.config.k8s.io/v1alpha1
 kind: KubeProxyConfiguration
@@ -176,7 +176,7 @@ clusterCIDR: "K8S_POD_CIDR"             # Replace with your cluster's pod networ
 detectLocalMode: "ClusterCIDR"          # Detect local traffic based on the cluster CIDR.
 healthzBindAddress: "0.0.0.0:10256"
 metricsBindAddress: "0.0.0.0:10249"     # Enable metrics for monitoring tools (Prometheus, etc.).
-# hostnameOverride: "K8S_INIT_NODE"       # Overriding current hostname prevents future changes from being injested by K8s, 
+# hostnameOverride: "K8S_INIT_NODE"       # Overriding current hostname prevents future changes from being injested by K8s,
                                         # which has caused systemic mTLS failure on the subsequent rotation.
                                         # However, this setting would be required at each node?
 ipvs:
