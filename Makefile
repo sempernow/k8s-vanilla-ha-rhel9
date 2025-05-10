@@ -58,14 +58,14 @@ export HALB_ENDPOINT ?= ${HALB_VIP}:${HALB_PORT}
 ##############################################################################
 ## Cluster
 
-## ansibash 
+## ansibash
 ### Public-key string of ssh user must be in ~/.ssh/authorized_keys of ADMIN_USER at all targets.
 #export ADMIN_USER          ?= $(shell id -un)
 export ADMIN_USER          ?= u2
 export ADMIN_KEY           ?= ${HOME}/.ssh/vm_lime
 export ADMIN_HOST          ?= a0
 export ADMIN_NODES_CONTROL ?= a1 a2 a3
-export ADMIN_NODES_WORKER  ?= 
+export ADMIN_NODES_WORKER  ?=
 export ADMIN_TARGET_LIST   ?= ${ADMIN_NODES_CONTROL} ${ADMIN_NODES_WORKER}
 export ADMIN_SRC_DIR       ?= $(shell pwd)
 #export ADMIN_DST_DIR       ?= ${ADMIN_SRC_DIR}
@@ -129,7 +129,7 @@ menu :
 	@echo "lbverify     : Verify HA-LB dynamics"
 	@echo "lbshow       : Show HA-LB status"
 	@echo "============== "
-	@echo "init         : Create 1st control node of the cluster" 
+	@echo "init         : Create 1st control node of the cluster"
 	@echo "  -purge     : Purge Makefile.settings of stale PKI params"
 	@echo "  -gen       : Generate ${K8S_KUBEADM_CONF_INIT} from template (.yaml.tpl)"
 	@echo "  -push      : Upload ${K8S_KUBEADM_CONF_INIT} to all nodes"
@@ -197,14 +197,18 @@ menu :
 	@echo "============== "
 	@echo "env          : Print Makefile environment"
 	@echo "mode         : Fix file mode of this source"
+	@echo "eol          : Fix line endings : Convert all CRLF to LF"
 	@echo "html         : Process all MD files to HTML"
 	@echo "push         : Commit and push this source"
 
-env : 
+env :
 	$(INFO) 'Environment'
 	@echo "PWD=${PRJ_ROOT}"
 	@env |grep K8S_
-	@env |grep ADMIN_ 
+	@env |grep ADMIN_
+
+eol :
+	find . -type f ! -path '*/.git/*' -exec dos2unix {} \+
 
 perms mode :
 	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \;
@@ -264,8 +268,8 @@ home :
 # Configure the installer (ADMIN_USER) on each node. Final task is manual.
 # See script for details.
 pki :
-	printf "%s\n" ${ADMIN_TARGET_LIST} |xargs -I{} scp ${ADMIN_KEY}.pub {}:. 
-	printf "%s\n" ${ADMIN_TARGET_LIST} |xargs -I{} scp ${ADMIN_SRC_DIR}/scripts/create_provisioner_target_node.sh {}:. 
+	printf "%s\n" ${ADMIN_TARGET_LIST} |xargs -I{} scp ${ADMIN_KEY}.pub {}:.
+	printf "%s\n" ${ADMIN_TARGET_LIST} |xargs -I{} scp ${ADMIN_SRC_DIR}/scripts/create_provisioner_target_node.sh {}:.
 	bash ${ADMIN_SRC_DIR}/scripts/create_provisioner_target_node_instruct.sh
 
 # Configure the provisioner (ADMIN_USER) on each node ONLY IF ssh user ($USER) has NOPASSWD set at /etc/sudoers.d/$USER .
@@ -331,7 +335,7 @@ install-k8s :
 #bash make.recipes.sh halb
 lbmake lbbuild :
 	bash ${ADMIN_SRC_DIR}/halb/build-halb.sh
-	
+
 #bash halb/push-halb.sh
 lbconf :
 	scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_1}.conf ${GITOPS_USER}@${HALB_FQDN_1}:keepalived.conf \
@@ -346,21 +350,21 @@ lbconf :
 		&& ansibash -s ${ADMIN_SRC_DIR}/halb/configure-halb.sh ${HALB_CIDR} ${HALB_DEVICE} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.lbconf.${UTC}.log
 
-lbverify : 
+lbverify :
 	bash ${ADMIN_SRC_DIR}/halb/verify-instruct.sh
 
 lbshow lblook :
 #ansibash ip -4 -brief addr show dev ${HALB_DEVICE} |grep -e ${HALB_VIP} -e ===
-	ansibash ip -4 -brief addr show dev ${HALB_DEVICE} 
+	ansibash ip -4 -brief addr show dev ${HALB_DEVICE}
 	ansibash 'sudo journalctl -eu keepalived |grep -e Entering -e @'
 
-lbfix :	
+lbfix :
 	ssh gitops@vm124 /bin/bash -s <${ADMIN_SRC_DIR}/halb/firewalld-halb.sh ${HALB_VIP} ${HALB_VIP6} ${HALB_PORT} ${HALB_DEVICE}
 
 
 ## K8s cluster creation
 
-init-imperative : 
+init-imperative :
 	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
 		sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
 			--kubernetes-version ${K8S_VERSION} \
@@ -379,7 +383,7 @@ init : init-purge init-gen init-push init-images init-pki init-pre init-now kube
 init-purge :
 	bash make.recipes.sh settings_purge
 	rm logs/*.log
-init-gen : 
+init-gen :
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-gen.${UTC}.log
@@ -398,7 +402,7 @@ init-pki :
 	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-pki.sh ${K8S_INIT_NODE}:. \
 		&& ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-pki.sh ${K8S_KUBEADM_CONF_INIT} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pki.${UTC}.log
-init-pre : 
+init-pre :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
 			--config ${K8S_KUBEADM_CONF_INIT} \
@@ -420,7 +424,7 @@ init-certs :
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
 	scp -p ${ADMIN_USER}@${K8S_INIT_NODE}:Makefile.settings .
 join-control : join-prep join-now
-join-prep : join-gen join-push 
+join-prep : join-gen join-push
 join-gen :
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
@@ -462,11 +466,11 @@ cilium-cli :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh install_by_cli \
 		${cilium_values} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-cli.${UTC}.log
-cilium-gen : 
+cilium-gen :
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/cni/cilium/${cilium_values} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-gen.${UTC}.log
-cilium-helm : 
+cilium-helm :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh install_by_helm \
 		${cilium_values} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-helm.${UTC}.log
@@ -476,9 +480,9 @@ cilium-teardown :
 
 calico : calico-manifest
 calico-install :
-	bash cni/calico/calico-install.sh 
+	bash cni/calico/calico-install.sh
 #calico : calico-operator-gen calico-operator
-calicoctl calico-status : 
+calicoctl calico-status :
 	ansibash sudo /usr/local/bin/calicoctl node status |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 	kubectl calico get ippool |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 	kubectl calico ipam show --show-blocks |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
@@ -486,7 +490,7 @@ calicoctl calico-status :
 	kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP} |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 	kubectl get tigerastatuses && kubectl get tigerastatuses || echo |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 export calico_operator := custom-resources-bpf-bgp.yaml
-calico-operator-gen : 
+calico-operator-gen :
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/cni/calico/operator-method/${calico_operator} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-operator-gen.${UTC}.log
@@ -497,12 +501,12 @@ calico-manifest :
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-manifest.${UTC}.log
 calico-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh teardown ${calico_operator} || echo
-	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml || echo 
-	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml || echo 
+	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml || echo
+	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/crds.yaml || echo
 
 export selector := non-cni
 kubeproxy-cleanup :
-	kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"${selector}": "true"}}}}}' || echo 
+	kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"${selector}": "true"}}}}}' || echo
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		ansibash -u scripts/kube-proxy-cleanup.sh
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
@@ -513,7 +517,7 @@ kubeproxy-restore :
 
 healthz :
 	curl -ks https://${K8S_ENDPOINT}/healthz?verbose
-watch : 
+watch :
 	kubectl get pod -A -o wide -w
 nodes :
 	type yq && kubectl get node -o yaml |yq '.[][].status.conditions[] |select(.status == "True")' || echo REQUIREs yq
@@ -521,9 +525,9 @@ psk :
 	ansibash psk
 crictl : crictl-images crictl-ps crictl-pods
 crictl-ps crictl-ctnr crictl-container crictl-containers :
-	ansibash sudo crictl ps 
+	ansibash sudo crictl ps
 crictl-pods crictl-pod :
-	ansibash sudo crictl pods 
+	ansibash sudo crictl pods
 crictl-images :
 	ansibash sudo crictl images
 images :
@@ -536,11 +540,11 @@ prune :
 #	bash scripts/kubectl-mass-delete-pods.sh StatusUnk
 
 
-ingress-nginx ingress-nginx-up : 
+ingress-nginx ingress-nginx-up :
 	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh update
-ingress-nginx-e2e : 
+ingress-nginx-e2e :
 	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh e2e
-ingress-nginx-teardown ingress-nginx-down : 
+ingress-nginx-teardown ingress-nginx-down :
 	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh teardown
 
 metrics metrics-up :
@@ -559,17 +563,17 @@ iperftest :
 # k proxy
 
 trivy :
-	bash ${ADMIN_SRC_DIR}/security/trivy/trivy-operator-install.sh 
+	bash ${ADMIN_SRC_DIR}/security/trivy/trivy-operator-install.sh
 
 csi-nfs :
 	pushd csi/nfs/nfs-subdir-external-provisioner \
 		&& bash nfs-subdir-provisioner.sh
 csi-local :
-	bash ${ADMIN_SRC_DIR}/csi/local-path-provisioner/local-path-provisioner.sh 
+	bash ${ADMIN_SRC_DIR}/csi/local-path-provisioner/local-path-provisioner.sh
 csi-rook-up :
 	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh up
 export rbd := sdb
-## Reboot after rook teardown 
+## Reboot after rook teardown
 csi-rook-down :
 	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh down
 	ansibash -u ${ADMIN_SRC_DIR}/csi/rook/rook.sh
@@ -592,7 +596,7 @@ loki-delete :
 	bash ${ADMIN_SRC_DIR}/logging/grafana-loki/stack.sh uninstall
 
 #teardown : calico-teardown cilium-teardown kuberouter-teardown
-teardown : 
+teardown :
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
