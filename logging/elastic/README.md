@@ -40,3 +40,4 @@ This breaks your merge_parser logic — Fluent Bit may be trying to parse the wr
 We saw that earlier log lines were cut off at the end — this could cause parsing to fail silently.
 1. The parser isn’t being invoked at all.
 Because Fluent Bit's merge_parser only runs when Merge_Log succeeds — if the merged field is missing or the wrong key is specified, nothing happens.
+

@@ -82,7 +82,7 @@ data:
         Kube_Tag_Prefix     kube.var.log.containers.
         Merge_Log           On
         Merge_Log_Key       log
-        merge_parser        inner_json
+        merge_parser        nginx_log
         Keep_Log            Off
         K8S-Logging.Parser  On
         K8S-Logging.Exclude On
@@ -109,6 +109,14 @@ data:
         Format json
         Time_Key @timestamp
         Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+        Time_Keep On
+
+    [PARSER]
+        Name   nginx_log
+        Format regex
+        Regex  ^(?<timestamp>[^ ]+) stdout F (?<remote_addr>[^ ]+) - - \[(?<time_local>[^\]]+)\] "(?<request>[^"]*)" (?<status>\d{3}) (?<body_bytes_sent>\d+) "(?<http_referer>[^"]*)" "(?<http_user_agent>[^"]*)"
+        Time_Key time_local
+        Time_Format %d/%b/%Y:%H:%M:%S %z
         Time_Keep On
 
 ---
