@@ -192,14 +192,14 @@ menu :
 	@echo "============== "
 	@echo "status       : Print targets' status"
 	@echo "net          : Network interfaces"
-	@echo "psrss        : Print targets' top memory usage : RSS [MiB]"
-	@echo "home         : Configure shell using latest @ github.com/sempernow/home.git"
+	@echo "psrss        : Print target hosts' top memory usage : RSS [MiB]"
+	@echo "userrc       : Configure target hosts' bash shell using latest @ github.com/sempernow/userrc.git"
 	@echo "============== "
-	@echo "env          : Print Makefile environment"
-	@echo "mode         : Fix file mode of this source"
+	@echo "env          : Print the make environment"
+	@echo "mode         : Fix folder and file modes of this project"
 	@echo "eol          : Fix line endings : Convert all CRLF to LF"
-	@echo "html         : Process all MD files to HTML"
-	@echo "push         : Commit and push this source"
+	@echo "html         : Process all markdown (MD) to HTML"
+	@echo "commit       : Commit and push this source"
 
 env :
 	$(INFO) 'Environment'
@@ -210,7 +210,7 @@ env :
 eol :
 	find . -type f ! -path '*/.git/*' -exec dos2unix {} \+
 
-perms mode :
+mode :
 	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \;
 	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \;
 #	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \;
@@ -218,7 +218,7 @@ perms mode :
 html :
 	find . -type f ! -path './.git/*' -name '*.md' -exec md2html.exe "{}" \;
 
-push commit : html mode
+commit push : html mode
 	gc && git push && gl && gs
 
 ##############################################################################
@@ -259,11 +259,11 @@ psrss :
 		&& ansibash -s scripts/psrss.sh
 
 # Configure bash shell of target hosts using the declared Git project
-home :
+userrc :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash 'git clone https://github.com/sempernow/home 2>/dev/null || echo ok'
+		&& ansibash 'git clone https://github.com/sempernow/userrc 2>/dev/null || echo ok'
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash 'pushd home;git pull;make sync-user && make user'
+		&& ansibash 'pushd userrc;git pull;make sync-user && make user'
 
 # Configure the installer (ADMIN_USER) on each node. Final task is manual.
 # See script for details.
