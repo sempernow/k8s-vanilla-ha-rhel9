@@ -24,7 +24,7 @@ INFO    := @bash -c 'printf $(YELLOW);echo "@ $$1";printf $(RESTORE)' MESSAGE
 ##############################################################################
 ## Project Meta
 
-export PRJ_ROOT   := $(shell pwd)
+export PRJ_ROOT := $(shell pwd)
 export LOG_PRE  := make
 export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 
@@ -358,14 +358,10 @@ lbshow lblook :
 	ansibash ip -4 -brief addr show dev ${HALB_DEVICE}
 	ansibash 'sudo journalctl -eu keepalived |grep -e Entering -e @'
 
-lbfix :
-	ssh gitops@vm124 /bin/bash -s <${ADMIN_SRC_DIR}/halb/firewalld-halb.sh ${HALB_VIP} ${HALB_VIP6} ${HALB_PORT} ${HALB_DEVICE}
-
-
 ## K8s cluster creation
 
 init-imperative :
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
+	ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} \
 		sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
 			--kubernetes-version ${K8S_VERSION} \
 			--upload-certs \
@@ -408,7 +404,7 @@ init-pre :
 			--config ${K8S_KUBEADM_CONF_INIT} \
 			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pre.${UTC}.log
 init-now :
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
+	ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} \
 		sudo kubeadm init -v${K8S_VERBOSITY} \
 			--upload-certs \
 			--config ${K8S_KUBEADM_CONF_INIT} \
@@ -417,14 +413,16 @@ init-now :
 kubeconfig :
 	bash make.recipes.sh kubeconfig
 
-## init-certs is run only if the (bootstrap) certificate key has expired.
+## init-certs is RUN ONLY IF the (bootstrap) certificate KEY HAS EXPIRED.
+## Run prior to running the join-control recipe, only if key has expired.
 init-certs :
 	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh ${ADMIN_USER}@${K8S_INIT_NODE}:. \
 	  && ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-certs.sh ${K8S_KUBEADM_CONF_INIT} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
 	scp -p ${ADMIN_USER}@${K8S_INIT_NODE}:Makefile.settings .
 join-control : join-prep join-now
 join-prep : join-gen join-push
+## K8S_CERTIFICATE_KEY must be set PRIOR TO RUNNING join-gen
 join-gen :
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
