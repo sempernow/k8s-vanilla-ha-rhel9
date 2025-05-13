@@ -443,7 +443,7 @@ join-now :
 # join-token :
 # 	@sudo kubeadm token list |awk '{printf "%25s\t%s\t%s\n",$$1,$$2,$$4}'
 join-command :
-	ssh -T ${ADMIN_USER}@${K8S_INIT_NODE} \
+	ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} \
 		sudo kubeadm token create --print-join-command \
 		--certificate-key ${K8S_CERTIFICATE_KEY} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.print-join-command.${UTC}.log

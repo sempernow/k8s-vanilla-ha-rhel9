@@ -33,6 +33,7 @@ ok(){
         sudo chmod 0755 $dst/runc ||
             return 11
     [[ $(runc -v 2>&1 |grep $ver) ]] || return 12
+    sudo ln -sf $dst/runc /usr/sbin/runc
 }
 ok || exit $?
 
@@ -168,14 +169,13 @@ ok(){
     [[ $(critest --version 2>&1 |grep $ver) ]] ||
         curl -fsSL "$base/critest-$suffix" |sudo tar -C $sbin -xz
 
-    # bin=/usr/local/bin
-    # [[ $(crictl --version 2>&1 |grep $ver) ]] &&
-    #     sudo ln -sf $sbin/crictl $bin ||
-    #         return 60
-
-    # [[ $(critest --version 2>&1 |grep $ver) ]] &&
-    #     sudo ln -sf $sbin/critest $bin ||
-    #         return 61
+    ln=/usr/sbin
+    sudo ln -sf $sbin/crictl $ln/ &&
+        sudo crictl --version ||
+            return 60
+    sudo ln -sf $sbin/critest $ln/ &&
+        sudo critest --version ||
+            return 61
 
     # Default behavior is depricated; declare endpoints
     # https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/crictl.md
