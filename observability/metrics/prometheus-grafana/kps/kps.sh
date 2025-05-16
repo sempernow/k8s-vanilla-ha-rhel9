@@ -3,7 +3,7 @@
 # Install/Delete kube-prometheus-stack by Helm method
 # GitHub : https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
 #######################################################
-set -euxo pipefail
+set -euo pipefail
 
 export RELEASE=prom
 export NS=default
@@ -41,14 +41,22 @@ install(){
 access(){
     port=3000
     helm status $RELEASE
-    echo '  Password:'
-    kubectl -n $NS get secrets $RELEASE-grafana -o jsonpath="{.data.admin-password}" \
-        |base64 -d ; echo
+    pass="$(
+        kubectl -n $NS get secrets $RELEASE-grafana -o jsonpath="{.data.admin-password}" \
+        |base64 -d
+    )"
+    echo === Password: $pass
     export POD_NAME=$(kubectl -n $NS get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=prom" -oname)
-    ps -aux |command grep port-forward |command grep $port ||
-        kubectl -n $NS port-forward $POD_NAME $port &
-    sleep 3
-    curl -IX GET http://localhost:$port/login
+    pgrep kubectl || {
+        echo === Grafana : port-forward : localhost:$port
+        /bin/bash -c '
+            kubectl -n $1 port-forward $2 $3
+        ' _ $NS $POD_NAME $port >/dev/null 2>&1 &
+        sleep 1
+    }
+    curl --max-time 3 -sfIX GET http://localhost:$port/login | grep HTTP &&
+        echo === Grafana @ localhost:$port ||
+            echo === FAIL @ localhost:$port 
 }
 
 delete(){
