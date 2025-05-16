@@ -2,7 +2,8 @@
 
 ## TL;DR
 
-Vendor's images and manifest work *straight out of the box*. 
+Vendor's images and manifest deploy *straight out of the box*, 
+yet fluentbit default ConfigMap is useless, providing no u. 
 
 1. Install by manifests 
     - [`stack.sh`](stack.sh):
@@ -18,7 +19,7 @@ Vendor's images and manifest work *straight out of the box*.
 Attempting HA ([`02-es-cluster.yaml`](02-es-cluster.yaml)) hits vendor lockout issues. 
 Hence the attempted migration to OSS (bitnami) images (below).
 
-## [__`efk-chatgpt.sh`__](efk-chatgpt.sh)
+## Prefer OSS v. Elastic Inc.
 
 - Upgraded images to OSS and newer.  
     - Issues at Web UI

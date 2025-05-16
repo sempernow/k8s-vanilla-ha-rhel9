@@ -1,9 +1,9 @@
 # [`k8s-vanilla-ha-rhel9`](https://github.com/sempernow/k8s-vanilla-ha-rhel9 "GitHub : sempernow/k8s-vanilla-ha-rhel9") | [Kubernetes.io](https://kubernetes.io/docs/) | [Releases](https://github.com/kubernetes/kubernetes/releases)
 
-Install an on-prem K8s cluster of 3 control nodes using `kubeadm`. 
+Install an on-prem K8s cluster of 3 control nodes using `kubeadm`.
 
 
-## Usage
+## Usage 
 
 See `make` recipes
 
@@ -11,21 +11,21 @@ See `make` recipes
 make
 ```
 
-### Create cluster 
+### Create cluster
 
 ```bash
 # Prepare the host
-make conf 
-make reboot 
-make install 
+make conf
 make reboot
-# Initialize cluster ( 1st node) 
-make init 
+make install
+make reboot
+# Initialize cluster ( 1st node)
+make init
 vi Makefile.settings # Set K8S_CERTIFICATE_KEY
 # Configure client on this admin host
-make kubeconfig 
+make kubeconfig
 # Install Pod network (CNI addon)
-make kuberouter-install 
+make kuberouter-install
 # Join other control nodes
 make join-control
 
@@ -37,7 +37,7 @@ make join-control
 
 
 ```bash
-kubectl proxy # K8s API @ http://127.0.0.1:8001 (Blocks) 
+kubectl proxy # K8s API @ http://127.0.0.1:8001 (Blocks)
 ```
 ```bash
 curl http://127.0.0.1:8001/healthz #> ok
@@ -45,14 +45,14 @@ curl http://127.0.0.1:8001/healthz #> ok
 
 ## Delete/Re-join a Control-Plane Node
 
-Modifications to Static Pod manifest(s) do not typically require `drain`/`delete`/`join` of (control-plane) nodes. 
+Modifications to Static Pod manifest(s) do not typically require `drain`/`delete`/`join` of (control-plane) nodes.
 However, some changes require it:
 
 - Pod CIDR Allocations
-    - Existing nodes will not adopt changes to Pod CIDR, 
+    - Existing nodes will not adopt changes to Pod CIDR,
       whether declared by modifying manifests or otherwise.
-- Control-Plane Certificates 
-    - If expired or improperly rotated, 
+- Control-Plane Certificates
+    - If expired or improperly rotated,
       rejoining nodes may be necessary.
 - Adding New Control-Plane Nodes.
 
@@ -68,18 +68,18 @@ node=a1
 kubectl drain $node --delete-local-data --force --ignore-daemonsets
 kubectl delete node $node
 ssh $user@$node /bin/bash -c '
-    sudo systemctl stop kubelet 
+    sudo systemctl stop kubelet
     sudo rm -rf /etc/kubernetes/manifests/*
     sudo rm -rf /var/lib/kubelet/*
     sudo rm -rf /var/lib/etcd/*
-    sudo systemctl start kubelet 
+    sudo systemctl start kubelet
 '
 # Join
 ssh $user@$node sudo kubeadm join --config kubeadm-config-join.yaml
 
 ```
 
-## Remove taint 
+## Remove taint
 
 ```bash
 # taints : get : spec.taints: [{key: <str>, value: <str>, effect: <str>}, ...]
@@ -109,11 +109,11 @@ node/a1 untainted
 
 ```
 
-## CNI
+## CNI  
 
 The eBPF-based variants of CNI projects are purportedly ready for production. However, they have a large number of methods, protocols and configuration parameters per option making it quite challenging to implement a fully functioning network. That stands even after "properly" configuring and passing all their smoke tests. It is not unusual to have recurring failures, each revealing some new fail mode.
 
-## Modify `kubelet` Configuration 
+## Modify `kubelet` Configuration
 
 __View__ current configuration files
 
@@ -125,7 +125,7 @@ sudo systemctl cat kubelet
 
 __Reveal the sum total effect__ of all those configuration sources
 
-@ Server terminal 
+@ Server terminal
 
 ```bash
 kubectl proxy
@@ -214,12 +214,12 @@ ssh u1@a1 psk kubelet
 ssh u1@a1 sudo systemctl restart kubelet
 ```
 
-Failing 
+Failing
 
 ```bash
-journalctl --no-pager -eu kubelet 
+journalctl --no-pager -eu kubelet
 
-Dec 26 18:32:38 a1 kubelet[8640]: E1226 18:32:38.265597    8640 run.go:74] "command failed" err="failed to validate kubelet configuration, error: [invalid configuration: systemReservedCgroup (--system-reserved-cgroup) must be specified when \"system-reserved\" contained in enforceNodeAllocatable (--enforce-node-allocatable), invalid configuration: kubeReservedCgroup (--kube-reserved-cgroup) must be specified when \"kube-reserved\" contained in enforceNodeAllocatable (--enforce-node-allocatable)], path: &TypeMeta{Kind:,APIVersion:,}" 
+Dec 26 18:32:38 a1 kubelet[8640]: E1226 18:32:38.265597    8640 run.go:74] "command failed" err="failed to validate kubelet configuration, error: [invalid configuration: systemReservedCgroup (--system-reserved-cgroup) must be specified when \"system-reserved\" contained in enforceNodeAllocatable (--enforce-node-allocatable), invalid configuration: kubeReservedCgroup (--kube-reserved-cgroup) must be specified when \"kube-reserved\" contained in enforceNodeAllocatable (--enforce-node-allocatable)], path: &TypeMeta{Kind:,APIVersion:,}"
 Dec 26 18:32:38 a1 systemd[1]: kubelet.service: Main process exited, code=exited, status=1/FAILURE
 Dec 26 18:32:38 a1 systemd[1]: kubelet.service: Failed with result 'exit-code'.
 ```
@@ -266,7 +266,7 @@ veth
 
 ## Data Rate Test
 
-Measure __East-west traffic__ capacity using `iperf3` 
+Measure __East-west traffic__ capacity using `iperf3`
 
 @ Server
 
@@ -321,7 +321,7 @@ nbox   1/1     Running   0          21s   10.244.0.30   a1     <none>           
 
 ## Observability
 
-- `metrics-server` : [__`deploy.metrics-server.yaml`__](observability/metrics-server/deploy.metrics-server.yaml) 
+- `metrics-server` : [__`deploy.metrics-server.yaml`__](observability/metrics-server/deploy.metrics-server.yaml)
     ```bash
     k top node
     k top pod
@@ -340,7 +340,7 @@ make trivy
 ```
 
 
-## Background 
+## Background
 
 ### [`kubeadm init`](https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-init/)
 
@@ -348,18 +348,18 @@ make trivy
 kubeadm init -v 5 --control-plane-endpoint $LOAD_BALANCER_IP:$LOAD_BALANCER_PORT --upload-certs --ignore-preflight-errors=Mem
 ```
 - `--upload-certs` option uploads the certificates and keys generated during the initialization to the `kubeadm-certs` Secret in the `kube-system` namespace. This allows other control-plane nodes to retrieve these certificates and join the cluster as control-plane members. In a high-availability setup, each control-plane node needs access to these certificates to securely communicate with other control-plane nodes. Absent this option, certificates would have to be manually copied to other control-plane nodes. (Those uploaded certs are deleted after 2 hours.)
-- `kubeadm init phase preflight` reveals preflight error(s) by name that must be overridden, each error `NAME` having with its own `--ignore-preflight-errors=NAME`, else error must be fixed out-of-band, else `kubeadm init` fails. 
+- `kubeadm init phase preflight` reveals preflight error(s) by name that must be overridden, each error `NAME` having with its own `--ignore-preflight-errors=NAME`, else error must be fixed out-of-band, else `kubeadm init` fails.
     - In our case, using Hyper-V machines for cluster nodes, its dynamic-memory allocation interferes with memory-requirements check of "`kubeadm init`", causing initialization failure due to a bogus insufficient-memory finding, reporting error name: "`Mem`".
     ```plaintext
     [preflight] Some fatal errors occurred:
         [ERROR Mem]: the system RAM (844 MB) is less than the minimum 1700 MB
     ```
 - All K8s-core pods are Static Pods that run on the host network. Pods created during or after installing the CNI-compliant (Pod network) plugin are assigned IP address(es) within that Pod network CIDR.
-    - Each Static Pod is managed directly by the `kubelet` running on its node; 
-  they are not of the control plane; not stored in etcd; not by `kube-apiserver`.  
-    - Location of Static Pod manifests (YAML):  
+    - Each Static Pod is managed directly by the `kubelet` running on its node;
+  they are not of the control plane; not stored in etcd; not by `kube-apiserver`.
+    - Location of Static Pod manifests (YAML):
       `/etc/kubernetes/manifests/`
-- Certs upload is good for 2hrs. After that, the certs are deleted, 
+- Certs upload is good for 2hrs. After that, the certs are deleted,
   and must be regenerated at an existing control node:
     ```bash
     sudo kubeadm init phase upload-certs --upload-certs
@@ -368,13 +368,13 @@ kubeadm init -v 5 --control-plane-endpoint $LOAD_BALANCER_IP:$LOAD_BALANCER_PORT
     ```bash
     sudo kubeadm token create --print-join-command
     ```
-- Status of node(s) remains `NotReady` until the "Pod Nework" 
-  is configured by installing a CNI-compliant add-on such as Calico. 
+- Status of node(s) remains `NotReady` until the "Pod Nework"
+  is configured by installing a CNI-compliant add-on such as Calico.
   Perform such installs at the init node prior to joining any other node into the cluster. See "Install Pod Network" section.
-- `--apiserver-advertise-address $ip_of_this_control_node` : Useful if __this control node__ has more than one interface; bind to stable IP. 
-    - __Default__ is `0.0.0.0`, whereof K8s API listens on all interfaces, 
+- `--apiserver-advertise-address $ip_of_this_control_node` : Useful if __this control node__ has more than one interface; bind to stable IP.
+    - __Default__ is `0.0.0.0`, whereof K8s API listens on all interfaces,
       which is __less secure__ and __less stable__.
-- `--control-plane-endpoint` : Useful to set single (shared) endpoint __for all nodes of the control plane__. This is typically the entrypoint to an external (HA) load balancer, making that the K8s-cluster entrypoint in effect for both control and data planes. 
+- `--control-plane-endpoint` : Useful to set single (shared) endpoint __for all nodes of the control plane__. This is typically the entrypoint to an external (HA) load balancer, making that the K8s-cluster entrypoint in effect for both control and data planes.
     - Set this to either an IPv4 address or FQDN (`k8s.lime.lan`).
 
 ## `kubeconfig` : Configure client(s) on the admin node

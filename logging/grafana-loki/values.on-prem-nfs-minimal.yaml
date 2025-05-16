@@ -26,6 +26,6 @@ persistence:
     - ReadWriteOnce
   size: 10Gi
 
-# Optional: If you want to disable runtime config (advanced users only)
-runtimeConfig:
-  enabled: false
+## Optional: If you want to disable runtime config (advanced users only)
+# runtimeConfig:
+#   enabled: false

@@ -188,6 +188,10 @@ menu :
 	@echo "loki-install : Install Grafana Loki chart"
 	@echo "loki-delete  : Uninstall Grafana Loki chart"
 	@echo "============== "
+	@echo "prom-install : Install kube-prometheus-stack chart"
+	@echo "prom-access  : Forward port of Grafana for local access"
+	@echo "prom-delete  : Delete kube-prometheus-stack chart"
+	@echo "============== "
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 	@echo "============== "
 	@echo "status       : Print targets' status"
@@ -570,7 +574,7 @@ csi-local :
 	bash ${ADMIN_SRC_DIR}/csi/local-path-provisioner/local-path-provisioner.sh
 csi-rook-up :
 	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh up
-export rbd := sdb
+rbd := sdb
 ## Reboot after rook teardown
 csi-rook-down :
 	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh down
@@ -592,6 +596,14 @@ loki-install :
 	bash ${ADMIN_SRC_DIR}/logging/grafana-loki/stack.sh upgrade
 loki-delete :
 	bash ${ADMIN_SRC_DIR}/logging/grafana-loki/stack.sh uninstall
+
+kps :=observability/metrics/prometheus-grafana/kps/kps.sh
+prom-install prom-apply :
+	bash ${ADMIN_SRC_DIR}/${kps} install
+prom-access :
+	bash ${ADMIN_SRC_DIR}/${kps} access
+prom-delete prom-uninstall:
+	bash ${ADMIN_SRC_DIR}/${kps} delete
 
 #teardown : calico-teardown cilium-teardown kuberouter-teardown
 teardown :
