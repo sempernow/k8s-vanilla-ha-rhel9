@@ -5,8 +5,8 @@
 #######################################################
 set -euxo pipefail
 
-RELEASE=prom
-NS=default
+export RELEASE=prom
+export NS=default
 
 install(){
     # Helm binary if not already
@@ -44,9 +44,9 @@ access(){
     echo '  Password:'
     kubectl -n $NS get secrets $RELEASE-grafana -o jsonpath="{.data.admin-password}" \
         |base64 -d ; echo
-    export POD_NAME=$(kubectl --namespace default get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=prom" -oname)
+    export POD_NAME=$(kubectl -n $NS get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=prom" -oname)
     ps -aux |command grep port-forward |command grep $port ||
-        kubectl -s $NS port-forward $POD_NAME $port &
+        kubectl -n $NS port-forward $POD_NAME $port &
     sleep 3
     curl -IX GET http://localhost:$port/login
 }

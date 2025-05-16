@@ -79,3 +79,10 @@ Visit https://github.com/prometheus-operator/kube-prometheus for instructions on
     - __pass__: __prom-operator__
 - http://localhost:3000/dashboards
 
+
+```bash
+☩ curl -IX GET http://localhost:3000/login
+Handling connection for 3000
+HTTP/1.1 200 OK
+...
+```
