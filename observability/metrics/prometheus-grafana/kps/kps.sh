@@ -46,12 +46,19 @@ access(){
         |base64 -d
     )"
     echo === Password: $pass
-    export POD_NAME=$(kubectl -n $NS get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=prom" -oname)
+#    export POD_NAME=$(kubectl -n $NS get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=prom" -oname)
+#    pgrep kubectl || {
+#        echo === Grafana Pod : port-forward : localhost:$port
+#        /bin/bash -c '
+#            kubectl -n $1 port-forward $2 $3
+#        ' _ $NS $POD_NAME $port >/dev/null 2>&1 &
+#        sleep 1
+#    }
     pgrep kubectl || {
-        echo === Grafana : port-forward : localhost:$port
+        echo === Grafana Service : port-forward : localhost:$port
         /bin/bash -c '
-            kubectl -n $1 port-forward $2 $3
-        ' _ $NS $POD_NAME $port >/dev/null 2>&1 &
+            kubectl -n $1 port-forward svc/$2 $3:80
+        ' _ $NS $RELEASE-grafana $port >/dev/null 2>&1 &
         sleep 1
     }
     curl --max-time 3 -sfIX GET http://localhost:$port/login | grep HTTP &&
