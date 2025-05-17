@@ -187,9 +187,8 @@ menu :
 	@echo "efk-verify   : GET request to Kibana"
 	@echo "loki-install : Install Grafana Loki chart"
 	@echo "loki-delete  : Uninstall Grafana Loki chart"
-	@echo "============== "
 	@echo "prom-install : Install kube-prometheus-stack chart"
-	@echo "prom-access  : Forward port of Grafana for local access"
+	@echo "prom-access  : Forward Grafana port for local access (Remove: pkill kubectl)"
 	@echo "prom-delete  : Delete kube-prometheus-stack chart"
 	@echo "============== "
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
@@ -480,27 +479,34 @@ cilium-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh teardown \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-teardown.${UTC}.log
 
+calico_manifest := calico.v3.29.3.yaml
+calico_operator := custom-resources-bpf-bgp.yaml
+calico-pull :
+	bash cni/calico/calico-pull.sh
+#calico : calico-operator
 calico : calico-manifest
-calico-install :
-	bash cni/calico/calico-install.sh
-#calico : calico-operator-gen calico-operator
 calicoctl calico-status :
-	ansibash sudo /usr/local/bin/calicoctl node status |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
-	kubectl calico get ippool |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
-	kubectl calico ipam show --show-blocks |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
-	kubectl calico ipam show --show-configuration |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
-	kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP} |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
-	kubectl get tigerastatuses && kubectl get tigerastatuses || echo |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
-export calico_operator := custom-resources-bpf-bgp.yaml
+	ansibash sudo /usr/local/bin/calicoctl node status \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	kubectl calico get ippool \
+		|& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	kubectl calico ipam show --show-blocks \
+		|& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	kubectl calico ipam show --show-configuration \
+		|& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP} \
+		|& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	kubectl get tigerastatuses && kubectl get tigerastatuses \
+		|& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log || echo
+calico-manifest :
+	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/${calico_manifest} \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-manifest.${UTC}.log
+calico-operator : calico-operator-gen
+	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh apply ${calico_operator}
 calico-operator-gen :
 	bash make.recipes.sh settings_inject \
 		${ADMIN_SRC_DIR}/cni/calico/operator-method/${calico_operator} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-operator-gen.${UTC}.log
-calico-operator :
-	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh apply ${calico_operator}
-calico-manifest :
-	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-manifest.${UTC}.log
 calico-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh teardown ${calico_operator} || echo
 	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml || echo
@@ -540,7 +546,6 @@ crictl-ready :
 prune :
 	bash make.recipes.sh prune
 #	bash scripts/kubectl-mass-delete-pods.sh StatusUnk
-
 
 ingress-nginx ingress-nginx-up :
 	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh update
@@ -582,27 +587,29 @@ csi-rook-down :
 	ansibash sudo bash ./rook.sh host_teardown
 	ansibash 'sudo wipefs --all /dev/${rbd} && sudo dd if=/dev/zero of=/dev/${rbd} bs=1M count=10'
 
-log_stack := elastic/efk-chatgpt
+efk := logging/elastic/efk-chatgpt/stack.sh
 efk-apply :
-	bash ${ADMIN_SRC_DIR}/logging/${log_stack}/stack.sh apply
+	bash ${ADMIN_SRC_DIR}/${efk} apply
 efk-forward :
-	bash ${ADMIN_SRC_DIR}/logging/${log_stack}/stack.sh forward
+	bash ${ADMIN_SRC_DIR}/${efk} forward
 efk-delete :
-	bash ${ADMIN_SRC_DIR}/logging/${log_stack}/stack.sh delete
+	bash ${ADMIN_SRC_DIR}/${efk} delete
 efk-verify :
-	bash ${ADMIN_SRC_DIR}/logging/${log_stack}/stack.sh verify
+	bash ${ADMIN_SRC_DIR}/${efk} verify
 
+loki := logging/loki/stack.sh
 loki-install :
-	bash ${ADMIN_SRC_DIR}/logging/grafana-loki/stack.sh upgrade
+	bash ${ADMIN_SRC_DIR}/${loki} upgrade
 loki-delete :
-	bash ${ADMIN_SRC_DIR}/logging/grafana-loki/stack.sh uninstall
+	bash ${ADMIN_SRC_DIR}/${loki} uninstall
 
-kps :=observability/metrics/prometheus-grafana/kps/kps.sh
+kps :=observability/metrics/prometheus-grafana/kps/stack.sh
 prom-install prom-apply :
 	bash ${ADMIN_SRC_DIR}/${kps} install
 prom-access :
 	bash ${ADMIN_SRC_DIR}/${kps} access
 prom-delete prom-uninstall:
+	pkill kubectl || echo Has no port-forward
 	bash ${ADMIN_SRC_DIR}/${kps} delete
 
 #teardown : calico-teardown cilium-teardown kuberouter-teardown

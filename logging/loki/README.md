@@ -17,12 +17,12 @@ Yet **Grafana Loki + Fluent Bit** as a lighter alternative to EFK. Loki indexes 
 
 
 ```bash
+v=6.29.0 # App Version: 3.4.2
 repo=grafana
 chart=loki
-v=6.29.0 # App Version: 3.4.2
 values=values.on-prem-nfs-minimal.yaml
-helm repo add $repo https://grafana.github.io/helm-charts
-helm upgrade --install $chart $repo/$chart --version $v --values $values
+helm repo add $repo https://grafana.github.io/helm-charts --force
+helm upgrade $chart $repo/$chart --install --version $v -f $values
 
 ```
 - [`values.on-prem-nfs-minimal.yaml`](values.on-prem-nfs-minimal.yaml)
@@ -37,21 +37,28 @@ Error: execution error at (loki/templates/validate.yaml:19:4): Cannot run scalab
 ```
 - …means that your `values.on-prem-nfs-minimal.yaml` is enabling scalable mode (distributed components: read, write, backend) but does not define an object storage backend like S3, GCS, Azure, or even a local MinIO.
 
-The error you're seeing:
+The error: 
 
 ```
 Cannot run scalable targets (backend, read, write) or distributed targets without an object storage backend.
 ```
 
-…means that your `values.on-prem-nfs-minimal.yaml` is enabling **scalable mode** (distributed components: `read`, `write`, `backend`) but **does not define an object storage backend** like S3, GCS, Azure, or even a local MinIO.
+means that our values file, 
+[`values.on-prem-nfs-minimal.yaml`](values.on-prem-nfs-minimal.yaml), 
+is enabling **scalable mode** 
+(distributed components: `read`, `write`, `backend`),
+but **does not define an object-storage backend** 
+(such as S3, GCS, Azure, or even a __local MinIO__).
 
 ---
 
 ### 🔧 Solution: Disable Scalable Mode (Enable Monolithic Mode)
 
-If you're running **on-prem with NFS** and want a **minimal, single-binary Loki deployment**, you should **disable** the scalable components entirely.
+We're running **on-prem with NFS** and want 
+a **minimal, single-binary Loki deployment**, 
+so **disable** the scalable components entirely.
 
-Your `values.yaml` should set:
+__Modify the values__ file:
 
 ```yaml
 loki:
@@ -99,18 +106,14 @@ persistence:
 
 ### ✅ Validate
 
-After updating your values file, validate with:
+After updating the values file, validate with:
 
 ```bash
-helm template $chart $repo/$chart --version $v --values $values
+helm template $chart $repo/$chart --version $v -f $values
 ```
 
 If it renders cleanly, proceed to install or upgrade:
 
 ```bash
-helm upgrade --install $chart $repo/$chart --version $v --values $values
+helm upgrade $chart $repo/$chart --install --version $v -f $values
 ```
-
----
-
-Would you like me to generate a full working `values.on-prem-nfs-minimal.yaml` for you?

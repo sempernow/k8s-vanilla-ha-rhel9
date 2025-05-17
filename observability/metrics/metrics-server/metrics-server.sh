@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/
 # https://github.com/kubernetes-sigs/metrics-server
+set -euo pipefail
 
 apply(){
     [[ -f components.yaml ]] ||
@@ -20,4 +21,3 @@ pushd ${BASH_SOURCE%/*} || exit 1
 popd
 [[ $code ]] && echo " ERR : $code" || echo
 exit
-

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # https://docs.tigera.io/calico/latest/getting-started/kubernetes/self-managed-onprem/onpremises
+set -euo pipefail
 
 VER='v3.29.1'
 BASE=https://raw.githubusercontent.com/projectcalico/calico/$VER/manifests

@@ -2,6 +2,8 @@
 #################################################################
 # See recipes of Makefile
 #################################################################
+set -euo pipefail
+
 vm_ip(){
     # Print IPv4 address of an ssh-configured Host ($1). 
     [[ $1 ]] || return 99

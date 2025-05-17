@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
 # https://chatgpt.com/share/6769c50f-b62c-8009-bb86-46472b9251d1 
+set -euo pipefail
 
 ok(){
     v=v2.7.0

@@ -1,3 +1,4 @@
+## On-prem, NFS, minimal
 loki:
   storage:
     type: filesystem

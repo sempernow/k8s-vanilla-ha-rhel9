@@ -1,23 +1,30 @@
 #!/usr/bin/env bash
+#####################################################
+# Calico : Manifests and CLI :
+# - Pull manifest-method manifests
+# - Pull operator-method manifests
+# - Pull, install, and integrate CLI
+#####################################################
+set -euo pipefail
 
 ok(){
     DIR=.
     VER='v3.29.3' # v3.29.1
     BASE=https://raw.githubusercontent.com/projectcalico/calico/$VER/manifests
 
-    # Manifest Method
+    # Pull manifest method
     ok(){
         dir="$DIR/manifest-method"
         file=calico.yaml
         #[[ -f $dir/$file ]] && return 0
         mkdir -p $dir
         pushd $dir
-        curl -sSLO $BASE/$file || return 100
+        curl -sSL $BASE/$file -o calico.$VER.yaml || return 100
         popd
     }
     ok || return $?
 
-    # Operator Method
+    # Pull operator method
     ok(){
         dir="$DIR/operator-method"
         mkdir -p $dir
@@ -40,22 +47,16 @@ ok(){
     }
     ok || return $?
 
-    # CLI
+    # Pull and install CLI, and integrate it into kubectl
     ok(){
-        # calicoctl
-        # https://docs.tigera.io/calico/latest/operations/calicoctl/install
-        dir="$DIR/cli"
+        # calicoctl docs : https://docs.tigera.io/calico/latest/operations/calicoctl/install
         url=https://github.com/projectcalico/calico/releases/download/$VER/calicoctl-linux-amd64
         file=calicoctl
-        [[ -f $dir/$file ]] && return 0
-        mkdir -p $dir
-        pushd $dir
-        curl -sSL -o $file $url
-        sudo install $file /usr/local/bin/
-        # Configure kubectl plugin for Calico, to provide `kubectl calico ...`
-        sudo ln -s /usr/local/bin/$file /usr/local/bin/kubectl-calico
-        popd
-        #chmod 0755 $dir/$file && $dir/$file version |grep $VER || return 404
+        [[ -f $file ]] && return 0
+        curl -sSL $url -o $file
+        sudo install $file /usr/local/bin/ && rm $file || return $?
+        # Enable: kubectl calico ...
+        sudo ln -fs /usr/local/bin/$file /usr/local/bin/kubectl-calico
     }
     ok || return $?
 }
