@@ -43,21 +43,21 @@ access(){
         |base64 -d
     )"
     echo === Password: $pass
-    #export POD_NAME=$(kubectl -n $NAMESPACE get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=prom" -oname)
-    #pgrep kubectl || {
-    #    echo === Grafana Pod : port-forward : localhost:$port
-    #    /bin/bash -c '
-    #        kubectl -n $1 port-forward $2 $3
-    #    ' _ $NAMESPACE $POD_NAME $port >/dev/null 2>&1 &
-    #    sleep 1
-    #}
+    export POD_NAME=$(kubectl -n $NAMESPACE get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=prom" -oname)
     pgrep kubectl || {
-        echo === Grafana Service : port-forward : localhost:$port
-        /bin/bash -c '
-            kubectl -n $1 port-forward svc/$2 $3:80
-        ' _ $NAMESPACE $RELEASE-grafana $port >/dev/null 2>&1 &
-        sleep 1
+       echo === Grafana Pod : port-forward : localhost:$port
+       /bin/bash -c '
+           kubectl -n $1 port-forward $2 $3
+       ' _ $NAMESPACE $POD_NAME $port >/dev/null 2>&1 &
+       sleep 1
     }
+    # pgrep kubectl || {
+    #     echo === Grafana Service : port-forward : localhost:$port
+    #     /bin/bash -c '
+    #         kubectl -n $1 port-forward svc/$2 $3:80
+    #     ' _ $NAMESPACE $RELEASE-grafana $port >/dev/null 2>&1 &
+    #     sleep 1
+    # } # ... is less reliable.
     curl --max-time 3 -sfIX GET http://localhost:$port/login | grep HTTP &&
         echo === Grafana @ localhost:$port ||
             echo === FAIL @ localhost:$port 
