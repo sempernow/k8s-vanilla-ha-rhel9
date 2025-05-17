@@ -87,7 +87,7 @@ prometheus-operated                       ClusterIP   None             <none>   
 ```
 
 
-## Prometheus Metrics Endpoint
+## Metrics
 
 Forward the (Kube State) Metrics service
 
@@ -137,18 +137,12 @@ Unlike `node-exporter` (system metrics),
 Each metric has labels to identify the object (`namespace`, `name`, etc.), 
 and values that help determine current state.
 
-Metrics service is rarely used directly, but rather:
+Metrics service is rarely used directly. Rather, __Prometheus scrapes it__. 
 
+Use the web UIs of **Grafana** or **Prometheus**  to **visualize**, 
+**query**, or **alert on** the state of your cluster:
 
-**Prometheus UI**  or **Grafana** to **query**, **alert on**, and **visualize** the state of your cluster:
-
-
-- **Use the Prometheus UI** to __query__ and __graph__ them
-    * **PromQL** for detailed inspection and alerting logic
-- **Use Grafana** to __visualize__ pre-built __dashboards__
-
-
-## Grafana Dashboards (Web UI) to Visualize the Metrics
+## Grafana (Web UI) Dashboards to Visualize the Metrics
 
 Forward Grafana:
 
