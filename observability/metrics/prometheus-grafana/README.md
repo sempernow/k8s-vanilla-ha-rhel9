@@ -150,7 +150,8 @@ Forward Grafana:
 kubectl port-forward svc/prom-grafana 3000:80 &
 ```
 - Web UI : http://localhost:3000
-- Login : See helm status
+- Login : __`admin:prom-operator`__
+    - See `helm status ...` for info
     - [stack.sh](kps/stack.sh) : `access`
 
 
