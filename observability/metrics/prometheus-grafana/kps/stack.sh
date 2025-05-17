@@ -42,7 +42,7 @@ access(){
     labels="app.kubernetes.io/name=grafana,app.kubernetes.io/instance=$RELEASE"
     export pod=$(kubectl -n $NAMESPACE get pod -l "$labels" -o name)
     pgrep kubectl || {
-       echo === port-forward : localhost:$port
+       echo Expose : localhost:$port
        /bin/bash -c '
            kubectl -n $1 port-forward $2 $3
        ' _ $NAMESPACE $pod $port >/dev/null 2>&1 &
