@@ -72,17 +72,150 @@ Access Grafana local instance:
 Visit https://github.com/prometheus-operator/kube-prometheus for instructions on how to create & configure Alertmanager and Prometheus instances using the Operator.
 ```
 
-## Grafana Web UI
+```bash
+☩ k get svc
+NAME                                      TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE
+alertmanager-operated                     ClusterIP   None             <none>        9093/TCP,9094/TCP,9094/UDP   21h
+kubernetes                                ClusterIP   10.96.0.1        <none>        443/TCP                      20d
+prom-grafana                              ClusterIP   10.99.84.207     <none>        80/TCP                       21h
+prom-kube-prometheus-stack-alertmanager   ClusterIP   10.103.169.71    <none>        9093/TCP,8080/TCP            21h
+prom-kube-prometheus-stack-operator       ClusterIP   10.97.133.135    <none>        443/TCP                      21h
+prom-kube-prometheus-stack-prometheus     ClusterIP   10.109.64.94     <none>        9090/TCP,8080/TCP            21h
+prom-kube-state-metrics                   ClusterIP   10.101.119.20    <none>        8080/TCP                     21h
+prom-prometheus-node-exporter             ClusterIP   10.110.246.105   <none>        9100/TCP                     21h
+prometheus-operated                       ClusterIP   None             <none>        9090/TCP                     21h
+```
 
-- http://localhost:3000/login
-    - __user__: __admin__
-    - __pass__: __prom-operator__
-- http://localhost:3000/dashboards
 
+## Prometheus Metrics Endpoint
+
+Forward the (Kube State) Metrics service
 
 ```bash
-☩ curl -IX GET http://localhost:3000/login
-Handling connection for 3000
-HTTP/1.1 200 OK
+☩ k get svc
+NAME                                      TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE
 ...
+prom-kube-state-metrics                   ClusterIP   10.101.119.20    <none>        8080/TCP                     21h
+...
+☩ k port-forward svc/prom-kube-state-metrics 8080 &
 ```
+
+```bash
+☩ curl -s http://localhost:8080/metrics |less
+...
+# HELP kube_configmap_annotations Kubernetes annotations converted to Prometheus labels.
+# TYPE kube_configmap_annotations gauge
+# HELP kube_configmap_labels [STABLE] Kubernetes labels converted to Prometheus labels.
+# TYPE kube_configmap_labels gauge
+# HELP kube_configmap_info [STABLE] Information about configmap.
+# TYPE kube_configmap_info gauge
+kube_configmap_info{namespace="default",configmap="prom-kube-prometheus-stack-k8s-resources-namespace"} 1
+kube_configmap_info{namespace="kube-system",configmap="kube-proxy"} 1
+kube_configmap_info{namespace="kube-system",configmap="kubelet-config"} 1
+kube_configmap_info{namespace="default",configmap="prom-kube-prometheus-stack-scheduler"} 1
+```
+- These are the same metrics Prometheus scrapes on its own;
+  read-only __Prometheus metrics__ about __the current state__ of K8s API objects; 
+ `Deployments`, `Pods`, `ConfigMaps`, `Services`, etc.
+
+---
+
+#### 🔍 What is `kube-state-metrics`?
+
+Unlike `node-exporter` (system metrics), 
+`kube-state-metrics` focuses on 
+**Kubernetes object state**, such as:
+
+| Metric Name                                 | Description                                             |
+| ------------------------------------------- | ------------------------------------------------------- |
+| `kube_pod_status_phase`                     | Current status of each pod (`Running`, `Pending`, etc.) |
+| `kube_deployment_status_replicas_available` | How many replicas are available                         |
+| `kube_service_info`                         | Metadata about services                                 |
+| `kube_configmap_info`                       | Metadata about ConfigMaps                               |
+| `kube_node_status_condition`                | Whether a node is `Ready`, `OutOfDisk`, etc.            |
+
+Each metric has labels to identify the object (`namespace`, `name`, etc.), 
+and values that help determine current state.
+
+Metrics service is rarely used directly, but rather:
+
+
+**Prometheus UI**  or **Grafana** to **query**, **alert on**, and **visualize** the state of your cluster:
+
+
+- **Use the Prometheus UI** to __query__ and __graph__ them
+    * **PromQL** for detailed inspection and alerting logic
+- **Use Grafana** to __visualize__ pre-built __dashboards__
+
+
+## Grafana Dashboards (Web UI) to Visualize the Metrics
+
+Forward Grafana:
+
+```bash
+kubectl port-forward svc/prom-grafana 3000:80 &
+```
+- Web UI : http://localhost:3000
+- Login : See helm status
+    - [stack.sh](kps/stack.sh) : `access`
+
+
+Search __Dashboards__ for “Kubernetes / Compute Resources / Node” or “Pods” to see these metrics visually.
+You can build your own dashboard using metrics like:
+
+* `kube_deployment_spec_replicas`
+* `kube_pod_container_resource_requests_memory_bytes`
+
+Log in with:
+
+* **User:** `admin`
+* **Password:** (check with `kubectl get secret` or Helm values)
+
+From there, use built-in dashboards like:
+
+* **Kubernetes / Config Maps**
+* **Kubernetes / Resources / Cluster**
+* Or create custom dashboards using `kube_*` metrics
+
+## Prometheus (Web UI) to Query the Metrics Using __PromQL__
+
+Forward Prometheus:
+
+```bash
+kubectl port-forward svc/prom-kube-prometheus-stack-prometheus 9090 &
+```
+- Web UI : http://localhost:9090/query 
+- Query using __PromQL__ 
+- Go to the **“Graph”** tab
+    1. Type `kube_configmap_info` in the query bar
+    1. Click “Execute” to graph it
+    1. You’ll see all ConfigMaps being monitored
+
+
+Other **PromQL queries**:
+
+* 🟢 Show __running pods__:
+
+  ```promql
+  kube_pod_status_phase{phase="Running"}
+  ```
+
+* 🔵 Available __replicas per Deployment__:
+
+  ```promql
+  kube_deployment_status_replicas_available
+  ```
+
+* 🔴 __Node readiness__:
+
+  ```promql
+  kube_node_status_condition{condition="Ready",status="true"}
+  ```
+
+Others
+
+* `count(kube_pod_info)` – number of pods
+* `kube_node_status_condition{condition="Ready",status="true"}` – node readiness
+* `kube_deployment_status_replicas_available{namespace="default"}` – app health
+
+---
