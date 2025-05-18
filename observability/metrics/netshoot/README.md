@@ -5,13 +5,19 @@
 
 ### TL;DR
 
-One of `netshoot`'s many tools. 
+One of `netshoot`'s many tools. Performs __network throughput__ tests.
 It performs a measure of the maximum network transfer rate between server and client.
 Used in a K8s environment, we measure that maximum `Gbits/sec` (`Gbps`) for east-west traffic, 
-both cross-node (__5 Gpbs__) and intra-node (__35 Gbps__), under Calico CNI configured for direct path (eBPF).
+both cross-node (__5 Gpbs__) and intra-node (__35 Gbps__), 
+under Calico CNI configured for direct path (eBPF).
 
-That between containers on same node is some __5 Gbps__.
-That between containers on 
+__Findings__:
+
+|East-west| `Gbps`|
+|--|--|
+|Intra-node| __`5`__|
+|Inter-node|__`35`__|
+
 ### Work
 
 @ `Ubuntu (master) [07:42:17] [2] [#0] /s/DEV/devops/infra/kubernetes/k8s-vanilla-ha-rhel9`
@@ -19,24 +25,25 @@ That between containers on
 ```bash
 img=nicolaka/netshoot
 p=5555
-k run nbox1 --image=$img -- iperf3 -s -p $p
-ip=$(k get pod nbox1 -o wide -o jsonpath='{.status.podIPs[].ip}')
-k get pod nbox1 -o wide
-```
-```plaintext
-NAME    READY   STATUS    RESTARTS   AGE   IP               NODE   NOMINATED NODE   READINESS GATES
-nbox1   1/1     Running   0          17m   10.244.182.119   a3     <none>           <none>
+name=nbox1
+k run $name --image=$img -- iperf3 -s -p $p
 ```
 
 @ __Same node__
 
 ```bash
-node=a3
-k run nbox2 -it --rm \
+name=nbox1
+node=$(kubectl get pod $name -o jsonpath='{.spec.nodeName}')
+ip=$(k get pod $name -o wide -o jsonpath='{.status.podIPs[].ip}')
+img=nicolaka/netshoot
+p=5555
+name=nbox2
+k run $name -it --rm \
     --image=$img \
     --overrides='{"spec": {"nodeName": "'$node'"}}' \
     --restart=Never  -- \
     iperf3 -c $ip -p $p
+
 ```
 ```plaintext
 [ ID] Interval           Transfer     Bitrate         Retr  Cwnd
@@ -60,7 +67,9 @@ k run nbox2 -it --rm \
 @ __Other node__
 
 ```bash
-node=a1
+name=nbox1
+node=$(kubectl get pod $name -o jsonpath='{.spec.nodeName}')
+node=$(kubectl get node -oname -o yaml |yq '.[][].metadata |select (.name != "'$node'") |.name' |head -n1)
 k run nbox2 -it --rm \
     --image=$img \
     --overrides='{"spec": {"nodeName": "'$node'"}}' \
@@ -188,5 +197,3 @@ websocat
 ```
 
 ### &nbsp;
-
-

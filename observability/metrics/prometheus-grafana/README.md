@@ -71,6 +71,8 @@ Access Grafana local instance:
 
 Visit https://github.com/prometheus-operator/kube-prometheus for instructions on how to create & configure Alertmanager and Prometheus instances using the Operator.
 ```
+- Origin: `http://localhost:3000`
+- Login: `admin:prom-operator`
 
 ```bash
 ☩ k get svc
