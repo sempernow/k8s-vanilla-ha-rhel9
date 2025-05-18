@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 #################################################################
 # Bandwidth (Throughput) test of your K8s Cluster (Pod) Network.
-# 
-# - Both same-node and cross-node cases are measured.
-# - Often referred to as east-west or inter-pod traffic, 
-#   these throughput measurements are expected to vary 
-#   by host network, CNI provider, their configurations, 
+#
+# - Performs two measurements:
+#   - Same-node case
+#   - Cross-node case
+#
+# - Throughput is expected to vary by host network,
+#   CNI provider, their configurations,
 #   and adjacent network-traffic conditions.
 #
 # ARGs: [PORT(else 5555)]
 #################################################################
+kubectl version >/dev/null || {
+    echo REQUIREs kubectl
+    exit 1
+}
 clear;echo '
 =======================================================
 🚀  Bandwidth test of K8s Pod Network using iperf3
@@ -48,7 +54,7 @@ echo "✅ === Server pod '$sPod' running at node '$sNode'."
 # Clients : One case at a time
 cPod=client
 cNode=$sNode
-echo "Next, run client pods '$cPod' sequentially (IntRA-node, IntER-node) …"
+echo "Next, run client pods '$cPod' sequentially (Same-node, Cross-node) …"
 
 # - Same-node (IntRA-node) case
 echo -e "\n📊 === Same-node ($sNode-$cNode) traffic between server '$sPod@$sNode' and client '$cPod@$cNode' [Pod@Node] …"
@@ -63,7 +69,7 @@ while kubectl get pod $cPod &> /dev/null; do
 done
 
 # - Cross-node (IntER-node) case
-cNode=$(kubectl get node -oname -o yaml |yq '.[][].metadata |select (.name != "'$sNode'") |.name' |head -n1)
+cNode=$(kubectl get node -o jsonpath='{range .items[*]}{@.metadata.name}{"\n"}{end}' |grep -v "^$sNode" |head -n1)
 echo -e "\n📊 === Cross-node ($sNode-$cNode) traffic between server '$sPod@$sNode' and client '$cPod@$cNode' [Pod@Node] …"
 kubectl run $cPod -it --rm \
     --image=$img \
@@ -75,4 +81,4 @@ kubectl run $cPod -it --rm \
 echo -e '\n🚧 === Teardown'
 kubectl config set-context --current --namespace default
 kubectl delete ns ${ns:-___nonexistent_namespace___}
-echo -e '\n======================[ DONE ]=========================\n'
+echo -e '🚧 === Done'
