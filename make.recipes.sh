@@ -109,11 +109,13 @@ halb(){
 }
 kubeconfig(){
     [[ $K8S_INIT_NODE ]] || { echo 'ERR : K8S_INIT_NODE is UNSET'; return; }
-    ssh ${ADMIN_USER}@${K8S_INIT_NODE} \
-        'sudo cp -p /etc/kubernetes/admin.conf . && sudo chown $(id -u):$(id -g) admin.conf'
+    ssh ${ADMIN_USER}@${K8S_INIT_NODE} '
+      sudo cp -p /etc/kubernetes/*admin.conf .
+      sudo chown $(id -u):$(id -g) *admin.conf
+    '
     mkdir -p ~/.kube
 
-    scp -p $K8S_INIT_NODE:admin.conf ~/.kube/ && {
+    scp -p $K8S_INIT_NODE:*admin.conf ~/.kube/ && {
 
         target=~/.kube/config
         [[ -f $target ]] &&
