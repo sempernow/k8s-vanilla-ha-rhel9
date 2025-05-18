@@ -157,7 +157,8 @@ menu :
 	@echo "join-command : Print join command for control-plane node : same cert key/hash; new token"
 	@echo "join-token   : kubeadm token list"
 	@echo "============== "
-	@echo "healthz      : K8s API : GET /healthz?verbose"
+	@echo "healthz      : K8s API smoke test (at unprotected endpoint) : GET /healthz?verbose"
+	@echo "iperf        : Bandwidth tests of the Cluster (Pod) Network"
 	@echo "watch        : kubectl get pods -A -o wide -w"
 	@echo "psk          : ps of K8s processes"
 	@echo "nodes        : K8s Node(s) status"
@@ -525,6 +526,9 @@ kubeproxy-restore :
 
 healthz :
 	curl -ks https://${K8S_ENDPOINT}/healthz?verbose
+export port := 5551
+iperf :
+	bash ${ADMIN_SRC_DIR}/observability/metrics/netshoot/k8s-iperf.sh ${port} || echo
 watch :
 	kubectl get pod -A -o wide -w
 nodes :

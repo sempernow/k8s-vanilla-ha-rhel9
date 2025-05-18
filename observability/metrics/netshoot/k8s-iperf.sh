@@ -7,6 +7,8 @@
 #   these throughput measurements are expected to vary 
 #   by host network, CNI provider, their configurations, 
 #   and adjacent network-traffic conditions.
+#
+# ARGs: [PORT(else 5555)]
 #################################################################
 clear;echo '
 =======================================================
@@ -14,24 +16,26 @@ clear;echo '
 '
 
 img=nicolaka/netshoot # https://github.com/nicolaka/netshoot
-p=5555
+port=${1:-5555} # Presumed okay
 
+echo -e '\n🚧 === Create and set context to a per-run Namespace …'
 nonce="$(cat /dev/urandom |tr -dc 'a-z0-9' |fold -w 7 |head -n 1)" || 
     nonce="$(date '+%H.%M.%S%z')"
 ns="test-iperf3-$nonce"
-
 kubectl create ns $ns
 kubectl get ns $ns || {
-    echo "⚠  ERR : Namespace '$ns' NOT EXIST"
+    echo "⚠ === ERR : Namespace '$ns' NOT EXIST"
     exit $?
 }
 kubectl config set-context --current --namespace $ns
+
+echo -e "\n🚧 === Traffic port: $port"
 
 echo -e '\n🚧 === Creating the server …'
 
 # Server
 sPod=server
-kubectl run $sPod --image=$img -- iperf3 -s -p $p
+kubectl run $sPod --image=$img -- iperf3 -s -p $port
 while [[ -z $sNode || -z $sIP ]]; do
     echo "Awaiting Node and IP status of Pod '$sPod' …" 
     export sNode=$(kubectl get pod $sPod -o jsonpath='{.spec.nodeName}')
@@ -52,7 +56,7 @@ kubectl run $cPod -it --rm \
     --image=$img \
     --overrides='{"spec": {"nodeName": "'$sNode'"}}' \
     --restart=Never  -- \
-    iperf3 -c $sIP -p $p
+    iperf3 -c $sIP -p $port
 while kubectl get pod $cPod &> /dev/null; do
     echo "Awaiting deletion of Pod '$cPod' …"
     sleep 2
@@ -65,7 +69,7 @@ kubectl run $cPod -it --rm \
     --image=$img \
     --overrides='{"spec": {"nodeName": "'$cNode'"}}' \
     --restart=Never  -- \
-    iperf3 -c $sIP -p $p
+    iperf3 -c $sIP -p $port
 # Teardown
 echo -e '\n🚧 === Teardown'
 kubectl config set-context --current --namespace default
