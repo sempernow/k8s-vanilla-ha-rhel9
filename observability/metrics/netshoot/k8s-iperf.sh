@@ -37,24 +37,24 @@ kubectl config set-context --current --namespace $ns
 
 echo -e "\n🚧 === Traffic port: $port"
 
-echo -e '\n🚧 === Creating the server …'
+echo -e '\n🚧 === Creating the server …\n'
 
 # Server
 sPod=server
 kubectl run $sPod --image=$img -- iperf3 -s -p $port
+echo "Awaiting Node and IP status of Pod '$sPod' …" 
 while [[ -z $sNode || -z $sIP ]]; do
-    echo "Awaiting Node and IP status of Pod '$sPod' …" 
     export sNode=$(kubectl get pod $sPod -o jsonpath='{.spec.nodeName}')
     export sIP=$(kubectl get pod $sPod -o wide -o jsonpath='{.status.podIPs[].ip}')
     sleep 2
 done
 
-echo "✅ === Server pod '$sPod' running at node '$sNode'." 
+echo -e "\n✅ === Server pod '$sPod' running at node '$sNode'.\n" 
 
 # Clients : One case at a time
 cPod=client
 cNode=$sNode
-echo "Next, run client pods '$cPod' sequentially (Same-node, Cross-node) …"
+echo "🚧 === Next, run client pods '$cPod' (Same-node, Cross-node) sequentially …"
 
 # - Same-node (IntRA-node) case
 echo -e "\n📊 === Same-node ($sNode-$cNode) traffic between server '$sPod@$sNode' and client '$cPod@$cNode' [Pod@Node] …"

@@ -49,6 +49,7 @@ e2e(){
                 return 1
             }
         done
+
     }
     get(){
         # Each control node is a cluster endpoint, so find first:
@@ -64,14 +65,17 @@ e2e(){
         curl -fs http://$ip:$p/{foo,bar}/hostname
     }
     export -f get 
-    echo '=== E2E connectivity test : Ingress/Service/Pod/container'
+    echo '🧪 === E2E connectivi1ty test : Ingress <=> Service <=> Pod <=> container'
     _e2e || return 503
     echo "  Want: foobar"
     seq 10 |xargs -n1 /bin/bash -c ' 
-        got="$(get || echo ERR : $?)"
-        echo "  Got : $got"
+        got="$(get || echo ERR:$?)"
+        [[ $got == foobar ]] && x=✅ || x=❌
+        echo "  Got : $got  $x"
         [[ $got == foobar ]] && exit 0 || sleep 5 
     ' _ || return 404
+    echo '🚧 === Teardown'
+    kubectl delete -f $usage
 }
 teardown(){
 
