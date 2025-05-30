@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-##############################################
-# JoinConfiguration creds
+######################################################
+# JoinConfiguration creds @ discovery.file method
 # 
-# - Run this script on init node
+# - Run this script on init node, 
+#   and only if certificate key has expired.
 # - This script creates new certificate key, 
-#   which invalidates prior key.
+#   which invalidates any prior key regardless.
 # 
 # ARGs: K8S_KUBEADM_CONF_INIT
-##############################################
+######################################################
 [[ -r $1 ]] || exit 11
 [[ $(whoami) == 'root' ]] || exit 22
-
 
 ############################
 ## @ discovery.file method
 ############################
+## Use EITHER --config $file OR --certificate-key=$static
 key="$(
     kubeadm init phase upload-certs \
         --upload-certs \

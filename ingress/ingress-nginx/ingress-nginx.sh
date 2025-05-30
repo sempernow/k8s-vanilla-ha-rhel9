@@ -61,14 +61,14 @@ e2e(){
                 -o jsonpath='{.spec.ports[?(@.name=="'http'")].nodePort}'
         )
         # Concat response bodies:
-        curl -s http://$ip:$p/{foo,bar}/hostname
+        curl -fs http://$ip:$p/{foo,bar}/hostname
     }
     export -f get 
     echo '=== E2E connectivity test : Ingress/Service/Pod/container'
     _e2e || return 503
     echo "  Want: foobar"
     seq 10 |xargs -n1 /bin/bash -c ' 
-        got="$(get)"
+        got="$(get || echo ERR : $?)"
         echo "  Got : $got"
         [[ $got == foobar ]] && exit 0 || sleep 5 
     ' _ || return 404

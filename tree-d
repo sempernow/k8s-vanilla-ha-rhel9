@@ -1,10 +1,7 @@
 .
 ├── cni
 │   ├── calico
-│   │   ├── cli
 │   │   ├── manifest-method
-│   │   │   ├── 3.29.1
-│   │   │   └── 3.29.3
 │   │   └── operator-method
 │   │       └── api-resources
 │   ├── cilium
@@ -12,6 +9,7 @@
 │   └── kube-router
 ├── csi
 │   ├── local-path-provisioner
+│   ├── minio
 │   ├── nfs
 │   │   ├── kerberos
 │   │   ├── nfs-subdir-csi-driver
@@ -20,31 +18,33 @@
 │       └── examples
 │           └── csi
 │               └── rbd
-├── etcdutl
 ├── halb
 │   ├── docs
 │   └── systemd
 ├── ingress
 │   ├── ingress-nginx
 │   └── traefik
+├── logging
+│   ├── elastic
+│   │   ├── eck
+│   │   ├── efk-chatgpt
+│   │   │   └── fails
+│   │   ├── efk-devopskube
+│   │   │   ├── elasticsearch
+│   │   │   ├── fluentd
+│   │   │   └── kibana
+│   │   ├── efk-digitalocean
+│   │   └── efk-studytonight
+│   └── loki
 ├── logs
 ├── nginx
 ├── observability
-│   ├── logging
-│   │   ├── elastic
-│   │   │   ├── eck
-│   │   │   ├── efk-chatgpt
-│   │   │   ├── efk-devopskube
-│   │   │   │   ├── elasticsearch
-│   │   │   │   ├── fluentd
-│   │   │   │   └── kibana
-│   │   │   ├── efk-digitalocean
-│   │   │   └── efk-studytonight
-│   │   └── grafana-loki
 │   ├── metrics
 │   │   ├── dashboard
 │   │   ├── metrics-server
-│   │   └── netshoot
+│   │   ├── netshoot
+│   │   └── prometheus-grafana
+│   │       └── kps
 │   └── tracing
 ├── scripts
 │   └── systemd

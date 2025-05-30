@@ -3,10 +3,11 @@
 ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-JoinConfiguration
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: JoinConfiguration
-discovery: # TLS Bootstrap process
+## Use one of the two : 1. File method, 2. Token method
+discovery: # # TLS-bootstrap methods
   ## Use *either* method: file *or* bootstrapToken
-  ## The file method is simpler, requiring only K8S_CERTIFICATE_KEY and K8S_JOIN_KUBECONFIG
   file:
+  ## The file method is simpler, requiring only K8S_CERTIFICATE_KEY and K8S_JOIN_KUBECONFIG
     kubeConfigPath: K8S_JOIN_KUBECONFIG
   # bootstrapToken:
   #   ## Generate token and CA certificate : kubeadm token generate
@@ -43,8 +44,12 @@ nodeRegistration:
     # cgroup-driver: K8S_CGROUP_DRIVER
 ## REQUIRED @ CONTROL node
 controlPlane:
-  localAPIEndpoint: 
-    advertiseAddress: THIS_NODE_IP
-    bindPort: K8S_CONTROL_PLANE_PORT
-  ## certificateKey is ephemeral and revealed only *once* per key gen.
+  # localAPIEndpoint: 
+  #   advertiseAddress: THIS_NODE_IP
+  #   bindPort: 6443
+  ## certificateKey : Decrypts the Secret containing the encrypted certs of K8s-control PKI.
+  ## - Secret has 2hr TTL (default). 
+  ## - Key is revealed only *once* per key gen.
+  ## - Okay to reuse same key when re-generating Secret for later join(s) :
+  ##   kubeadm init phase upload-certs --upload-certs --certificate-key $K8S_CERTIFICATE_KEY
   certificateKey: K8S_CERTIFICATE_KEY

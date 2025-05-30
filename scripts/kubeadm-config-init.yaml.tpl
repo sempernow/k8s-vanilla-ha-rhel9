@@ -2,10 +2,7 @@
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-InitConfiguration
-## Use --upload-certs and run the init phase during final init instead of capturing that phase and setting PKI params here.
-## Certificate Key:
-## See "kubeadm init" output : ... --certificate-key <KEY>
-## --certificate-key=$(kubeadm certs certificate-key)
+## Certificate Key : Declare static ok, even on : 64 char hex : "openssl rand -hex 32"
 # certificateKey: K8S_CERTIFICATE_KEY
 # bootstrapTokens:
 # ## --token=$(kubeadm token generate)
@@ -77,14 +74,12 @@ networking:
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
-## @ /var/lib/kubelet/config.yaml
-## @ `kubectl -n kube-system get cm kubelet-config -o yaml |yq -Mr .data.kubelet`
 ## https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration
-## Kubelet is PER NODE
-## See kubelet -h
-## kubeadm config print init-defaults --component-configs KubeletConfiguration
-## kubectl get configmap kubelet-config-1 -n kube-system -o json |jq -Mr .data.kubelet |base64 -d
-## ConfigMaps, kubelet-config-1, exist PER NODE.
+## Kubelet is PER NODE : See kubelet -h
+## FS @ /var/lib/kubelet/config.yaml
+## systemd @ "systemctl cat kubelet.service"
+## GET @ "kubectl -n kube-system get cm kubelet-config -o jsonpath='{.data.kubelet}'"
+## Defaults @ "kubeadm config print init-defaults --component-configs KubeletConfiguration" 
 ## Restart kubelet.service on any change to its --config CONFIG
 # enableServer: true
 # imageGCHighThresholdPercent: 85
@@ -169,7 +164,7 @@ tlsMinVersion: VersionTLS12
 ---
 apiVersion: kubeproxy.config.k8s.io/v1alpha1
 kind: KubeProxyConfiguration
-## @ `kubectl -n kube-system get cm kube-proxy -o yaml |yq -Mr '.data["config.conf"]'`
+## @ "kubectl -n kube-system get cm kube-proxy -o yaml |yq -Mr '.data["config.conf"]'"
 ## https://kubernetes.io/docs/reference/config-api/kube-proxy-config.v1alpha1/#kubeproxy-config-k8s-io-v1alpha1-KubeProxyConfiguration
 mode: "ipvs"                            # Use IPVS for better performance and scalability compared to iptables.
 clusterCIDR: "K8S_POD_CIDR"             # Replace with your cluster's pod network CIDR.

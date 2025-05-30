@@ -1,7 +1,9 @@
 ##############################################################################
 ## Makefile.settings : Environment Variables for Makefile(s)
 include Makefile.settings
-
+# … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × € ¢ £ ¤ ¥ ₽ ♻ ⚐ ⚑
+# ¦ ¶ § † ‡ ß µ ø Ø ƒ Δ ⚒ ☡ ☈ ☧ ☩ ✚ ☨ ☦ ☓ ♰ ♱ ✖ ☘ 웃 𝐀𝐏𝐏 𝐋𝐀𝐁
+# ⚠ ☢ ☣ ☠ ⚡ ☑ ✅ ❌ 🔒 🧩 📊 📈 🔍 📦 🧳 🥇 💡 🚀 🚧 🔚
 ##############################################################################
 ## Environment variable rules:
 ## - Any TRAILING whitespace KILLS its variable value and may break recipes.
@@ -123,6 +125,7 @@ menu :
 	@echo "  -cni       : Install K8s CNI Pod network providers"
 	@echo "  -cri       : Install K8s CRI and all deps, and tools"
 	@echo "  -k8s       : Install K8s and CNI plugins"
+	@echo "update-os    : Update host OS"
 	@echo "============== "
 	@echo "lbmake       : Generate HA-LB configurations from .tpl files"
 	@echo "lbconf       : Configure HA LB on all control nodes"
@@ -213,16 +216,15 @@ env :
 
 eol :
 	find . -type f ! -path '*/.git/*' -exec dos2unix {} \+
-
 mode :
 	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \;
 	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \;
 #	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \;
-
+tree :
+	tree -d |tee tree-d
 html :
 	find . -type f ! -path './.git/*' -name '*.md' -exec md2html.exe "{}" \;
-
-commit push : html mode
+commit push : html tree mode
 	gc && git push && gl && gs
 
 ##############################################################################
@@ -329,6 +331,11 @@ install-k8s :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
 		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-k8s.${UTC}.log
+
+update-os :
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash sudo dnf -y update \
+		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.update-os.${UTC}.log
 
 #lbclean :
 #ansibash -s ${ADMIN_SRC_DIR}/halb/clean-halb.sh ${HALB_VIP} ${HALB_DEVICE}
