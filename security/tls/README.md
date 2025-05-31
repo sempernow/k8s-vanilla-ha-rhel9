@@ -5,7 +5,8 @@ the AD CS role of Windows Server 2019 provides
 only RSA type TLS certificates.
 
 We successfully obtained a TLS certificate for web server usage 
-from AD CS web form of its Certificate Server at `https://dc1.lime.lan/certsrv/`
+from AD CS web form of its Certificate Server 
+__`lime-DC1-CA`__ at `https://dc1.lime.lan/certsrv/`
 
 The server responds with two (end-entity and full-chain) certificates, 
 both __in PKCS#7 format__ (`.p7b`), 
@@ -21,12 +22,12 @@ cn=kube.lime.lan
 openssl pkcs7 -print_certs -in certnew.p7b -out $cn.crt
 
 # Parse the certificate
-openssl x509 -noout -issuer -subject -startdate -enddate -ext subjectAltName -in $cn.crt
+openssl x509 -noout -subject -issuer -startdate -enddate -ext subjectAltName -in $cn.crt
 ```
 
 ```plaintext
-issuer=DC = lan, DC = lime, CN = lime-DC1-CA
 subject=C = US, ST = MD, L = AAC, O = DisselTree, OU = ops, CN = kube.lime.lan, emailAddress = admin@lime.lan
+issuer=DC = lan, DC = lime, CN = lime-DC1-CA
 notBefore=Jan 25 14:32:36 2025 GMT
 notAfter=Jan 25 14:32:36 2027 GMT
 X509v3 Subject Alternative Name:
@@ -85,4 +86,3 @@ openssl req -new -noenc -config $cn.cnf -extensions v3_req -newkey ed25519 -keyo
 openssl req -new -noenc -config $cn.cnf -extensions v3_req -newkey ec:<(openssl ecparam -name prime256v1 -genkey) -keyout $cn.key -out $cn.csr
 
 ```
-

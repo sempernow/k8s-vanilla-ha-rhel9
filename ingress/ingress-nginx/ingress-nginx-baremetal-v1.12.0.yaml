@@ -335,8 +335,8 @@ metadata:
     app.kubernetes.io/part-of: ingress-nginx
     app.kubernetes.io/version: 1.12.0
 data:
- client_max_body_size: "4096m"
- ssl-protocols: "TLSv1.2 TLSv1.3"
+  client_max_body_size: "4096m"
+  ssl-protocols: "TLSv1.2 TLSv1.3"
   ## allow-snippet-annotations : Enable only if we TRUST users with permission to create Ingress objects; may allow programmatic mods to nginx.conf file.
   allow-snippet-annotations: "true"
   annotation-value-word-blocklist: "load_module,lua_package,_by_lua,location,root,proxy_pass,serviceaccount,{,},',\""

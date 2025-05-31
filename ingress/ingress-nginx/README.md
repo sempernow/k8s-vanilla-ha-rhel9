@@ -123,13 +123,17 @@ kubectl apply -f $manifest
 Else by Helm chart :
 
 ```bash
-v=4.12.0
+v=4.12.2
 release=ingress-nginx
+ns=$release
 chart=$release # Folder name of extracted chart
 repo=https://kubernetes.github.io/$chart
 values=values.yaml
+tls=default-ssl-cert
 # To use manifest method:
 manifest=helm.template.$chart.$v.yaml
+# Add repo
+helm repo add ingress-nginx $repo
 # 1. Use helm chart to generate the manifest; edit as desired.
 # Configured here for external (HA)LB upstreaming to NodePorts, 
 # and using PROXY protocol to preserve client IP.
@@ -140,8 +144,16 @@ helm template $release $chart \
     --set controller.service.type=NodePort \
     --set controller.service.ports.http=30080 \
     --set controller.service.ports.https=30443 \
+    --set controller.extraArgs.default-ssl-certificate="$ns/$tls" \
     |tee $manifest
-# 2. Apply the generated manifest
+
+# 2. Create TLS key/cert (out of band) and K8s Secret
+kubectl create secret tls $tls \
+    --cert=cert.pem \
+    --key=key.pem \
+    --namespace=$ns
+
+# 3. Apply the generated manifest
 kubectl apply -f $manifest
 
 # To use remote chart
