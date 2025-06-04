@@ -59,6 +59,13 @@ ok(){
         sudo ln -fs /usr/local/bin/$file /usr/local/bin/kubectl-calico
     }
     ok || return $?
+
+    # Calico CNI plugin binaries : See Mamual Recovery of Pod Network
+    ok(){
+        url=https://github.com/projectcalico/cni-plugin/releases/download/$VER/calico-cni-$VER.tgz
+        curl -sSLfO $url && tar zxvf calico-cni-$VER.tgz
+    }
+    #ok || return $?
 }
 
 pushd "${BASH_SOURCE%/*}" || pushd . || return 1
