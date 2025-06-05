@@ -71,7 +71,6 @@ ok(){
     ok(){
         url=https://github.com/projectcalico/cni-plugin/releases/download/$VER/calico-cni-$VER.tgz
         curl -sSLfO $url && tar zxvf calico-cni-$VER.tgz
-
     }
     ok || return $?
 }
