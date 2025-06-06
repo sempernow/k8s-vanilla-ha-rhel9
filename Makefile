@@ -1,9 +1,9 @@
 ##############################################################################
 ## Makefile.settings : Environment Variables for Makefile(s)
 include Makefile.settings
-# … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × € ¢ £ ¤ ¥ ₽ ♻ ⚐ ⚑
-# ☢ ☣ ☠ ¦ ¶ § † ‡ ß µ ø Ø ƒ Δ ⚒ ☡ ☈ ☧ ☩ ✚ ☨ ☦ ☓ ♰ ♱ ✖ ☘ 웃 𝐀𝐏𝐏 𝐋𝐀𝐁
-# ⚠️ ✅ 🚀 🚧 🛠️ ⚡ ❌ 🔒 🧩 📊 📈 🔍 🧪 📦 🔧 🧳 🥇 💡 ✨️ 🔚
+# … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × € ¢ £ ¤ ¥ ₽ ♻  ⚐ ⚑
+# ☢  ☣  ☠  ¦ ¶ § † ‡ ß µ ø Ø ƒ Δ ☡ ☈ ☧ ☩ ✚ ☨ ☦ ☓ ♰ ♱ ✖  ☘  웃 𝐀𝐏𝐏 𝐋𝐀𝐁
+# ⚠ ✅ 🚀 🚧 🛠️ ⚡ ❌ 🔒 🧩 📊 📈 🔍 🧪 📦 🔧 🧳 🥇 💡 ✨️ 🔚
 ##############################################################################
 ## Environment variable rules:
 ## - Any TRAILING whitespace KILLS its variable value and may break recipes.
@@ -54,6 +54,8 @@ export HALB_DEVICE   ?= eth0
 export HALB_FQDN_1   ?= a1.lime.lan
 export HALB_FQDN_2   ?= a2.lime.lan
 export HALB_FQDN_3   ?= a3.lime.lan
+export HALB_HTTP     ?= 30080
+export HALB_HTTPS    ?= 30443
 
 export HALB_ENDPOINT ?= ${HALB_VIP}:${HALB_PORT}
 
@@ -96,6 +98,7 @@ export K8S_CONTROL_PLANE_IP   ?= 192.168.11.101
 export K8S_CONTROL_PLANE_PORT ?= 6443
 export K8S_NETWORK_DEVICE     ?= eth0
 export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
+export K8S_FQDN               ?= kube.lime.lan
 ## CNI projects notoriously ignore custom CIDRs : Even masks (/16 v. /24) are a shaky proposition
 #export K8S_SERVICE_CIDR       ?= 10.32.0.0/16
 export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
@@ -115,6 +118,7 @@ export K8S_CGROUP_DRIVER      ?= systemd
 
 menu :
 	$(INFO) 'Install K8s onto all target hosts : RHEL9 is expected'
+	@echo "update-os    : Update host OS"
 	@echo "conf         : kernel selinux swap : See scripts/configure-*"
 	@echo "  -kernel    : Configure kernel for K8s/CNI/CRI : load modules and set runtime params"
 	@echo "  -selinux   : Configure targets' SELinux : Set to Permissive"
@@ -125,7 +129,6 @@ menu :
 	@echo "  -cni       : Install K8s CNI Pod network providers"
 	@echo "  -cri       : Install K8s CRI and all deps, and tools"
 	@echo "  -k8s       : Install K8s and CNI plugins"
-	@echo "update-os    : Update host OS"
 	@echo "============== "
 	@echo "lbmake       : Generate HA-LB configurations from .tpl files"
 	@echo "lbconf       : Configure HA LB on all control nodes"
@@ -173,9 +176,13 @@ menu :
 	@echo "  -ps        : Containers of containerd"
 	@echo "crictl-ready : Delete all containerd Pods in 'NotReady' status"
 	@echo "============== "
-	@echo "ingress-nginx: Install Ingress NGINX Controller"
+	@echo "ingress-nginx: Ingress NGINX Controller"
+	@echo "  -up        : Install"
+	@echo "  -secret    : Create K8s Secret for default TLS certificate"
+	@echo "  -parse     : Parse the TLS certificate of K8s Secret"
 	@echo "  -down      : Teardown"
-	@echo "  -e2e       : End-to-end test : curl -s http://\$$host:\$$nodePort/{foo,bar}/hostname"
+	@echo "  -e2e       : End-to-end HTTP  test : curl -s http://\$$host:\$$nodePort/{foo,bar}/hostname"
+	@echo "  -e2e-tls   : End-to-end HTTPS test : curl -s https://e2e.${K8S_FQDN}/{foo,bar}/hostname"
 	@echo "============== "
 	@echo "metrics      : Install metrics-server, enabling: kubectl top ..."
 	@echo "dashboard    : Install K8s Dashboard : Web UI for K8s API"
@@ -198,9 +205,11 @@ menu :
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 	@echo "============== "
 	@echo "status       : Print targets' status"
-	@echo "net          : Network interfaces"
-	@echo "psrss        : Print target hosts' top memory usage : RSS [MiB]"
-	@echo "userrc       : Configure target hosts' bash shell using latest @ github.com/sempernow/userrc.git"
+	@echo "net          : Interfaces' info"
+	@echo "ruleset      : nftables rulesets"
+	@echo "iptables     : iptables"
+	@echo "psrss        : Print targets' top memory usage : RSS [MiB]"
+	@echo "userrc       : Configure targets' bash shell using latest @ github.com/sempernow/userrc.git"
 	@echo "============== "
 	@echo "env          : Print the make environment"
 	@echo "mode         : Fix folder and file modes of this project"
@@ -252,13 +261,19 @@ status hello :
 			&& printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
 		'
 
-network net ip:
+#net: ruleset iptables
+net:
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash '\
+			sudo nmcli dev status; \
 			ip -brief addr; \
-			sudo iptables -L -n -v; \
-			sudo nft list ruleset \
 		'
+ruleset:
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash sudo nft list ruleset
+iptables:
+	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+		&& ansibash sudo iptables -L -n -v
 
 psrss :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
@@ -269,7 +284,7 @@ userrc :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 		&& ansibash 'git clone https://github.com/sempernow/userrc 2>/dev/null || echo ok'
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash 'pushd userrc;git pull;make sync-user && make user'
+		&& ansibash 'pushd userrc && git pull && make sync-user && make user'
 
 # Configure the installer (ADMIN_USER) on each node. Final task is manual.
 # See script for details.
@@ -558,12 +573,19 @@ prune :
 	bash make.recipes.sh prune
 #	bash scripts/kubectl-mass-delete-pods.sh StatusUnk
 
+ingress := ingress/ingress-nginx/ingress-nginx.sh
+ingress-nginx-secret:
+	bash ${ADMIN_SRC_DIR}/${ingress} secret
+ingress-nginx-parse:
+	bash ${ADMIN_SRC_DIR}/${ingress} parse
+ingress-nginx-template:
+	bash ${ADMIN_SRC_DIR}/${ingress} template
 ingress-nginx ingress-nginx-up :
-	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh update
+	bash ${ADMIN_SRC_DIR}/${ingress} upChart
 ingress-nginx-e2e :
-	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh e2e || echo ERR $?
-ingress-nginx-teardown ingress-nginx-down :
-	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/ingress-nginx.sh teardown
+	bash ${ADMIN_SRC_DIR}/${ingress} e2e || echo ERR $?
+ingress-nginx-down ingress-nginx-teardown :
+	bash ${ADMIN_SRC_DIR}/${ingress} teardown
 
 metrics metrics-up :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh apply

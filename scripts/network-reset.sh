@@ -70,9 +70,8 @@ nft flush ruleset
 # rm -rf /var/lib/firewalld
 # dnf -y reinstall firewalld
 
-#systemctl start iptables
 systemctl enable --now nftables
-
+#systemctl start iptables
 #systemctl enable --now firewalld
 
 # Verify

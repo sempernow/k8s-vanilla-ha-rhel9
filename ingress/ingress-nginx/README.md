@@ -123,23 +123,26 @@ kubectl apply -f $manifest
 Else by Helm chart :
 
 ```bash
-v=4.12.2
-release=ingress-nginx
-ns=$release
-chart=$release # Folder name of extracted chart
+v=4.12.3
+chart=ingress-nginx # Folder name of extracted chart
 repo=https://kubernetes.github.io/$chart
+releast=$chart
+ns=$release
 values=values.yaml
-tls=default-ssl-cert
+tls=default-tls-cert
 # To use manifest method:
 manifest=helm.template.$chart.$v.yaml
-# Add repo
-helm repo add ingress-nginx $repo
+# Add/Update repo
+helm repo add $chart $repo &&
+    helm repo update $chart ||
+        echo ERR on helm repo add/update : $repo
 # 1. Use helm chart to generate the manifest; edit as desired.
 # Configured here for external (HA)LB upstreaming to NodePorts, 
 # and using PROXY protocol to preserve client IP.
 helm template $release $chart \
     --repo $repo \
     --version $v \
+    --set controller.kind=DaemonSet \
     --set controller.service.externalTrafficPolicy=Local \
     --set controller.service.type=NodePort \
     --set controller.service.ports.http=30080 \
@@ -217,7 +220,8 @@ spec:
 ## [Configuration Options](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#configuration-options)
 
 
-Modify the `ConfigMap` (`cm.ingress-nginx-controller`) of a release __to overwrite any parameter__.
+Modify the `ConfigMap` (`cm.ingress-nginx-controller`) 
+of a release __to overwrite any parameter__.
 
 ```yaml
 ---
@@ -231,11 +235,16 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     ...
 data:
-  ## allow-snippet-annotations : Enable only if we TRUST users with permission to create Ingress objects; may allow programmatic mods to nginx.conf file.
+  ## Configuration Options : 
+  ## - All keys and values of ConfigMap must be type *string*.
+  ## - Use `helm install ... --set cm.data.$key=$val` to override default/values settings.
+  ## https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/
+  ##
+  ## Enable allow-snippet-annotations grants access to Ingress objects, which may modify nginx.conf
   allow-snippet-annotations: "true"
   annotation-value-word-blocklist: "load_module,lua_package,_by_lua,location,root,proxy_pass,serviceaccount,{,},',\""
   ## client-body-buffer-size : "0" # No limit, else HTTP 413 if over limit.
-  client-body-buffer-size: "4096m" # E.g., allow OCI-image uploads
+  client-body-buffer-size: "4096m" # E.g., allow clients to upload OCI-images
   ssl-protocols: "TLSv1.2 TLSv1.3" # Restrict TLS versions
   ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384." #... the default list
   ## use-proxy-protocol : Must set this key to "true" if the downstream 

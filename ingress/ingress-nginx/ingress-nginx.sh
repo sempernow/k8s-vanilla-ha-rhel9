@@ -6,36 +6,81 @@
 #
 # ARGs: FUNCTION  MANIFEST
 # -----------------------------------------------------------------------------
-manifest=${2:-ingress-nginx-baremetal-v1.12.0.yaml}
-usage=ingress-nginx-usage.yaml
-v=v1.12.0
-url=https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-$v/deploy/static/provider/baremetal/deploy.yaml
+v=4.12.3
+chart=ingress-nginx # Folder name on chart archive extract
+repo=https://kubernetes.github.io/$chart
+release=$chart
+ns=$release
+values=values.yaml
+manifest=helm.template.$chart.$v.yaml
 
-_download(){
-    [[ -r $manifest ]] && return 200 ||
-        curl -fsSL $url -o $manifest || return $?
-    
-    return 0
+http="${HALB_HTTP:-31080}"
+https="${HALB_HTTPS:-31443}"
+
+tls=default-tls-cert
+cn=kube.lime.lan
+crt=tls/$cn/$cn.crt
+key=tls/$cn/$cn.key
+
+# Add/Update repo
+repo(){
+    helm repo add $chart $repo &&
+    helm repo update $chart ||
+        echo "⚠  ERR on helm repo add/update : $repo"
+
+        --key=$key \
+        --dry-run=client \
+        -o yaml |tee secret.$tls.yaml
 }
-export -f _download
-update(){
-    _download && return 400 #... else install/update
+secret(){
+    kubectl -n $ns delete secret tls $tls --ignore-not-found
+    kubectl create secret tls $tls \
+        --namespace=$ns \
+        --cert=$crt \
+        --key=$key # --dry-run=client -o yaml |tee secret.$tls.yaml
+    kubectl -n $ns get secret $tls -o yaml |tee secret.$tls.yaml
+}
+parse(){
+    yq '.data.["tls.crt"]' <(kubectl -n $ns get secret $tls -o yaml) |base64 -d \
+        |openssl x509 -noout -subject -issuer -startdate -enddate -ext subjectAltName
+}
 
-    # Install/update from (edited) manifest else of url 
-    [[ -r $manifest ]] && kubectl apply -f $manifest || {
-        [[ $url ]] && kubectl apply -f $url
-    } &&
-        kubectl wait -n ingress-nginx \
-            --for=condition=ready pod \
-            --selector=app.kubernetes.io/component=controller \
-            --timeout=90s
+helmAction(){
+    ## template|upgrade|install
+    [[ $1 ]] || return 1
+    [[ $1 == 'upgrade' ]] && install='--install'
+    helm $1 $release $chart \
+        $install \
+        --repo $repo \
+        --version $v \
+        --namespace $ns \
+        --create-namespace \
+        --set controller.kind=DaemonSet \
+        --set controller.service.externalTrafficPolicy=Local \
+        --set controller.service.type=NodePort \
+        --set controller.service.ports.http=$http \
+        --set controller.service.ports.https=$https \
+        --set controller.extraArgs.default-ssl-certificate="$ns/$tls"
+}
+template(){
+    helmAction template |tee $manifest
+}
+upChart(){
+    helmAction upgrade # FAILing
+}
+upManifest(){
+    template && kubectl apply -f $manifest
+    # kubectl wait -n $ns \
+    #     --for=condition=ready pod \
+    #     --selector=app.kubernetes.io/component=controller \
+    #     --timeout=90s
 }
 e2e(){
     _e2e(){
+        usage=ingress-nginx-usage.yaml
         # See ingress-nginx-kind-usage.yaml
         [[ $(kubectl -n stack-test get pod -l app=foo 2>/dev/null) ]] ||
             kubectl config set-context --current --namespace stack-test
-        
         kubectl apply -f $usage
         for pod in foo bar;do 
             kubectl wait -n stack-test \
@@ -78,10 +123,14 @@ e2e(){
     kubectl delete -f $usage
 }
 teardown(){
+    kubectl get -n stack-test 2>/dev/null &&
+        kubectl delete -f $usage
 
-    kubectl delete -f $usage
-    kubectl delete -f $manifest || kubectl delete -f $url
-    kubectl get $all,validatingwebhookconfigurations,clusterrole,clusterrolebinding |grep -- -nginx
+    helm uninstall -n $ns $release ||
+        kubectl delete -f $manifest
+
+    resources='deploy,ds,svc,ep,ClusterIP,ingress,cm,sa,secret,validatingwebhookconfigurations,clusterrole,clusterrolebinding'
+    kubectl -n $ns get $resources |grep -- -nginx
 }
 
 pushd ${BASH_SOURCE%/*} 2>/dev/null || push . || exit 
