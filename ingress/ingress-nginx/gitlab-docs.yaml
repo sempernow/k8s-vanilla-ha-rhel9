@@ -7,7 +7,7 @@ metadata:
     #nginx.ingress.kubernetes.io/use-regex: "true"
     #nginx.ingress.kubernetes.io/rewrite-target: /$1
     nginx.ingress.kubernetes.io/app-root: /17.1
-  name: gdocs
+  name: gitlab-docs
   #namespace: default
 spec:
   ingressClassName: nginx
@@ -16,11 +16,10 @@ spec:
       paths:
       - backend:
           service:
-            name: gdocs
+            name: gitlab-docs
             port:
               number: 4000
         #path: /(.*)
         path: /
         #pathType: ImplementationSpecific
         pathType: Prefix
-

@@ -112,6 +112,8 @@ export K8S_NODE_CIDR6_MASK    ?= 96
 export K8S_CRI_SOCKET         ?= unix:///var/run/containerd/containerd.sock
 export K8S_CGROUP_DRIVER      ?= systemd
 ## PKI : See Makefile.settings : Values are generated ONLY IF NOT EXIST
+export DOMAIN_CA_CERT := ${PRJ_ROOT}/ingress/tls/ca-root-dc1.lime.lan.cer
+
 
 ##############################################################################
 ## Recipes : Meta
@@ -222,6 +224,7 @@ env :
 	@echo "PWD=${PRJ_ROOT}"
 	@env |grep K8S_
 	@env |grep ADMIN_
+	@env |grep DOMAIN_
 
 eol :
 	find . -type f ! -path '*/.git/*' -exec dos2unix {} \+
@@ -583,7 +586,7 @@ ingress-nginx-template:
 ingress-nginx ingress-nginx-up :
 	bash ${ADMIN_SRC_DIR}/${ingress} upChart
 ingress-nginx-e2e :
-	bash ${ADMIN_SRC_DIR}/${ingress} e2e || echo ERR $?
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e teardown || echo ERR $?
 ingress-nginx-down ingress-nginx-teardown :
 	bash ${ADMIN_SRC_DIR}/${ingress} teardown
 
