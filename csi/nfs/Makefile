@@ -66,6 +66,7 @@ menu :
 	@echo "client       : Show NFS client"
 	@echo "============== "
 	@echo "nfs-subdir   : Install StorageClass and External Provisioner (nfs-client)"
+	@echo "app          : Install test app having mount /data to the NFS"
 
 env : 
 	$(INFO) 'Environment'
@@ -118,7 +119,17 @@ nfs-clients nfs-client :
 	        ${NFS_SERVER_HOST}.${NFS_DOMAIN} ${NFS_EXPORT_PATH} ${NFS_EXPORT_PATH} ${NFS_DC_HOST}.${NFS_DOMAIN}
 
 server :
-	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} 'sudo journalctl -eu nfs-server && showmount -e localhost && sudo exportfs -v && klist'
+	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} '\
+		sudo journalctl -u nfs-server \
+		&& showmount -e localhost \
+		&& sudo exportfs -v \
+		&& klist \
+		&& ls -ahlZR ${NFS_EXPORT_PATH} \
+		&& getent group ad-nfsanon \
+		&& id nfsanon \
+		&& id u1 \
+		&& id u2 \
+	'
 
 file := $(shell date '+%F_%H.%M.%S')
 client :
@@ -135,3 +146,14 @@ client :
 k8s-nfs-subdir :
 	pushd nfs-subdir-external-provisioner \
 		&& bash nfs-subdir-provisioner.sh
+
+app app-up up :
+	kubectl get pv test-nfs-pv || kubectl -n default apply -f test-nfs-app-state.yaml
+	kubectl -n default apply -f test-nfs-app.yaml
+	sleep 5 && ssh ${ADMIN_USER}@${NFS_SERVER_HOST} ls -ahlRZ ${NFS_EXPORT_PATH}
+app-exec exec :
+	kubectl -n default exec -it test-nfs-pod -- ls -ahlR /data
+app-down down :
+	kubectl -n default delete -f test-nfs-app.yaml || echo ok
+
+

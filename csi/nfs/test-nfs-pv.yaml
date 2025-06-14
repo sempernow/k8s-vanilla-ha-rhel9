@@ -1,0 +1,21 @@
+---
+## Test NFS access with Pod app having container mount /data of PV nfs-common-pv
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: test-nfs-pv
+  labels:
+    app: test-nfs
+spec:
+  storageClassName: nfs
+  nfs:
+    path: /srv/nfs/k8s/test-nfs-pv
+    server: 192.168.11.100
+  capacity:
+    storage: 1Gi
+  accessModes:
+  - ReadWriteMany
+  volumeMode: Filesystem
+  persistentVolumeReclaimPolicy: Delete
+
