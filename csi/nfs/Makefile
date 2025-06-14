@@ -68,6 +68,9 @@ menu :
 	@echo "============== "
 	@echo "nfs-subdir   : Install StorageClass and External Provisioner (nfs-client)"
 	@echo "app          : Install test app having mount /data to the NFS"
+	@echo "  -up        : Install test app having mount /data to the NFS"
+	@echo "  -exec      : Execute a shell into apptest app"
+	@echo "  -down      : Teardown the test app"
 
 env :
 	$(INFO) 'Environment'

@@ -30,7 +30,17 @@ spec:
   containers:
     - name: app
       image: busybox
-      command: ["sh", "-c", "fname=test-$(date -Is);touch /data/${fname//:/.};sleep 100s"]
+      command: 
+      - "sh"
+      - "-c"
+      - |
+        while true
+        do 
+            fname=test-$(date -Is)
+            touch /data/${fname//:/.} &&
+                sleep 60 ||
+                    exit 11
+        done
       env:
         - name: POD_NAME
           valueFrom:
@@ -44,8 +54,8 @@ spec:
         runAsUser: 50000      # nfsanon
         #runAsGroup: 322202601 # ad-linux-users
         runAsGroup: 50000 
+  restartPolicy: Never
   volumes:
     - name: data
       persistentVolumeClaim:
         claimName: test-nfs-pvc
-
