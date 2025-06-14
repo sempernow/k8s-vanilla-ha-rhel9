@@ -7,10 +7,15 @@ set -euo pipefail
 ok(){
     # K8s dependency
     sudo dnf -y install conntrack
+
     # Tools
     all='
-    yum-utils 
     dnf-plugins-core
+    selinux-policy-targeted 
+    libselinux-utils
+    policycoreutils
+    setroubleshoot-server
+    policycoreutils-python-utils
     gcc 
     make 
     ansible 
@@ -42,6 +47,5 @@ ok(){
     pciutils
     '
     sudo dnf -y install $all
-
 }
 ok || exit $?

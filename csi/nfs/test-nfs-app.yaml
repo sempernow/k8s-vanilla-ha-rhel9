@@ -1,42 +1,12 @@
 ---
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: nfs-common-pv
-  labels:
-    app: all
-spec:
-  storageClassName: nfs
-  nfs:
-    path: /srv/nfs/k8s/nfs-common-pv
-    server: 192.168.11.100
-  capacity:
-    storage: 1Gi
-  accessModes:
-  - ReadWriteMany
-  volumeMode: Filesystem
-  persistentVolumeReclaimPolicy: Delete
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: nfs-common-pvc
-  labels:
-    app: all
-spec:
-  storageClassName: nfs 
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 1Gi
+## Test NFS access with Pod app having container mount /data of PV nfs-common-pv
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nfs-common-pod
+  name: test-nfs-pod
   labels:
-    app: nfs-secure
+    app: test-nfs
 spec:
   initContainers:
     - name: init-volume
@@ -54,11 +24,13 @@ spec:
       volumeMounts:
         - name: data
           mountPath: /data
-          subPathExpr: $(POD_NAME)
+          ## subPathExpr : Isolated (per Pod) subdir under shared volume /data
+          ## Useful in multi-Pod application or stack.
+          #subPathExpr: $(POD_NAME)
   containers:
     - name: app
       image: busybox
-      command: ["sh", "-c", "echo Hello from $(date -u '+%Y-%m-%dT%H:%M:%SZ') >> /data/hello.txt && sleep 100"]
+      command: ["sh", "-c", "fname=test-$(date -Is);touch /data/${fname//:/.};sleep 100s"]
       env:
         - name: POD_NAME
           valueFrom:
@@ -67,13 +39,13 @@ spec:
       volumeMounts:
         - name: data
           mountPath: /data
-          subPathExpr: $(POD_NAME)
+          #subPathExpr: $(POD_NAME)
       securityContext:
         runAsUser: 50000      # nfsanon
         #runAsGroup: 322202601 # ad-linux-users
-        runAsGroup: 50000 # ad-linux-users
+        runAsGroup: 50000 
   volumes:
     - name: data
       persistentVolumeClaim:
-        claimName: nfs-common-pvc
+        claimName: test-nfs-pvc
 

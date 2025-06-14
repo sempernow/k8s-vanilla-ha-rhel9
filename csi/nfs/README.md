@@ -97,6 +97,12 @@ total 0
   `OWNER:GROUP` (`root:root`) and `MODE` (`777`).
 
 
+## Client @ K8s Pod
+
+```bash
+kubectl apply -f app.nfs-common.yaml
+```
+
 ## **NFS Mount Option: `hard` v. `soft`**
 
 The `hard` and `soft` options in NFS determine __how the client behaves when an NFS server becomes unresponsive__ or crashes. Here’s a breakdown:

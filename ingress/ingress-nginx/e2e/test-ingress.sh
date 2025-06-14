@@ -71,7 +71,7 @@ e2e(){
     echo '🧪 === E2E connectivi1ty test : Ingress <=> Service <=> Pod <=> container'
     up || return 503
     type get
-    echo http https |xargs -n1 /bin/bash -c '
+    echo $* |xargs -n1 /bin/bash -c '
         [[ $1 == "https" ]] && host=$0 || host=$(ipv4)
         echo "🛠️ @ ${1^^}://$host:$(port $1)"
         scheme $1

@@ -586,7 +586,9 @@ ingress-nginx-template:
 ingress-nginx ingress-nginx-up : ingress-nginx-secret
 	bash ${ADMIN_SRC_DIR}/${ingress} upChart
 ingress-nginx-e2e :
-	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e || echo ERR $?
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e http || echo ERR $?
+ingress-nginx-e2e-tls :
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e https || echo ERR $?
 ingress-nginx-e2e-down ingress-nginx-e2e-teardown :
 	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh teardown || echo ERR $?
 ingress-nginx-down ingress-nginx-teardown :

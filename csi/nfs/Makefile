@@ -36,7 +36,7 @@ export NFS_SERVER_HOST       ?= a0
 export NFS_CLIENT_HOSTS      ?= a1 a2 a3
 export NFS_EXPORT_PATH       ?= /srv/nfs/k8s
 
-## ansibash 
+## ansibash
 ### Public-key string of ssh user must be in ~/.ssh/authorized_keys of ADMIN_USER at all targets.
 #export ADMIN_USER          ?= $(shell id -un)
 export ADMIN_USER          ?= u2
@@ -57,6 +57,7 @@ menu :
 	@echo "mode         : Fix file mode of this source"
 	@echo "html         : Process all MD files to HTML"
 	@echo "============== "
+	@echo "lvm          : Provision LVM-based store for NFS export"
 	@echo "nfs          : Provision NFS Server/Clients on RHEL9 integrated with AD and Kerberos"
 	@echo "  -kerberos  : Configure server and client(s) for Kerberos"
 	@echo "  -server    : Provision NFS Server on host ${NFS_SERVER_HOST}"
@@ -66,12 +67,13 @@ menu :
 	@echo "client       : Show NFS client"
 	@echo "============== "
 	@echo "nfs-subdir   : Install StorageClass and External Provisioner (nfs-client)"
+	@echo "app          : Install test app having mount /data to the NFS"
 
-env : 
+env :
 	$(INFO) 'Environment'
 	@echo "PWD=${PRJ_ROOT}"
-	@env |grep ADMIN_ 
-	@env |grep NFS_ 
+	@env |grep ADMIN_
+	@env |grep NFS_
 
 perms mode : html
 	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \;
@@ -102,11 +104,15 @@ nfs-kerberos :
 	    && sudo chmod 600 /etc/sssd/sssd.conf \
 	'
 
-nfs-server :
+nfs-server : lvm
 	scp -p ${PRJ_ROOT}/install-nfs-server.sh ${ADMIN_USER}@${ADMIN_HOST}:.
 	ansibash sudo systemctl disable --now nfs-server
 	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} sudo bash install-nfs-server.sh \
 	    ${NFS_EXPORT_PATH} ${NFS_CIDR} ${NFS_DC_HOST}.${NFS_DOMAIN}
+
+lvm :
+	scp -p ${PRJ_ROOT}/provision-lvm-data-nfs.sh ${ADMIN_USER}@${ADMIN_HOST}:.
+	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} sudo bash provision-lvm-data-nfs.sh
 
 nfs-clients nfs-client :
 	ANSIBASH_TARGET_LIST="${NFS_CLIENT_HOSTS}" \
@@ -118,7 +124,17 @@ nfs-clients nfs-client :
 	        ${NFS_SERVER_HOST}.${NFS_DOMAIN} ${NFS_EXPORT_PATH} ${NFS_EXPORT_PATH} ${NFS_DC_HOST}.${NFS_DOMAIN}
 
 server :
-	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} 'sudo journalctl -eu nfs-server && showmount -e localhost && sudo exportfs -v && klist'
+	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} '\
+		sudo journalctl -u nfs-server \
+		&& showmount -e localhost \
+		&& sudo exportfs -v \
+		&& klist \
+		&& ls -ahlZR ${NFS_EXPORT_PATH} \
+		&& getent group ad-nfsanon \
+		&& id nfsanon \
+		&& id u1 \
+		&& id u2 \
+	'
 
 file := $(shell date '+%F_%H.%M.%S')
 client :
@@ -135,3 +151,12 @@ client :
 k8s-nfs-subdir :
 	pushd nfs-subdir-external-provisioner \
 		&& bash nfs-subdir-provisioner.sh
+
+app app-up up :
+	kubectl get pv test-nfs-pv || kubectl -n default apply -f test-nfs-app-state.yaml
+	kubectl -n default apply -f test-nfs-app.yaml
+	sleep 5 && ssh ${ADMIN_USER}@${NFS_SERVER_HOST} ls -ahlRZ ${NFS_EXPORT_PATH}
+app-exec exec :
+	kubectl -n default exec -it test-nfs-pod -- ls -ahlR /data
+app-down down :
+	kubectl -n default delete -f test-nfs-app.yaml || echo ok
