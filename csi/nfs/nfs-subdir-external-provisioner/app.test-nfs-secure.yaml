@@ -55,6 +55,7 @@ spec:
         fname=hello.from.u.$(id -u)@$(hostname -f)@$stamp
         touch /data/${fname//:/.}
         echo "$stamp : Hello from user $(id -u) at host $(hostname)"
+        while true;do touch /data/$(hostname -f)-$(date +'%H.%M.%S');sleep 15s;done
         sleep 1h
 
       env:
