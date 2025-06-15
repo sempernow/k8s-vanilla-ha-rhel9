@@ -1,17 +1,17 @@
 ##############################################################################
 ## Makefile.settings : Environment Variables for Makefile(s)
 include Makefile.settings
-# … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × € ¢ £ ¤ ¥ ₽ ♻  ⚐ ⚑
-# ☢  ☣  ☠  ¦ ¶ § † ‡ ß µ ø Ø ƒ Δ ☡ ☈ ☧ ☩ ✚ ☨ ☦ ☓ ♰ ♱ ✖  ☘  웃 𝐀𝐏𝐏 𝐋𝐀𝐁
-# ⚠ ✅ 🚀 🚧 🛠️ ⚡ ❌ 🔒 🧩 📊 📈 🔍 🧪 📦 🔧 🧳 🥇 💡 ✨️ 🔚
+# … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × ₽ € ¥ £ ¢ ¤ ♻  ⚐ ⚑
+# ☢  ☣  ☠  ¦ ¶ § † ‡ ß µ ø Ø ƒ Δ ☡ ☈ ☧ ☩ ✚ ☨ ☦  ☓ ♰ ♱ ✖  ☘  웃 𝐀𝐏𝐏 𝐋𝐀𝐁
+# ⚠  ✅ 🚀 🚧 🛠️ 🔧 🔍 🧪 ⚡ ❌ 💡 🔒 📊 📈 🧩 📦 🧳 🥇 ✨️ 🔚
 ##############################################################################
 ## Environment variable rules:
 ## - Any TRAILING whitespace KILLS its variable value and may break recipes.
 ## - ESCAPE only that required by the shell (bash).
 ## - Environment hierarchy:
 ##   - Makefile environment OVERRIDEs OS environment lest set using `?=`.
-##  	  - `FOO ?= bar` is overridden by parent setting; `export FOO=new`.
-##  	  - `FOO :=`bar` is NOT overridden by parent setting.
+##  	 - `FOO ?= bar` is overridden by parent setting; `export FOO=new`.
+##  	 - `FOO :=`bar` is NOT overridden by parent setting.
 ##   - Docker YAML `env_file:` OVERRIDEs OS and Makefile environments.
 ##   - Docker YAML `environment:` OVERRIDEs YAML `env_file:`.
 ##   - CMD-inline OVERRIDEs ALL REGARDLESS; `make recipeX FOO=new BAR=new2`.
@@ -34,26 +34,26 @@ export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 ## Registry : registry.k8s.io
 
 #export CNCF_REGISTRY_IMAGE    ?= registry:2.8.3
-#export CNCF_REGISTRY_HOST     ?= registry.local
-#export CNCF_REGISTRY_HOST     ?= a0.local
+#export CNCF_REGISTRY_HOST     ?= oci.lime.lan
+#export CNCF_REGISTRY_HOST     ?= a0.lime.lan
 #export CNCF_REGISTRY_PORT     ?= 5000
 #export CNCF_REGISTRY_ENDPOINT ?= ${CNCF_REGISTRY_HOST}:${CNCF_REGISTRY_PORT}
-#export CNCF_REGISTRY_STORE    ?= /mnt/registry
+#export CNCF_REGISTRY_STORE    ?= /mnt/${CNCF_REGISTRY_HOST}
 
 ##############################################################################
-## HAProxy/Keepalived :
+## HAProxy/Keepalived : HA Application Load Balancer (HALB)
 ### VIP within targets' network mask
 export HALB_VIP      ?= 192.168.11.11
-### anet Network is segmented (/27; 5 bit mask) so 30 hosts per (user? program?)
 export HALB_MASK     ?= 24
 ### CIDR
+export HALB_DOMAIN   ?= lime.lan
 export HALB_CIDR     ?= ${HALB_VIP}/${HALB_MASK}
 export HALB_VIP6     ?= 0:0:0:0:0:ffff:c0a8:0b0b
 export HALB_PORT     ?= 8443
 export HALB_DEVICE   ?= eth0
-export HALB_FQDN_1   ?= a1.lime.lan
-export HALB_FQDN_2   ?= a2.lime.lan
-export HALB_FQDN_3   ?= a3.lime.lan
+export HALB_FQDN_1   ?= a1.${HALB_DOMAIN}
+export HALB_FQDN_2   ?= a2.${HALB_DOMAIN}
+export HALB_FQDN_3   ?= a3.${HALB_DOMAIN}
 export HALB_HTTP     ?= 30080
 export HALB_HTTPS    ?= 30443
 
@@ -94,11 +94,13 @@ export K8S_JOIN_NODES         ?= $(shell echo ${ADMIN_NODES_CONTROL} |awk '{for 
 export K8S_KUBEADM_CONF_INIT  ?= kubeadm-config-init.yaml
 export K8S_KUBEADM_CONF_JOIN  ?= kubeadm-config-join.yaml
 export K8S_JOIN_KUBECONFIG    ?= discovery.yaml
+#export K8S_CONTROL_PLANE_IP   ?= ${HALB_VIP}
 export K8S_CONTROL_PLANE_IP   ?= 192.168.11.101
+#export K8S_CONTROL_PLANE_PORT ?= ${HALB_PORT}
 export K8S_CONTROL_PLANE_PORT ?= 6443
-export K8S_NETWORK_DEVICE     ?= eth0
+export K8S_NETWORK_DEVICE     ?= ${HALB_DEVICE}
 export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
-export K8S_FQDN               ?= kube.lime.lan
+export K8S_FQDN               ?= kube.${HALB_DOMAIN}
 ## CNI projects notoriously ignore custom CIDRs : Even masks (/16 v. /24) are a shaky proposition
 #export K8S_SERVICE_CIDR       ?= 10.32.0.0/16
 export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
@@ -111,7 +113,7 @@ export K8S_NODE_CIDR_MASK     ?= 24
 export K8S_NODE_CIDR6_MASK    ?= 96
 export K8S_CRI_SOCKET         ?= unix:///var/run/containerd/containerd.sock
 export K8S_CGROUP_DRIVER      ?= systemd
-## PKI : See Makefile.settings : Values are generated ONLY IF NOT EXIST
+## PKI : See Makefile.settings
 export DOMAIN_CA_CERT := ${PRJ_ROOT}/ingress/tls/ca-root-dc1.lime.lan.cer
 
 
@@ -123,7 +125,7 @@ menu :
 	@echo "update-os    : Update host OS"
 	@echo "conf         : kernel selinux swap : See scripts/configure-*"
 	@echo "  -kernel    : Configure kernel for K8s/CNI/CRI : load modules and set runtime params"
-	@echo "  -selinux   : Configure targets' SELinux : Set to Permissive"
+	@echo "  -selinux   : Configure targets' SELinux"
 	@echo "  -swap      : Configure targets' swap : Disable all swap devices"
 	@echo "reboot       : Reboot targets"
 	@echo "install      : Install K8s and all deps"
@@ -200,6 +202,7 @@ menu :
 	@echo "efk-verify   : GET request to Kibana"
 	@echo "loki-install : Install Grafana Loki chart"
 	@echo "loki-delete  : Uninstall Grafana Loki chart"
+	@echo "============== "
 	@echo "prom-install : Install kube-prometheus-stack chart"
 	@echo "prom-access  : Forward Grafana port for local access (Remove: pkill kubectl)"
 	@echo "prom-delete  : Delete kube-prometheus-stack chart"
@@ -248,46 +251,46 @@ commit push : html mode
 # - Protecting a VIP requires network admin.
 scan :
 	sudo nmap -sn ${HALB_CIDR} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.scan.nmap.${UTC}.log
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.scan.nmap.${UTC}.log
 #	sudo arp-scan --interface ${HALB_DEVICE} --localnet \
-#		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.scan.arp-scan.${UTC}.log
+#	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.scan.arp-scan.${UTC}.log
 
 # Smoke test this setup
 status hello :
 	@ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash 'printf "%12s: %s\n" Host $$(hostname) \
-			&& printf "%12s: %s\n" User $$(id -un) \
-			&& printf "%12s: %s\n" Kernel $$(uname -r) \
-			&& printf "%12s: %s\n" firewalld $$(systemctl is-active firewalld.service) \
-			&& printf "%12s: %s\n" SELinux $$(getenforce) \
-			&& printf "%12s: %s\n" containerd $$(systemctl is-active containerd) \
-			&& printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
-		'
+	  ansibash 'printf "%12s: %s\n" Host $$(hostname) \
+	    && printf "%12s: %s\n" User $$(id -un) \
+	    && printf "%12s: %s\n" Kernel $$(uname -r) \
+	    && printf "%12s: %s\n" firewalld $$(systemctl is-active firewalld.service) \
+	    && printf "%12s: %s\n" SELinux $$(getenforce) \
+	    && printf "%12s: %s\n" containerd $$(systemctl is-active containerd) \
+	    && printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
+	  '
 
 #net: ruleset iptables
 net:
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash '\
-			sudo nmcli dev status; \
-			ip -brief addr; \
-		'
+	  ansibash '\
+	    sudo nmcli dev status; \
+	    ip -brief addr; \
+	  '
 ruleset:
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash sudo nft list ruleset
+	  ansibash sudo nft list ruleset
 iptables:
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash sudo iptables -L -n -v
+	  ansibash sudo iptables -L -n -v
 
 psrss :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -s scripts/psrss.sh
+	  ansibash -s scripts/psrss.sh
 
 # Configure bash shell of target hosts using the declared Git project
 userrc :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash 'git clone https://github.com/sempernow/userrc 2>/dev/null || echo ok'
+	  ansibash 'git clone https://github.com/sempernow/userrc 2>/dev/null || echo ok'
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash 'pushd userrc && git pull && make sync-user && make user'
+	  ansibash 'pushd userrc && git pull && make sync-user && make user'
 
 # Configure the installer (ADMIN_USER) on each node. Final task is manual.
 # See script for details.
@@ -302,58 +305,58 @@ pki2 :
 
 tools :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash sudo dnf install -y conntrack dnf-plugins-core make iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree htop fio sysstat
+	  ansibash sudo dnf install -y conntrack dnf-plugins-core make iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree htop fio sysstat
 
 reboot :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash sudo reboot
+	  ansibash sudo reboot
 
 ## Host config
 conf : conf-update conf-kernel conf-selinux conf-swap
 conf-update :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash sudo dnf -y update \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-update.${UTC}.log
+	  ansibash sudo dnf -y update \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-update.${UTC}.log
 conf-sudoer :
 	bash make.recipes.sh sudoer \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-sudoer.${UTC}.log
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-sudoer.${UTC}.log
 
 conf-kernel :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-kernel.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-kernel.${UTC}.log
+	  ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-kernel.sh \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-kernel.${UTC}.log
 conf-selinux :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-selinux.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-selinux.${UTC}.log
+	  ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-selinux.sh enforcing \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-selinux.${UTC}.log
 conf-swap :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-swap.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-swap.${UTC}.log
+	  ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-swap.sh \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-swap.${UTC}.log
 
 ## Install K8s and all deps : RPM(s), binaries, systemd, and other configs
 install : install-rpms install-cri install-cni install-k8s
 install-rpms:
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-rpms.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-rpms.${UTC}.log
+	  ansibash -s ${ADMIN_SRC_DIR}/scripts/install-rpms.sh \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-rpms.${UTC}.log
 install-cri :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cri.sh \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-cri.${UTC}.log
+	  ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cri.sh \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-cri.${UTC}.log
 install-cni :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cni.sh eBPF \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-cni.${UTC}.log
+	  ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cni.sh eBPF \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-cni.${UTC}.log
 install-k8s :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -s ${ADMIN_SRC_DIR}/scripts/install-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-k8s.${UTC}.log
+	  ansibash -s ${ADMIN_SRC_DIR}/scripts/install-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-k8s.${UTC}.log
 
 update-os :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash sudo dnf -y --color=never update \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.update-os.${UTC}.log
+	  ansibash sudo dnf -y --color=never update \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.update-os.${UTC}.log
 
 #lbclean :
 #ansibash -s ${ADMIN_SRC_DIR}/halb/clean-halb.sh ${HALB_VIP} ${HALB_DEVICE}
@@ -368,16 +371,16 @@ lbmake lbbuild :
 #bash halb/push-halb.sh
 lbconf :
 	scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_1}.conf ${GITOPS_USER}@${HALB_FQDN_1}:keepalived.conf \
-		&& scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_2}.conf ${GITOPS_USER}@${HALB_FQDN_2}:keepalived.conf \
-		&& scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_3}.conf ${GITOPS_USER}@${HALB_FQDN_3}:keepalived.conf \
-		&& ansibash -u ${ADMIN_SRC_DIR}/halb/systemd/99-keepalived.conf \
-		&& ansibash -u ${ADMIN_SRC_DIR}/halb/keepalived-check_apiserver.sh \
-		&& ansibash -u ${ADMIN_SRC_DIR}/halb/haproxy.cfg \
-		&& ansibash -u ${ADMIN_SRC_DIR}/halb/haproxy-rsyslog.conf \
-		&& ansibash -u ${ADMIN_SRC_DIR}/halb/etc.hosts \
-		&& ansibash -u ${ADMIN_SRC_DIR}/halb/etc.environment \
-		&& ansibash -s ${ADMIN_SRC_DIR}/halb/configure-halb.sh ${HALB_CIDR} ${HALB_DEVICE} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.lbconf.${UTC}.log
+	  && scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_2}.conf ${GITOPS_USER}@${HALB_FQDN_2}:keepalived.conf \
+	  && scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_3}.conf ${GITOPS_USER}@${HALB_FQDN_3}:keepalived.conf \
+	  && ansibash -u ${ADMIN_SRC_DIR}/halb/systemd/99-keepalived.conf \
+	  && ansibash -u ${ADMIN_SRC_DIR}/halb/keepalived-check_apiserver.sh \
+	  && ansibash -u ${ADMIN_SRC_DIR}/halb/haproxy.cfg \
+	  && ansibash -u ${ADMIN_SRC_DIR}/halb/haproxy-rsyslog.conf \
+	  && ansibash -u ${ADMIN_SRC_DIR}/halb/etc.hosts \
+	  && ansibash -u ${ADMIN_SRC_DIR}/halb/etc.environment \
+	  && ansibash -s ${ADMIN_SRC_DIR}/halb/configure-halb.sh ${HALB_CIDR} ${HALB_DEVICE} \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.lbconf.${UTC}.log
 
 lbverify :
 	bash ${ADMIN_SRC_DIR}/halb/verify-instruct.sh
@@ -391,15 +394,15 @@ lbshow lblook :
 
 init-imperative :
 	ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} \
-		sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
-			--kubernetes-version ${K8S_VERSION} \
-			--upload-certs \
-			--pod-network-cidr "${K8S_POD_CIDR}" \
-			--service-cidr "${K8S_SERVICE_CIDR}" \
-			--apiserver-advertise-address ${K8S_CONTROL_PLANE_IP} \
-			--node-name ${K8S_INIT_NODE} \
-			--cri-socket "${K8S_CRI_SOCKET}" \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kubeadm.init-imperative.${UTC}.log
+	  sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
+	    --kubernetes-version ${K8S_VERSION} \
+	    --upload-certs \
+	    --pod-network-cidr "${K8S_POD_CIDR}" \
+	    --service-cidr "${K8S_SERVICE_CIDR}" \
+	    --apiserver-advertise-address ${K8S_CONTROL_PLANE_IP} \
+	    --node-name ${K8S_INIT_NODE} \
+	    --cri-socket "${K8S_CRI_SOCKET}" \
+	    |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kubeadm.init-imperative.${UTC}.log
 
 # @ init-certs phase : config (K8S_KUBEADM_CONF_INIT) must not have PKI
 # @ final init phase : config (K8S_KUBEADM_CONF_INIT) may have PKI, but ours does not.
@@ -409,35 +412,34 @@ init-purge :
 	bash make.recipes.sh settings_purge
 	rm logs/*.log
 init-gen :
-	bash make.recipes.sh settings_inject \
-		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-gen.${UTC}.log
+	bash make.recipes.sh settings_inject ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-gen.${UTC}.log
 init-push :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-push.${UTC}.log
+	  ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
+	    |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-push.${UTC}.log
 init-images :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
-			--config ${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-images.${UTC}.log
+	  ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
+	    --config ${K8S_KUBEADM_CONF_INIT} \
+	    |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-images.${UTC}.log
 ## Generate cluster PKI (if not exist) : Cleanup old settings
 ## This K8S_KUBEADM_CONF_INIT must NOT have PKI (key, hash, token)
 init-pki :
 	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-pki.sh ${K8S_INIT_NODE}:. \
-		&& ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-pki.sh ${K8S_KUBEADM_CONF_INIT} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pki.${UTC}.log
+	  && ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-pki.sh ${K8S_KUBEADM_CONF_INIT} \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pki.${UTC}.log
 init-pre :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		&& ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
-			--config ${K8S_KUBEADM_CONF_INIT} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pre.${UTC}.log
+	  ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
+	    --config ${K8S_KUBEADM_CONF_INIT} \
+	    |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pre.${UTC}.log
 init-now :
 	ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} \
-		sudo kubeadm init -v${K8S_VERBOSITY} \
-			--upload-certs \
-			--config ${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-now.${UTC}.log
+	  sudo kubeadm init -v${K8S_VERBOSITY} \
+	    --upload-certs \
+	    --config ${K8S_KUBEADM_CONF_INIT} \
+	    |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-now.${UTC}.log
 
 kubeconfig :
 	bash make.recipes.sh kubeconfig
@@ -447,63 +449,61 @@ kubeconfig :
 init-certs :
 	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh ${ADMIN_USER}@${K8S_INIT_NODE}:. \
 	  && ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-certs.sh ${K8S_KUBEADM_CONF_INIT} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
 	scp -p ${ADMIN_USER}@${K8S_INIT_NODE}:Makefile.settings .
 join-control : join-prep join-now
 join-prep : join-gen join-push
 ## K8S_CERTIFICATE_KEY must be set PRIOR TO RUNNING join-gen
 join-gen :
-	bash make.recipes.sh settings_inject \
-		${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-gen.${UTC}.log
+	bash make.recipes.sh settings_inject ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-gen.${UTC}.log
 join-push :
 	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
-		ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh
+	  ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh
 	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
-		ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN}
+	  ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN}
 	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
-		ansibash -u ~/.kube/config discovery.yaml
+	  ansibash -u ~/.kube/config discovery.yaml
 join-now :
 	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
-		ansibash sudo bash join-control.sh \
-			${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONF_JOIN} \
-			|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-control.${UTC}.log
+	  ansibash sudo bash join-control.sh ${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONF_JOIN} \
+	    |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-control.${UTC}.log
 # Print command to join a node into CONTROL PLANE; same cert key/hash; new token
 # join-token :
 # 	@sudo kubeadm token list |awk '{printf "%25s\t%s\t%s\n",$$1,$$2,$$4}'
 join-command :
 	ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} \
-		sudo kubeadm token create --print-join-command \
-		--certificate-key ${K8S_CERTIFICATE_KEY} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.print-join-command.${UTC}.log
+	  sudo kubeadm token create --print-join-command \
+	    --certificate-key ${K8S_CERTIFICATE_KEY} \
+	    |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.print-join-command.${UTC}.log
 
 ## _install [replace_kube_proxy|pod_ntwk_only] : Default is replace else pod on fail
 kuberouter kuberouter-install :
 	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _install replace_kube_proxy \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kuberouter-install.${UTC}.log
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kuberouter-install.${UTC}.log
 	kubectl get pod -A -o wide -w
 kuberouter-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/kube-router/kube-router.sh _teardown \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kuberouter-teardown.${UTC}.log
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kuberouter-teardown.${UTC}.log
 
 #cilium : cilium-gen cilium-helm
 export cilium_values := values-bpf.yaml
 cilium : cilium-gen cilium-cli
 cilium-cli :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh install_by_cli \
-		${cilium_values} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-cli.${UTC}.log
+	  ${cilium_values} \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-cli.${UTC}.log
 cilium-gen :
 	bash make.recipes.sh settings_inject \
-		${ADMIN_SRC_DIR}/cni/cilium/${cilium_values} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-gen.${UTC}.log
+	  ${ADMIN_SRC_DIR}/cni/cilium/${cilium_values} \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-gen.${UTC}.log
 cilium-helm :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh install_by_helm \
-		${cilium_values} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-helm.${UTC}.log
+	  ${cilium_values} \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-helm.${UTC}.log
 cilium-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/cilium/cilium.sh teardown \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-teardown.${UTC}.log
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.cilium-teardown.${UTC}.log
 
 calico_manifest := calico.v3.29.3.yaml
 calico_operator := custom-resources-bpf-bgp.yaml
@@ -513,26 +513,26 @@ calico-pull :
 calico : calico-manifest
 calicoctl calico-status :
 	ansibash sudo /usr/local/bin/calicoctl node status \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 	kubectl calico get ippool \
-		|& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	  |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 	kubectl calico ipam show --show-blocks \
-		|& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	  |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 	kubectl calico ipam show --show-configuration \
-		|& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	  |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 	kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP} \
-		|& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	  |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
 	kubectl get tigerastatuses && kubectl get tigerastatuses \
-		|& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log || echo
+	  |& tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log || echo
 calico-manifest :
 	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/${calico_manifest} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-manifest.${UTC}.log
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-manifest.${UTC}.log
 calico-operator : calico-operator-gen
 	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh apply ${calico_operator}
 calico-operator-gen :
 	bash make.recipes.sh settings_inject \
-		${ADMIN_SRC_DIR}/cni/calico/operator-method/${calico_operator} \
-		|& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-operator-gen.${UTC}.log
+	  ${ADMIN_SRC_DIR}/cni/calico/operator-method/${calico_operator} \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-operator-gen.${UTC}.log
 calico-teardown :
 	bash ${ADMIN_SRC_DIR}/cni/calico/operator-method/calico-operator.sh teardown ${calico_operator} || echo
 	kubectl delete -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/calico.yaml || echo
@@ -542,9 +542,9 @@ export selector := non-cni
 kubeproxy-cleanup :
 	kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"${selector}": "true"}}}}}' || echo
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		ansibash -u scripts/kube-proxy-cleanup.sh
+	  ansibash -u scripts/kube-proxy-cleanup.sh
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-		ansibash sudo bash kube-proxy-cleanup.sh
+	  ansibash sudo bash kube-proxy-cleanup.sh
 kubeproxy-restore :
 	kubectl patch ds -n kube-system kube-proxy \
     --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
@@ -614,7 +614,7 @@ trivy :
 
 csi-nfs :
 	pushd csi/nfs/nfs-subdir-external-provisioner \
-		&& bash nfs-subdir-provisioner.sh
+	  && bash nfs-subdir-provisioner.sh
 csi-local :
 	bash ${ADMIN_SRC_DIR}/csi/local-path-provisioner/local-path-provisioner.sh
 csi-rook-up :
@@ -655,6 +655,7 @@ prom-delete prom-uninstall:
 #teardown : calico-teardown cilium-teardown kuberouter-teardown
 teardown :
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
-		&& ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
+	  ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
-		&& ansibash sudo bash teardown.sh
+	  ansibash sudo bash teardown.sh
+
