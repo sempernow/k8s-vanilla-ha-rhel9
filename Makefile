@@ -42,22 +42,20 @@ export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 
 ##############################################################################
 ## HAProxy/Keepalived : HA Application Load Balancer (HALB)
-### VIP within targets' network mask
-export HALB_VIP      ?= 192.168.11.11
-export HALB_MASK     ?= 24
-### CIDR
 export HALB_DOMAIN   ?= lime.lan
-export HALB_CIDR     ?= ${HALB_VIP}/${HALB_MASK}
+export HALB_VIP      ?= 192.168.11.11
 export HALB_VIP6     ?= 0:0:0:0:0:ffff:c0a8:0b0b
-export HALB_PORT     ?= 8443
+export HALB_MASK     ?= 24
+export HALB_MASK6    ?= 64
+export HALB_CIDR     ?= ${HALB_VIP}/${HALB_MASK}
+export HALB_CIDR6    ?= ${HALB_VIP6}/${HALB_MASK6}
 export HALB_DEVICE   ?= eth0
 export HALB_FQDN_1   ?= a1.${HALB_DOMAIN}
 export HALB_FQDN_2   ?= a2.${HALB_DOMAIN}
 export HALB_FQDN_3   ?= a3.${HALB_DOMAIN}
+export HALB_K8S      ?= 8443
 export HALB_HTTP     ?= 30080
 export HALB_HTTPS    ?= 30443
-
-export HALB_ENDPOINT ?= ${HALB_VIP}:${HALB_PORT}
 
 ##############################################################################
 ## Cluster
@@ -85,7 +83,7 @@ export K8S_CLUSTER_NAME       ?= lime
 export K8S_VERSION            ?= v1.29.6
 #export K8S_VERSION            ?= v1.32.0
 export K8S_PROVISIONER        ?= ${ADMIN_USER}
-export K8S_PROVISIONER_KEY    ?= ${GITIPS_KEY}
+export K8S_PROVISIONER_KEY    ?= ${ADMIN_KEY}
 #export K8S_REGISTRY           ?= ${CNCF_REGISTRY_ENDPOINT}
 export K8S_REGISTRY           ?= registry.k8s.io
 export K8S_VERBOSITY          ?= 5
@@ -96,7 +94,7 @@ export K8S_KUBEADM_CONF_JOIN  ?= kubeadm-config-join.yaml
 export K8S_JOIN_KUBECONFIG    ?= discovery.yaml
 #export K8S_CONTROL_PLANE_IP   ?= ${HALB_VIP}
 export K8S_CONTROL_PLANE_IP   ?= 192.168.11.101
-#export K8S_CONTROL_PLANE_PORT ?= ${HALB_PORT}
+#export K8S_CONTROL_PLANE_PORT ?= ${HALB_K8S}
 export K8S_CONTROL_PLANE_PORT ?= 6443
 export K8S_NETWORK_DEVICE     ?= ${HALB_DEVICE}
 export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
@@ -107,10 +105,11 @@ export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
 #export K8S_POD_CIDR           ?= 10.22.0.0/16
 export K8S_POD_CIDR           ?= 10.244.0.0/16
 export K8S_POD_CIDR6          ?= fd00:10:22::/64
+export K8S_PEERS              ?= 192.168.11.101 192.168.11.102 192.168.11.103
 # @ Cilium eBPF mode
 #export K8S_POD_CIDR           ?= 10.0.0.0/8
 export K8S_NODE_CIDR_MASK     ?= 24
-export K8S_NODE_CIDR6_MASK    ?= 96
+export K8S_NODE_CIDR6_MASK    ?= 64
 export K8S_CRI_SOCKET         ?= unix:///var/run/containerd/containerd.sock
 export K8S_CGROUP_DRIVER      ?= systemd
 ## PKI : See Makefile.settings
@@ -134,10 +133,9 @@ menu :
 	@echo "  -cri       : Install K8s CRI and all deps, and tools"
 	@echo "  -k8s       : Install K8s and CNI plugins"
 	@echo "============== "
-	@echo "lbmake       : Generate HA-LB configurations from .tpl files"
-	@echo "lbconf       : Configure HA LB on all control nodes"
-	@echo "lbverify     : Verify HA-LB dynamics"
-	@echo "lbshow       : Show HA-LB status"
+	@echo "firewall, fw : Configure firewalld to domain-facing zone and interface"
+	@echo "  -init      : Bind interface to zone by NetworkManager, and allow all host-required services"
+	@echo "  -k8s       : Configure firewalld to allow all K8s-required ports and such"
 	@echo "============== "
 	@echo "init         : Create 1st control node of the cluster"
 	@echo "  -purge     : Purge Makefile.settings of stale PKI params"
@@ -292,21 +290,6 @@ userrc :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 	  ansibash 'pushd userrc && git pull && make sync-user && make user'
 
-# Configure the installer (ADMIN_USER) on each node. Final task is manual.
-# See script for details.
-pki :
-	printf "%s\n" ${ADMIN_TARGET_LIST} |xargs -I{} scp ${ADMIN_KEY}.pub {}:.
-	printf "%s\n" ${ADMIN_TARGET_LIST} |xargs -I{} scp ${ADMIN_SRC_DIR}/scripts/create_provisioner_target_node.sh {}:.
-	bash ${ADMIN_SRC_DIR}/scripts/create_provisioner_target_node_instruct.sh
-
-# Configure the provisioner (ADMIN_USER) on each node ONLY IF ssh user ($USER) has NOPASSWD set at /etc/sudoers.d/$USER .
-pki2 :
-	ADMIN_USER=${USER} ANSIBASH_USER=${USER} ansibash -s ${ADMIN_SRC_DIR}/scripts/create_provisioner_target_node.sh '$(shell cat ${ADMIN_KEY}.pub)'
-
-tools :
-	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-	  ansibash sudo dnf install -y conntrack dnf-plugins-core make iproute-tc bash-completion bind-utils tar nc socat rsync lsof wget curl tcpdump traceroute nmap arp-scan git httpd httpd-tools jq vim tree htop fio sysstat
-
 reboot :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 	  ansibash sudo reboot
@@ -333,6 +316,18 @@ conf-swap :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 	  ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-swap.sh \
 	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-swap.${UTC}.log
+
+firewall-status fw-status :
+	ansibash "sudo firewall-cmd --list-all --zone=k8s;sudo journalctl --since='1 hour ago' |grep DROP"
+firewall fw : fw-k8s fw-calico
+firewall-k8s fw-k8s :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-k8s.sh
+	ansibash sudo bash firewall-k8s.sh ${HALB_DEVICE} k8s \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-k8s.${UTC}.log
+firewall-calico fw-calico :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-calico.sh
+	ansibash sudo bash firewall-calico.sh ${HALB_DEVICE} k8s '${K8S_PEERS}' \
+	  |& tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-calico.${UTC}.log
 
 ## Install K8s and all deps : RPM(s), binaries, systemd, and other configs
 install : install-rpms install-cri install-cni install-k8s
@@ -658,4 +653,3 @@ teardown :
 	  ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ANSIBASH_TARGET_LIST="${ADMIN_TARGET_LIST}" \
 	  ansibash sudo bash teardown.sh
-
