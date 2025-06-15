@@ -15,7 +15,6 @@ _psk ()
     {
         [[ -n "$1" ]] || exit 1
         echo @ $1
-        unalias grep
         ps -ax -o command |grep -- "$1 " |tr ' ' '\n' |grep -- -- |grep -v grep
     };
     export -f _ps

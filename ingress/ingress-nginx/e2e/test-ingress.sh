@@ -6,6 +6,7 @@ export ns_app=test-ingress
 export ns_ingress=ingress-nginx
 export host=e2e.$K8S_FQDN
 export ca_cert=${DOMAIN_CA_CERT}
+export HALB=yes # Comment out if not configured for HALB (external loadbalancer)
 
 teardown(){
     echo '🚧 === Teardown'
@@ -50,11 +51,14 @@ e2e(){
         scheme="${1,,}" # http|https
         
         # FQDN or IP : If IP, then find that of first control node; each is a cluster entrypoint
-        [[ $scheme == 'http' ]] &&
-            host=$(ipv4)
+        [[ $scheme == 'http' ]] && [[ ! $HALB ]] && host=$(ipv4)
 
         # Concat response bodies else return error code : agnhost GET /hostname returns hostname.
-        curl -fs --cacert $ca_cert $scheme://$host:$(port $scheme)/{foo,bar}/hostname
+        [[ $HALB ]] && {
+            curl -fs --cacert $ca_cert $scheme://$host/{foo,bar}/hostname
+        } || {
+            curl -fs --cacert $ca_cert $scheme://$host:$(port $scheme)/{foo,bar}/hostname
+        }
     }
     export -f get
     scheme(){
@@ -71,11 +75,18 @@ e2e(){
     echo '🧪 === E2E connectivi1ty test : Ingress <=> Service <=> Pod <=> container'
     up || return 503
     type get
-    echo $* |xargs -n1 /bin/bash -c '
-        [[ $1 == "https" ]] && host=$0 || host=$(ipv4)
-        echo "🛠️ @ ${1^^}://$host:$(port $1)"
-        scheme $1
-    ' $host
+    [[ $HALB ]] && {
+        echo $* |xargs -n1 /bin/bash -c '
+            echo "🛠️ @ ${1^^}://$host"
+            scheme $1
+        ' $host
+    } || {
+        echo $* |xargs -n1 /bin/bash -c '
+            [[ $1 == "https" ]] && host=$0 || host=$(ipv4)
+            echo "🛠️ @ ${1^^}://$host:$(port $1)"
+            scheme $1
+        ' $host
+    }
     [[ $1 == 'teardown' ]] && teardown
 }
 

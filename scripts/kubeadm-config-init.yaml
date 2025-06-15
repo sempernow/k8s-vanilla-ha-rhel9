@@ -15,8 +15,8 @@ apiServer:
   extraVolumes: # []HostPathMount
   certSANs:     # []string          : SANs of API Server signing certificate.
 clusterName: lime
-controlPlaneEndpoint: "192.168.11.101:6443"
-controllerManager: 
+controlPlaneEndpoint: "192.168.11.11:8443"
+controllerManager:
   extraArgs:
     allocate-node-cidrs: "true"
     cluster-cidr: "10.244.0.0/16"
@@ -25,11 +25,11 @@ networking:
   podSubnet: "10.244.0.0/16"
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
-kind: KubeletConfiguration  
+kind: KubeletConfiguration
 containerLogMaxSize: 1Mi  # Default is 10Mi
 containerLogMaxFiles: 5   # Default is 5
 containerRuntimeEndpoint: unix:///var/run/containerd/containerd.sock
-cgroupDriver: systemd 
+cgroupDriver: systemd
 hairpinMode: hairpin-veth
 evictionHard:
   nodefs.available: "10%"
@@ -54,11 +54,11 @@ fileCheckFrequency: 20s
 httpCheckFrequency: 10s
 logging:
   flushFrequency: 5s
-  verbosity: 1
+  verbosity: 0
 shutdownGracePeriod: 30s
 shutdownGracePeriodCriticalPods: 10s
 streamingConnectionIdleTimeout: 0s
-tlsMinVersion: VersionTLS12 
+tlsMinVersion: VersionTLS12
 ---
 apiVersion: kubeproxy.config.k8s.io/v1alpha1
 kind: KubeProxyConfiguration

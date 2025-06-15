@@ -71,6 +71,11 @@ setfacl -m d:u::rwx $share
 setfacl -m d:g::rwx $share
 setfacl -m d:o::--- $share
 
+# Set proper SELinux fcontext for R/W access at container mounts, if applicable.
+command -v getenforce >/dev/null 2>&1 &&
+    semanage fcontext -a -t public_content_rw_t "${share}(/.*)?" &&
+        restorecon -Rv "$share"
+
 # Add nfsanon for server options anonuid,anongid as the UID:GID of all orphaned dirs/files.
 # Client hosts should have the matching UID:GID, yet these are *not* mount options of nfs client.
 # NFSv4 does not support anonuid/anongid, and Kerberos does not allow anonymous
