@@ -1,5 +1,4 @@
 ---
-## @ `kubectl -n kube-system  get cm kubeadm-config -o yaml |yq -Mr .data.ClusterConfiguration`
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
 kubernetesVersion: 1.29.6
@@ -9,7 +8,6 @@ apiServer:
   extraVolumes:
   certSANs:
 clusterName: lime
-## kube.lime.lan : HALB in VRRP mode
 controlPlaneEndpoint: "192.168.11.11:8443"
 controllerManager:
   extraArgs:

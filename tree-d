@@ -20,7 +20,8 @@
 │               └── rbd
 ├── halb
 │   ├── docs
-│   └── systemd
+│   ├── systemd
+│   └── upstream
 ├── ingress
 │   ├── ingress-nginx
 │   │   └── e2e
@@ -40,7 +41,6 @@
 │   │   └── efk-studytonight
 │   └── loki
 ├── logs
-├── nginx
 ├── observability
 │   ├── metrics
 │   │   ├── dashboard
