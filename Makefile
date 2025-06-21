@@ -518,7 +518,8 @@ kubeproxy-restore :
     --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
 
 healthz :
-	curl -ks https://${K8S_ENDPOINT}/healthz?verbose
+	curl -fksIX GET https://${K8S_ENDPOINT}/healthz |grep HTTP || echo "ERR : $$?"
+	curl -ks https://${K8S_FQDN}:${HALB_PORT_K8S}/healthz?verbose || echo "ERR : $$?"
 export port := 5551
 iperf :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/netshoot/k8s-iperf.sh ${port} || echo

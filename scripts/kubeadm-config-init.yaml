@@ -1,6 +1,7 @@
 ---
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
+certificateKey: 5a3b1499efa255aa591ac64a1594809a1e7e33db6697926f53a0b118a2aa5172
 nodeRegistration:
   name: "a1" # Defaults to $(hostname)
   criSocket: unix:///var/run/containerd/containerd.sock
