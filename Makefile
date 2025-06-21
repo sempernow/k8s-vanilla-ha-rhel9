@@ -139,7 +139,7 @@ menu :
 	@echo "  -k8s       : Configure firewalld and NetworkManager for host and K8s"
 	@echo "  -calico    : Configure firewalld for Calico CNI"
 	@echo "  -list      : firewall-cmd --list-all --zone=k8s"
-	@echo "  -stat      : journalctl --since='5 minute ago' |grep DROP"
+	@echo "  -drop      : Recently DROPped packets : journalctl --since='15 minute ago' |grep DROP"
 	@echo "============== "
 	@echo "init         : Create 1st control node of the cluster"
 	@echo "  -purge     : Purge Makefile.settings of stale PKI params"
@@ -336,10 +336,7 @@ install-k8s :
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-k8s.${UTC}.log
 
 ## firewalld
-firewall-list fw-list:
-	ansibash 'sudo firewall-cmd --list-all --zone=k8s'
-firewall-stat fw-stat:
-	ansibash "sudo journalctl --since='5 minute ago' |grep DROP;date +'%H.%M.%S'"
+
 firewall fw : fw-k8s fw-calico
 firewall-k8s fw-k8s :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-k8s.sh
@@ -349,6 +346,12 @@ firewall-calico fw-calico :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-calico.sh
 	ansibash 'sudo bash firewall-calico.sh ${HALB_DEVICE} k8s "${K8S_PEERS}" || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-calico.${UTC}.log
+firewall-list fw-list:
+	ansibash 'sudo firewall-cmd --list-all --zone=k8s' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-list.log
+firewall-log fw-log:
+	ansibash "sudo journalctl --since='15 minute ago' |grep DROP;echo All recent DROP logs until $$(date -Is)" \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-stat.log
 
 ## K8s cluster creation
 
