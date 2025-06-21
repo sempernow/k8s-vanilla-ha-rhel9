@@ -120,6 +120,9 @@ Accepted connection from 10.244.182.130, port 33168
 [  5]   0.00-10.00  sec  45.0 GBytes  38.6 Gbits/sec                  receiver
 ```
 
+
+
+
 ## Box for Debugging
 
 ```bash
@@ -197,3 +200,12 @@ websocat
 ```
 
 ### &nbsp;
+
+## [`k8s-iperf`](https://github.com/sempernow/k8s-iperf "GitHub.com")
+
+```bash
+git clone git@github.com:sempernow/k8s-iperf.git
+cd k8s-iperf
+bash k8s-iperf.sh
+```
+- [__`k8s-iperf.sh`__](k8s-iperf.sh)

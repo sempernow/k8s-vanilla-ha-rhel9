@@ -9,9 +9,12 @@
 # 
 # ARGs: K8S_KUBEADM_CONF_INIT
 ######################################################
-[[ -r $1 ]] || exit 11
-[[ $(whoami) == 'root' ]] || exit 22
+[[ "$(id -u)" -ne 0 ]] && {
+    echo "⚠️  ERR : MUST run as root" >&2
 
+    exit 11
+}
+[[ -r $1 ]] || exit 22
 ############################
 ## @ discovery.file method
 ############################
@@ -24,7 +27,7 @@ key="$(
 )"
 
 [[ "$key" ]] || { 
-    echo === ERR : New certificate key NOT EXIST
+    echo "⚠️  ERR : New certificate key NOT EXIST" >&2
 
     exit 99
 }

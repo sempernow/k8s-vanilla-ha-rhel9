@@ -373,16 +373,16 @@ init-imperative :
 init : init-purge init-gen init-push init-images init-pki init-pre init-now kubeconfig
 init-purge :
 	bash make.recipes.sh settings_purge
-	rm logs/*.log
+	rm -f logs/*init*.log logs/*join*.log
 init-gen :
 	bash make.recipes.sh settings_inject ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-gen.${UTC}.log
 init-push :
-	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-	  ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
-	      |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-push.${UTC}.log
+	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
+	    ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
+	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-push.${UTC}.log
 init-images :
-	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
+	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
 	    ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
 	        --config ${K8S_KUBEADM_CONF_INIT} \
 	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-images.${UTC}.log
@@ -393,10 +393,10 @@ init-pki :
 	    && ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-pki.sh ${K8S_KUBEADM_CONF_INIT} \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pki.${UTC}.log
 init-pre :
-	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-	  ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
-	      --config ${K8S_KUBEADM_CONF_INIT} \
-	      |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pre.${UTC}.log
+	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
+	    ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
+	        --config ${K8S_KUBEADM_CONF_INIT} \
+	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pre.${UTC}.log
 init-now :
 	ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} \
 	  sudo kubeadm init -v${K8S_VERBOSITY} \
@@ -420,7 +420,7 @@ init-certs :
 	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh ${ADMIN_USER}@${K8S_INIT_NODE}:. \
 	    && ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-certs.sh ${K8S_KUBEADM_CONF_INIT} \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
-	scp -p ${ADMIN_USER}@${K8S_INIT_NODE}:Makefile.settings .
+	scp -p ${ADMIN_USER}@${K8S_INIT_NODE}:Makefile.settings Makefile.${K8S_INIT_NODE}.settings
 join-control : join-prep join-now
 join-prep : join-gen join-push
 ## K8S_CERTIFICATE_KEY must be set PRIOR TO RUNNING join-gen

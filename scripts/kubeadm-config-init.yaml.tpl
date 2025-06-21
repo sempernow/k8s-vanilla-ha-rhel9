@@ -3,7 +3,7 @@ apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-InitConfiguration
 ## Certificate Key : Declare static ok, even on : 64 char hex : "openssl rand -hex 32"
-# certificateKey: K8S_CERTIFICATE_KEY
+certificateKey: K8S_CERTIFICATE_KEY
 # bootstrapTokens:
 # ## --token=$(kubeadm token generate)
 # - token: K8S_BOOTSTRAP_TOKEN

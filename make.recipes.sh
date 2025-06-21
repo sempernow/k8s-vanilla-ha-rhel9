@@ -45,9 +45,10 @@ settings_inject(){
         |tee $1
 }
 settings_purge(){
+    
 	cat <<-EOH |tee Makefile.settings
 	## This file is DYNAMICALLY GENERATED at make recipes
-	export K8S_CERTIFICATE_KEY ?=
+	export K8S_CERTIFICATE_KEY ?= $(kubeadm certs certificate-key)
 	export K8S_CA_CERT_HASH    ?=
 	export K8S_BOOTSTRAP_TOKEN ?=
 	EOH
@@ -129,7 +130,8 @@ kubeconfig(){
         kubectl get no -o wide &&
             kubectl get po -o wide -A
 
-    } || echo 'ERR : Failed to pull kubeconfig'
+    } || echo "⚠️  ERR : Failed to pull kubeconfig" >&2
+
 }
 iperftest(){
     ns=default
