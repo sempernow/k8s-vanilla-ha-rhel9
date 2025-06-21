@@ -39,13 +39,15 @@ firewall-cmd --get-zones |grep -q "\b$zone\b" || {
 
 at="--permanent --zone=$zone"
 
-#firewall-cmd --zone=public --list-icmp-blocks          # Show any ICMP that are blocked
-firewall-cmd --zone=$zone --query-icmp-block=echo-request &&
-    firewall-cmd $at --remove-icmp-block=echo-request   # Allow incoming ping if not already
 firewall-cmd $at --add-forward                          # Allow pod-pod traffic, esp. cross-node IP-in-IP
 firewall-cmd $at --add-masquerade                       # Allow NAT
 firewall-cmd $at --set-target=DROP                      # Drop all packets lest declared allowed (Whitelist)
 firewall-cmd --set-log-denied=all                       # Logging applies to all zones
+
+## Allow ICMP echo-request (via its inversion hellscape)
+sudo firewall-cmd $at --add-icmp-block-inversion    # Invert so block allows
+sudo firewall-cmd $at --add-icmp-block=echo-request # block (allow) request 
+sudo firewall-cmd $at --add-icmp-block=echo-reply   # block (allow) reply
 
 ## @ Host-required services
 printf "%s\n" dhcpv6-client dns kerberos ldap ldaps mountd nfs ntp rpc-bind samba ssh \
