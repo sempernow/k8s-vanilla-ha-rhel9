@@ -116,6 +116,7 @@ ok(){
 ok || exit $?
 
 ok(){
+    ## etcd+ : https://github.com/etcd-io/etcd/releases
     #########################################################
     ## Install etcd, etcdctl, etcutl onto this host
     ##
@@ -131,7 +132,8 @@ ok(){
     # Or, at an existing target cluster
     # etcd_pod_name=etcd-a1 
     # kubectl exec -it $etcd_pod_name -- etcd --version 
-    ETCD_VERSION=v3.5.12
+    ETCD_VERSION=v3.5.12 # 1.33.2
+    #ETCD_VERSION=v3.6.1
     dir=etcd-${ETCD_VERSION}-linux-amd64
     archive=$dir.tar.gz
     to=/usr/local/bin
@@ -144,5 +146,17 @@ ok(){
         sudo install $dir/etc* $to
     
     etcdutl version || return 55
+}
+ok || exit $?
+
+ok(){
+    # Helm : https://github.com/helm/helm/releases
+    v=v3.18.3
+    platform=linux-amd64
+    base=https://get.helm.sh/
+    archive=helm-$v-$platform.tar.gz
+    curl -fsSLO $base/$archive &&
+        tar -xvf $archive &&
+            install $platform/helm /usr/local/bin/
 }
 ok || exit $?

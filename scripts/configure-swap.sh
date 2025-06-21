@@ -3,10 +3,18 @@
 # Disable all swaps 
 # - Idempotent.
 ########################################################
-[[ $(cat /proc/swaps |grep -v Filename) ]] || exit 0
+[[ "$(id -u)" -ne 0 ]] && {
+    echo "⚠️  ERR : MUST run as root" >&2
+
+    exit 11
+}
+
+[[ $(cat /proc/swaps |grep -v Filename) ]] ||
+    exit 0
+
 ## Disable swap now and forever : required by kubelet
 ## To find a particular swap, use lsblk 
-sudo swapoff -a  # Disable all swaps of /proc/swaps
+swapoff -a  # Disable all swaps of /proc/swaps
 ## #############################################
 ## >>>  DO NOT disable swap.target (static)  <<<
 ## #############################################
@@ -21,9 +29,9 @@ sudo swapoff -a  # Disable all swaps of /proc/swaps
 swap_mounted="$(cat /etc/fstab |grep ' swap' |grep -v '^ *#' |awk '{print $1}')"
 [[ $swap_mounted ]] && {
     device="$(echo $swap_mounted |awk '{print $1}')"
-    sudo sed -i "s,$device,#$device," /etc/fstab
+    sed -i "s,$device,#$device," /etc/fstab
 } 
 
 #sudo swapon --show
 cat /etc/fstab |grep swap
-sudo systemctl daemon-reload
+systemctl daemon-reload

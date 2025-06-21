@@ -2,11 +2,15 @@
 ######################################
 # Install RPMs : K8s deps and tools
 ######################################
-set -euo pipefail
+[[ "$(id -u)" -ne 0 ]] && {
+    echo "⚠️  ERR : MUST run as root" >&2
+
+    exit 11
+}
 
 ok(){
     # K8s dependency
-    sudo dnf -y install conntrack
+    dnf -y --color=never install conntrack || return 22
 
     # Tools
     all='
@@ -46,6 +50,6 @@ ok(){
     fio 
     pciutils
     '
-    sudo dnf -y install $all
+    dnf -y --color=never install $all || return 44
 }
 ok || exit $?

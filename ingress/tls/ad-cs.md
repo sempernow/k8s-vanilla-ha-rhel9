@@ -108,7 +108,7 @@ cert-manager will:
 | Uses MS Web Enrollment (WCCE) | ✅ Yes                                                                              |
 | Uses Kerberos or NTLM         | ✅ No (requires Basic Auth over HTTPS)                                              |
 | Supports custom templates     | ✅ Yes, if exposed by AD CS                                                         |
-| Can be used in air-gap        | ⚠️ Possible, but requires internal networking + HTTPS from cluster to AD CS server |
+| Can be used in air-gap        | ⚠️️️️️️ Possible, but requires internal networking + HTTPS from cluster to AD CS server |
 
 ---
 

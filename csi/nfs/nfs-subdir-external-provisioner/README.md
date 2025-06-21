@@ -216,7 +216,7 @@ chmod 0777 /srv/nfs/k8s  # Simplest method to avoid permission issues
 /srv/nfs/k8s  *(rw,sync,no_subtree_check,no_root_squash)
 ```
 
-> ⚠️ `no_root_squash` is *crucial* here — otherwise, root in the pod will be squashed to `nfsnobody`, making chown or file creation break silently.
+> ⚠️️️️️️️ `no_root_squash` is *crucial* here — otherwise, root in the pod will be squashed to `nfsnobody`, making chown or file creation break silently.
 
 ### 4. Export it:
 
@@ -470,4 +470,3 @@ __10x improvment__ in IOPS and BW using NFS performance tuning : `async,no_wdela
   write: IOPS=5610, BW=21.9MiB/s (23.0MB/s)(1315MiB/60003msec); 0 zone resets
 
 ```
-

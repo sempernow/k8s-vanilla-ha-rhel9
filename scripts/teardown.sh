@@ -50,7 +50,7 @@ rm -rf /var/lib/{kubelet,kube-scheduler,kube-controller-manager,etcd,containerd,
 ## Done unless hard
 [[ "$hard" ]] || exit 0
 
-echo "⚠  Performing HARD teardown!"
+echo "⚠️  Performing HARD teardown!"
 
 ## Stop kubelet and all Kubernetes related processes
 systemctl stop kubelet #|| exit 22

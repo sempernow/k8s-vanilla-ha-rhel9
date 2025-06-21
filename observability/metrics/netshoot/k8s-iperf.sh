@@ -30,7 +30,7 @@ nonce="$(cat /dev/urandom |tr -dc 'a-z0-9' |fold -w 7 |head -n 1)" ||
 ns="test-iperf3-$nonce"
 kubectl create ns $ns
 kubectl get ns $ns || {
-    echo "⚠ === ERR : Namespace '$ns' NOT EXIST"
+    echo "⚠️️ === ERR : Namespace '$ns' NOT EXIST"
     exit 2
 }
 kubectl config set-context --current --namespace $ns

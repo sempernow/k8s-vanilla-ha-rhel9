@@ -10,20 +10,17 @@
 ###############################################################################
 
 [[ "$(id -u)" -ne 0 ]] && {
-    echo "⚠  ERR : MUST run as root" >&2
+    echo "⚠️  ERR : MUST run as root" >&2
 
     exit 11
 }
 [[ $2 ]] || {
-    echo "⚠  ERR : Missing args : Environment is UNCONFIGURED" >&2
+    echo "⚠️  ERR : Missing args : Environment is UNCONFIGURED" >&2
 
     exit 22
 }
 ifc=$1
 zone=$2
-
-
-#[[ -f /etc/sysconfig/network-scripts/ifcfg-$ifc ]]
 
 ## Assure firewalld.service is running
 systemctl is-active --quiet firewalld ||
@@ -32,7 +29,7 @@ systemctl is-active --quiet firewalld ||
 ## Set zone of (CNI) virtual interfaces 
 firewall-cmd --set-default-zone=trusted
 
-## Add and configure zone of a bound interface ($2)
+## Add zone to which we will bind the host-network-facing interface ($2)
 firewall-cmd --get-zones |grep -q "\b$zone\b" || {
     firewall-cmd --new-zone=$zone --permanent
 }
@@ -41,7 +38,7 @@ at="--permanent --zone=$zone"
 
 firewall-cmd $at --add-forward                          # Allow pod-pod traffic, esp. cross-node IP-in-IP
 firewall-cmd $at --add-masquerade                       # Allow NAT
-firewall-cmd $at --set-target=DROP                      # Drop all packets lest declared allowed (Whitelist)
+firewall-cmd $at --set-target=DROP                      # Drop all packets not explicitly allowed (Whitelisted)
 firewall-cmd --set-log-denied=all                       # Logging applies to all zones
 
 ## Allow ICMP for ping request/reply : Inversion is *required* when zone target is DROP 
@@ -100,7 +97,12 @@ firewall-cmd $at --add-port=10259/tcp       # kube-scheduler inbound
 
 firewall-cmd --permanent --zone=$zone --add-service=$svc
 
-## Bind interface to zone at NetworkManager.service if not already; apply firewalld mods regardless 
+## Bind interface to zone so rules of such *active* zone apply to that interface.
+## - Do so at NetworkManager.service (by nmcli) rather than at firewalld.service 
+##   (by "firewall-cmd $at --change-interface=$ifc"), else the affect will not persist 
+##   unless consistent with the pre-existing NetworkManager cfg, which *overrules* firewalld. 
+##   This method precludes that (silent, delayed) fail mode.
+## - Apply all firewalld rules if desired ifc-zone binding either already existed or succeeds here.
 nmcli con show "$ifc" |grep connection.zone |grep -q "\b$zone\b" && firewall-cmd --reload || {
 nmcli con modify "$ifc" connection.zone $zone &&
     nmcli con down "$ifc" &&
@@ -108,10 +110,10 @@ nmcli con modify "$ifc" connection.zone $zone &&
             firewall-cmd --reload
 }
 
-#firewall-cmd $at --change-interface=$ifc
+## Verify our zone is active by our interface being bound to it.
 z="$(firewall-cmd --get-zone-of-interface=$ifc)"
 [[  "$z" == "$zone" ]] || {
-    echo "⚠  ERR : Zone of interface '$ifc' is '$z' NOT '$zone'"
+    echo "⚠️️  ERR : Zone of interface '$ifc' is '$z' NOT '$zone'"
 
     exit 99
 }

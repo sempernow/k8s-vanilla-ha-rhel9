@@ -3,7 +3,7 @@
 include Makefile.settings
 # … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × ₽ € ¥ £ ¢ ¤ ♻  ⚐ ⚑
 # ☢  ☣  ☠  ¦ ¶ § † ‡ ß µ ø Ø ƒ Δ ☡ ☈ ☧ ☩ ✚ ☨ ☦  ☓ ♰ ♱ ✖  ☘  웃 𝐀𝐏𝐏 𝐋𝐀𝐁
-# ⚠️ ✅ 🚀 🚧 🛠️ 🔧 🔍 🧪 👈 ⚡ ❌ 💡 🔒 📊 📈 🧩 📦 🧳 🥇 ✨️ 🔚
+# ⚠️️️ ✅ 🚀 🚧 🛠️ 🔧 🔍 🧪 👈 ⚡ ❌ 💡 🔒 📊 📈 🧩 📦 🧳 🥇 ✨️ 🔚
 ##############################################################################
 ## Environment variable rules:
 ## - Any TRAILING whitespace KILLS its variable value and may break recipes.
@@ -82,7 +82,8 @@ export ANSIBASH_USER        ?= ${ADMIN_USER}
 export K8S_CLUSTER_NAME       ?= lime
 #export K8S_VERSION            ?= $(shell curl -sSL https://dl.k8s.io/release/stable.txt)
 export K8S_VERSION            ?= v1.29.6
-#export K8S_VERSION            ?= v1.32.0
+#export K8S_VERSION            ?= v1.29.15
+#export K8S_VERSION            ?= v1.33.2
 export K8S_PROVISIONER        ?= ${ADMIN_USER}
 export K8S_PROVISIONER_KEY    ?= ${ADMIN_KEY}
 #export K8S_REGISTRY           ?= ${CNCF_REGISTRY_ENDPOINT}
@@ -122,13 +123,13 @@ export DOMAIN_CA_CERT := ${PRJ_ROOT}/ingress/tls/ca-root-dc1.lime.lan.cer
 
 menu :
 	$(INFO) 'Install K8s onto all target hosts : RHEL9 is expected'
-	@echo "upgrade      : dnf upgrade"
+	@echo "upgrade      : dnf upgrade all targets"
+	@echo "reboot       : Reboot all targets"
 	@echo "conf         : kernel selinux swap : See scripts/configure-*"
 	@echo "  -kernel    : Configure kernel for K8s/CNI/CRI : load modules and set runtime params"
 	@echo "  -selinux   : Configure targets' SELinux"
 	@echo "  -swap      : Configure targets' swap : Disable all swap devices"
-	@echo "reboot       : Reboot targets"
-	@echo "install      : Install K8s and all deps"
+	@echo "installs     : Install K8s and all deps"
 	@echo "  -rpms      : Install host tools and K8s dep (conntrack)"
 	@echo "  -cni       : Install K8s CNI Pod network providers"
 	@echo "  -cri       : Install K8s CRI and all deps, and tools"
@@ -292,26 +293,49 @@ userrc :
 reboot :
 	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
 	    ansibash sudo reboot
+upgrade :
+	ansibash 'sudo dnf -y --color=never upgrade || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.upgrade.${UTC}.log
 
 ## Host config
-conf : conf-upgrade conf-kernel conf-selinux conf-swap
-conf-upgrade upgrade :
-	ansibash sudo dnf -y upgrade \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-upgrade.${UTC}.log
 conf-sudoer :
 	bash make.recipes.sh sudoer \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-sudoer.${UTC}.log
 
+conf : conf-kernel conf-selinux conf-swap reboot
 conf-kernel :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-kernel.sh \
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/configure-kernel.sh
+	ansibash 'sudo bash configure-kernel.sh || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-kernel.${UTC}.log
 conf-selinux :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-selinux.sh enforcing \
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/configure-selinux.sh
+	ansibash 'sudo bash configure-selinux.sh enforcing || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-selinux.${UTC}.log
 conf-swap :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/configure-swap.sh \
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/configure-swap.sh
+	ansibash 'sudo bash configure-swap.sh || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-swap.${UTC}.log
 
+## Installs
+install installs : install-rpms install-cni install-cri install-k8s
+install-rpms:
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/install-rpms.sh
+	ansibash 'sudo bash install-rpms.sh || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-rpms.${UTC}.log
+install-cni :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/install-cni.sh \
+	ansibash 'sudo bash install-cni.sh eBPF || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-cni.${UTC}.log
+install-cri :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/install-cri.sh \
+	ansibash 'sudo bash install-cri.sh || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-cri.${UTC}.log
+install-k8s :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/install-k8s.sh
+	ansibash 'sudo bash install-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-k8s.${UTC}.log
+
+## firewalld
 firewall-list fw-list:
 	ansibash 'sudo firewall-cmd --list-all --zone=k8s'
 firewall-stat fw-stat:
@@ -319,63 +343,12 @@ firewall-stat fw-stat:
 firewall fw : fw-k8s fw-calico
 firewall-k8s fw-k8s :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-k8s.sh
-	ansibash sudo bash firewall-k8s.sh ${HALB_DEVICE} k8s \
+	ansibash 'sudo bash firewall-k8s.sh ${HALB_DEVICE} k8s || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-k8s.${UTC}.log
 firewall-calico fw-calico :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-calico.sh
-	ansibash sudo bash firewall-calico.sh ${HALB_DEVICE} k8s '${K8S_PEERS}' \
+	ansibash 'sudo bash firewall-calico.sh ${HALB_DEVICE} k8s "${K8S_PEERS}" || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-calico.${UTC}.log
-
-## Install K8s and all deps : RPM(s), binaries, systemd, and other configs
-install : install-rpms install-cri install-cni install-k8s
-install-rpms:
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/install-rpms.sh \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-rpms.${UTC}.log
-install-cri :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cri.sh \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-cri.${UTC}.log
-install-cni :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/install-cni.sh eBPF \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-cni.${UTC}.log
-install-k8s :
-	ansibash -s ${ADMIN_SRC_DIR}/scripts/install-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-k8s.${UTC}.log
-
-update-os :
-	ansibash sudo dnf -y --color=never update \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.update-os.${UTC}.log
-
-#lbclean :
-#ansibash -s ${ADMIN_SRC_DIR}/halb/clean-halb.sh ${HALB_VIP} ${HALB_DEVICE}
-#ansibash -s ${ADMIN_SRC_DIR}/halb/configure-halb.sh ${HALB_VIP} ${HALB_DEVICE}
-
-#ansibash sudo ip addr del ${HALB_VIP}/24 dev ${HALB_DEVICE}
-
-#bash make.recipes.sh halb
-lbmake lbbuild :
-	bash ${ADMIN_SRC_DIR}/halb/build-halb.sh
-
-#bash halb/push-halb.sh
-lbconf :
-	scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_1}.conf ${GITOPS_USER}@${HALB_FQDN_1}:keepalived.conf \
-	    && scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_2}.conf ${GITOPS_USER}@${HALB_FQDN_2}:keepalived.conf \
-	    && scp -p ${ADMIN_SRC_DIR}/halb/keepalived-${HALB_FQDN_3}.conf ${GITOPS_USER}@${HALB_FQDN_3}:keepalived.conf \
-	    && ansibash -u ${ADMIN_SRC_DIR}/halb/systemd/99-keepalived.conf \
-	    && ansibash -u ${ADMIN_SRC_DIR}/halb/keepalived-check_apiserver.sh \
-	    && ansibash -u ${ADMIN_SRC_DIR}/halb/haproxy.cfg \
-	    && ansibash -u ${ADMIN_SRC_DIR}/halb/haproxy-rsyslog.conf \
-	    && ansibash -u ${ADMIN_SRC_DIR}/halb/etc.hosts \
-	    && ansibash -u ${ADMIN_SRC_DIR}/halb/etc.environment \
-	    && ansibash -s ${ADMIN_SRC_DIR}/halb/configure-halb.sh ${HALB_CIDR} ${HALB_DEVICE} \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.lbconf.${UTC}.log
-
-lbverify :
-	bash ${ADMIN_SRC_DIR}/halb/verify-instruct.sh
-
-lbshow lblook :
-#ansibash ip -4 -brief addr show dev ${HALB_DEVICE} |grep -e ${HALB_VIP} -e ===
-	ansibash ip -4 -brief addr show dev ${HALB_DEVICE}
-	ansibash 'sudo journalctl -eu keepalived |grep -e Entering -e @'
 
 ## K8s cluster creation
 

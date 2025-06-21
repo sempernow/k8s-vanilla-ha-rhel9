@@ -9,15 +9,13 @@
 # https://docs.tigera.io/calico/latest/getting-started/kubernetes/requirements
 # https://docs.tigera.io/calico/latest/reference/typha/overview
 ###############################################################################
-set -uo pipefail
-
 [[ "$(id -u)" -ne 0 ]] && {
-    echo "⚠  ERR : MUST run as root" >&2
+    echo "⚠️  ERR : MUST run as root" >&2
 
     exit 11
 }
 [[ $3 ]] || {
-    echo "⚠  ERR : Missing args : Environment is UNCONFIGURED" >&2
+    echo "⚠️  ERR : Missing args : Environment is UNCONFIGURED" >&2
 
     exit 22
 }
@@ -25,8 +23,8 @@ ifc=$1
 zone=$2
 peers="$3"
 
-[[ $(systemctl is-active firewalld.service) == 'active' ]] ||
-    systemctl enable --now firewalld.service
+systemctl is-active --quiet firewalld ||
+    systemctl enable --now firewalld
 
 p4LockDown(){
     ## Protocol 4 is required by Calico IPIP mode (encapsulation), 

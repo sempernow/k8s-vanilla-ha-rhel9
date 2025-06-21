@@ -28,7 +28,7 @@ key=../tls/$cn/$cn.key
 repo(){
     helm repo add $chart $repo &&
     helm repo update $chart ||
-        echo "⚠  ERR on helm repo add/update : $repo"
+        echo "⚠️  ERR on helm repo add/update : $repo"
 }
 secret(){
     kubectl create ns $ns ||
