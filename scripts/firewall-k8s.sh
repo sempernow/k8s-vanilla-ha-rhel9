@@ -44,10 +44,10 @@ firewall-cmd $at --add-masquerade                       # Allow NAT
 firewall-cmd $at --set-target=DROP                      # Drop all packets lest declared allowed (Whitelist)
 firewall-cmd --set-log-denied=all                       # Logging applies to all zones
 
-## Allow ICMP echo-request (via its inversion hellscape)
-sudo firewall-cmd $at --add-icmp-block-inversion    # Invert so block allows
-sudo firewall-cmd $at --add-icmp-block=echo-request # block (allow) request 
-sudo firewall-cmd $at --add-icmp-block=echo-reply   # block (allow) reply
+## Allow ICMP for ping request/reply : Inversion is *required* when zone target is DROP 
+firewall-cmd $at --add-icmp-block-inversion    # Invert so block allows
+firewall-cmd $at --add-icmp-block=echo-request # block (allow) request 
+firewall-cmd $at --add-icmp-block=echo-reply   # block (allow) reply
 
 ## @ Host-required services
 printf "%s\n" dhcpv6-client dns kerberos ldap ldaps mountd nfs ntp rpc-bind samba ssh \
