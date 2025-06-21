@@ -1,6 +1,19 @@
 # [Ingress-NGINX Controller](https://kubernetes.github.io/ingress-nginx/deploy/#bare-metal-clusters "kubernetes.github.io") | [Releases](https://github.com/kubernetes/ingress-nginx/releases) | [Configuration](https://github.com/kubernetes/ingress-nginx/blob/main/docs/user-guide/nginx-configuration/index.md)
 
 
+## TL;DR
+
+Using manifest method on generated helm template because bug in `--set controller.proxySetHeaders` causes non-string mapping on direct install by `helm upgrade ...`. 
+
+See [`ingress-nginx.sh`](ingress-nginx.sh).
+
+```ini
+        --set controller.proxySetHeaders.use-proxy-protocol="true" \
+        --set controller.proxySetHeaders.enable-real-ip="true" \
+        --set controller.proxySetHeaders.forwarded-for-header=X-Forwarded-For \
+        --set controller.proxySetHeaders.proxy-real-ip-cidr="$proxy_real_ip_cidr"
+```
+
 ## `Ingress` : Rewrite ([`rewrite-target`](https://github.com/kubernetes/ingress-nginx/blob/main/docs/examples/rewrite/README.md "github.com/kubernetes/ingress-nginx")) Syntax
 
 URL rewrite rules are based on RegEx [Capture Group](https://www.regular-expressions.info/refcapture.html "regular-expressions.info")s, which are saved in numbered placeholders; `$1`, `$2` &hellip; `$n`.

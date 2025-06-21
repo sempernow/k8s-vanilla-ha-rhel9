@@ -102,6 +102,9 @@ upManifest(){
     ## Manifest *method* of deployment uses helm-generated *template*.
     secret && kubectl -n $ns apply -f $template
 }
+get(){
+    kubectl -n $ns get ds,pod,cm,secret,svc,ep
+}
 teardown(){
     kubectl config set-context --current --namespace default
 
