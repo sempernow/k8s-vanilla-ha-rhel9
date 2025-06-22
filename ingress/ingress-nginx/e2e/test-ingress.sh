@@ -17,9 +17,7 @@ export -f teardown
 
 e2e(){
     up(){
-        [[ $(kubectl -n $ns_app pod -l app=foo 2>/dev/null) ]] || {
-            kubectl get ns $ns_app >/dev/null 2>&1 || kubectl create ns $ns_app
-        }
+        kubectl get ns $ns_app >/dev/null 2>&1 || kubectl create ns $ns_app
         kubectl config set-context --current --namespace $ns_app
         kubectl apply -f $ns_app.yaml
         for pod in foo bar;do 
