@@ -114,6 +114,65 @@ Respond to request of root (`/`) with redirect to app root `/a`. There is no int
 
 ## Deploy (DaemonSet) : Baremetal (On-prem) Configuration
 
+See [__`ingress-nginx.sh`__](ingress-nginx.sh)
+
+Install by __Helm__ chart :
+
+```bash
+v=4.12.3
+chart=ingress-nginx # Folder name on chart archive extract
+repo=https://kubernetes.github.io/$chart
+release=$chart
+ns=$release
+
+values=values.yaml
+template=helm.template.yaml
+manifest=helm.manifest.yaml
+
+http="${HALB_PORT_HTTP:-31080}"
+https="${HALB_PORT_HTTPS:-31443}"
+proxy_real_ip_cidr="${HALB_DOMAIN_CIDR}"
+tls=default-tls-cert
+cn=${K8S_FQDN:-example.local}
+crt=../tls/$cn/$cn.crt
+key=../tls/$cn/$cn.key
+
+# Add/Update repo
+helm repo add $chart $repo &&
+    helm repo update $chart ||
+        echo ERR on helm repo add/update : $repo
+
+# Install
+helm upgrade $release $chart \
+    $install \
+    --repo $repo \
+    --version $v \
+    --namespace $ns \
+    --create-namespace \
+    --set controller.kind=DaemonSet \
+    --set controller.allowSnippetAnnotations="true" \
+    --set controller.service.externalTrafficPolicy=Local \
+    --set controller.service.type=NodePort \
+    --set controller.service.nodePorts.http="$http" \
+    --set controller.service.nodePorts.https="$https" \
+    --set controller.extraArgs.default-ssl-certificate="$ns/$tls" \
+    --set controller.config.use-proxy-protocol="true" \
+    --set controller.config.enable-real-ip="true" \
+    --set controller.config.forwarded-for-header=X-Forwarded-For \
+    --set controller.config.proxy-real-ip-cidr="$proxy_real_ip_cidr"
+```
+
+| Setting                                                    | Purpose                                                                                       |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `controller.kind=DaemonSet`                                | Ensures each node has a controller pod, needed for `NodePort` + `externalTrafficPolicy=Local` |
+| `controller.service.externalTrafficPolicy=Local`           | Preserves source IP for ingress controllers behind a TCP load balancer                        |
+| `controller.config.use-proxy-protocol=true`                | Tells NGINX to expect and parse the PROXY protocol header                                     |
+| `controller.config.enable-real-ip=true`                    | Enables use of `X-Forwarded-For` / real client IPs                                            |
+| `controller.config.forwarded-for-header=X-Forwarded-For`   | Ensures consistent header interpretation                                                      |
+| `controller.config.proxy-real-ip-cidr=$proxy_real_ip_cidr` | Crucial to trust only the HAProxy LB (e.g., `192.168.11.0/24`) as a legitimate PROXY sender   |
+
+
+
 
 @ [__`ingress-nginx-baremetal-v1.12.0.yaml`__](ingress-nginx-baremetal-v1.12.0.yaml)
 
@@ -133,45 +192,8 @@ kubectl apply -f $manifest
   an edited version of that generated 
   by a "`helm template ...`" statement.
 
-Else by Helm chart :
 
 ```bash
-v=4.12.3
-chart=ingress-nginx # Folder name of extracted chart
-repo=https://kubernetes.github.io/$chart
-releast=$chart
-ns=$release
-values=values.yaml
-tls=default-tls-cert
-# To use manifest method:
-manifest=helm.template.$chart.$v.yaml
-# Add/Update repo
-helm repo add $chart $repo &&
-    helm repo update $chart ||
-        echo ERR on helm repo add/update : $repo
-# 1. Use helm chart to generate the manifest; edit as desired.
-# Configured here for external (HA)LB upstreaming to NodePorts, 
-# and using PROXY protocol to preserve client IP.
-helm template $release $chart \
-    --repo $repo \
-    --version $v \
-    --set controller.kind=DaemonSet \
-    --set controller.service.externalTrafficPolicy=Local \
-    --set controller.service.type=NodePort \
-    --set controller.service.ports.http=30080 \
-    --set controller.service.ports.https=30443 \
-    --set controller.extraArgs.default-ssl-certificate="$ns/$tls" \
-    |tee $manifest
-
-# 2. Create TLS key/cert (out of band) and K8s Secret
-kubectl create secret tls $tls \
-    --cert=cert.pem \
-    --key=key.pem \
-    --namespace=$ns
-
-# 3. Apply the generated manifest
-kubectl apply -f $manifest
-
 # To use remote chart
 helm show values $repo/$chart |tee $values
 # Or
