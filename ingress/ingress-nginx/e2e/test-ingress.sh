@@ -7,6 +7,11 @@ export ns_ingress=ingress-nginx
 export host=e2e.$K8S_FQDN
 export ca_cert=${DOMAIN_CA_CERT}
 
+
+# scheme=https
+# curl -vfsS --cacert $ca_cert $scheme://$host/{foo,bar}/hostname
+# exit $?
+
 teardown(){
     echo '🚧 === Teardown'
     kubectl delete -f $ns_app.yaml
@@ -48,21 +53,19 @@ e2e(){
         scheme="${1,,}" # http|https
         
         # Host is FQDN or IP : If IP, then find that of first control node; each is a cluster entrypoint
-        [[ $scheme == 'http' ]] && [[ ! $HALB ]] && host=$(ipv4)
+        [[ $scheme == 'http' ]] && [[ ! $HALB ]] && host="$(ipv4)"
 
         # Concat response bodies else return error code : agnhost GET /hostname returns hostname.
-        [[ $HALB ]] && {
-            curl -fs --cacert $ca_cert $scheme://$host/{foo,bar}/hostname
-        } || {
-            curl -fs --cacert $ca_cert $scheme://$host:$(port $scheme)/{foo,bar}/hostname
-        }
+        [[ $HALB ]] && curl -fs --cacert $ca_cert $scheme://$host/{foo,bar}/hostname
+        [[ $HALB ]] || curl -fs --cacert $ca_cert $scheme://$host:$(port $scheme)/{foo,bar}/hostname
+        [[ $DEBUG ]] && echo " | HALB: '$HALB', scheme: '$scheme', host: '$host'" || echo
     }
     export -f get
     scheme(){
         echo "   Want: foobar"
-        seq 5 |xargs -n1 /bin/bash -c ' 
+        seq 3 |xargs -n1 /bin/bash -c ' 
             got="$(get $1 || echo ERR:$?)"
-            [[ $got == foobar ]] && x=✅ || x=❌
+            [[ $got =~ foobar ]] && x=✅ || x=❌
             echo "    Got: $got  $x"
             [[ $got == foobar ]] && exit 0 || sleep 5 
         ' _ $1 || return 404

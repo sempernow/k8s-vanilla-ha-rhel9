@@ -31,6 +31,8 @@ repo(){
         echo "⚠️  ERR on helm repo add/update : $repo"
 }
 secret(){
+    ## Use for manifest method (upManifest) only. 
+    ## Do *not* create this Secret if installing by Helm (upChart).
     kubectl create ns $ns ||
         kubectl -n $ns delete secret tls $tls --ignore-not-found
     kubectl create secret tls $tls \
@@ -61,10 +63,16 @@ helmAction(){
         --set controller.service.nodePorts.http="$http" \
         --set controller.service.nodePorts.https="$https" \
         --set controller.extraArgs.default-ssl-certificate="$ns/$tls" \
-        --set controller.proxySetHeaders.use-proxy-protocol="true" \
-        --set controller.proxySetHeaders.enable-real-ip="true" \
-        --set controller.proxySetHeaders.forwarded-for-header=X-Forwarded-For \
-        --set controller.proxySetHeaders.proxy-real-ip-cidr="$proxy_real_ip_cidr"
+        --set controller.config.use-proxy-protocol="true" \
+        --set controller.config.enable-real-ip="true" \
+        --set controller.config.forwarded-for-header=X-Forwarded-For \
+        --set controller.config.proxy-real-ip-cidr="$proxy_real_ip_cidr"
+
+
+    # --set controller.proxySetHeaders.use-proxy-protocol="true" \
+    # --set controller.proxySetHeaders.enable-real-ip="true" \
+    # --set controller.proxySetHeaders.forwarded-for-header=X-Forwarded-For \
+    # --set controller.proxySetHeaders.proxy-real-ip-cidr="$proxy_real_ip_cidr"
 
     ## BUG @ proxySetHeaders : ConfigMap requires string values, yet ...
     ## Want:

@@ -76,6 +76,7 @@ metadata:
   # so create Ingress per stack, in stack's namespace.
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:

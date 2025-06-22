@@ -559,16 +559,16 @@ ingress-nginx-manifest :
 ingress-nginx-diff :
 	bash ${ADMIN_SRC_DIR}/${ingress} diff
 ingress-nginx ingress-nginx-up : ingress-nginx-secret
-	bash ${ADMIN_SRC_DIR}/${ingress} upManifest
-#	bash ${ADMIN_SRC_DIR}/${ingress} upChart
+#	bash ${ADMIN_SRC_DIR}/${ingress} upManifest
+	bash ${ADMIN_SRC_DIR}/${ingress} upChart
 ingress-nginx-get :
 	bash ${ADMIN_SRC_DIR}/${ingress} get
 ingress-nginx-e2e :
-	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e http https || echo ERR $?
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e http https || echo ERR $$?
 ingress-nginx-e2e-tls :
-	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e https || echo ERR $?
-ingress-nginx-e2e-down ingress-nginx-e2e-teardown :
-	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh teardown || echo ERR $?
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e https || echo ERR $$?
+ingress-nginx-e2e-down ingress-nginx-e2e-tls-down ingress-nginx-e2e-teardown :
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh teardown || echo ERR $$?
 ingress-nginx-down ingress-nginx-teardown :
 	bash ${ADMIN_SRC_DIR}/${ingress} teardown
 

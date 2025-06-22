@@ -15,26 +15,6 @@ metadata:
   namespace: ingress-nginx
 automountServiceAccountToken: true
 ---
-# Source: ingress-nginx/templates/controller-configmap-proxyheaders.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  labels:
-    helm.sh/chart: ingress-nginx-4.12.3
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/instance: ingress-nginx
-    app.kubernetes.io/version: "1.12.3"
-    app.kubernetes.io/part-of: ingress-nginx
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/component: controller
-  name: ingress-nginx-custom-proxy-headers
-  namespace: ingress-nginx
-data: 
-  enable-real-ip: "true"
-  forwarded-for-header: X-Forwarded-For
-  proxy-real-ip-cidr: 192.168.11.0/24
-  use-proxy-protocol: "true"
----
 # Source: ingress-nginx/templates/controller-configmap.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -51,7 +31,10 @@ metadata:
   namespace: ingress-nginx
 data:
   allow-snippet-annotations: "true"
-  proxy-set-headers: ingress-nginx/ingress-nginx-custom-proxy-headers
+  enable-real-ip: "true"
+  forwarded-for-header: "X-Forwarded-For"
+  proxy-real-ip-cidr: "192.168.11.0/24"
+  use-proxy-protocol: "true"
 ---
 # Source: ingress-nginx/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
