@@ -546,6 +546,8 @@ prune :
 #	bash scripts/kubectl-mass-delete-pods.sh StatusUnk
 
 ingress := ingress/ingress-nginx/ingress-nginx.sh
+## Unset HALB if not configured for it
+export HALB ?= yes
 ingress-nginx-secret :
 	bash ${ADMIN_SRC_DIR}/${ingress} secret
 ingress-nginx-parse ingress-nginx-secret-parse :
@@ -562,7 +564,7 @@ ingress-nginx ingress-nginx-up : ingress-nginx-secret
 ingress-nginx-get :
 	bash ${ADMIN_SRC_DIR}/${ingress} get
 ingress-nginx-e2e :
-	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e http || echo ERR $?
+	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e http https || echo ERR $?
 ingress-nginx-e2e-tls :
 	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e https || echo ERR $?
 ingress-nginx-e2e-down ingress-nginx-e2e-teardown :

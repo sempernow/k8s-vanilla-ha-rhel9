@@ -6,7 +6,6 @@ export ns_app=test-ingress
 export ns_ingress=ingress-nginx
 export host=e2e.$K8S_FQDN
 export ca_cert=${DOMAIN_CA_CERT}
-export HALB=yes # Comment out if not configured for HALB (external loadbalancer)
 
 teardown(){
     echo '🚧 === Teardown'
@@ -19,7 +18,7 @@ export -f teardown
 e2e(){
     up(){
         [[ $(kubectl -n $ns_app pod -l app=foo 2>/dev/null) ]] || {
-            kubectl create ns $ns_app
+            kubectl get ns $ns_app >/dev/null 2>&1 || kubectl create ns $ns_app
         }
         kubectl config set-context --current --namespace $ns_app
         kubectl apply -f $ns_app.yaml
@@ -50,7 +49,7 @@ e2e(){
     get(){
         scheme="${1,,}" # http|https
         
-        # FQDN or IP : If IP, then find that of first control node; each is a cluster entrypoint
+        # Host is FQDN or IP : If IP, then find that of first control node; each is a cluster entrypoint
         [[ $scheme == 'http' ]] && [[ ! $HALB ]] && host=$(ipv4)
 
         # Concat response bodies else return error code : agnhost GET /hostname returns hostname.
@@ -62,28 +61,31 @@ e2e(){
     }
     export -f get
     scheme(){
-        echo "  Want: foobar"
-        seq 3 |xargs -n1 /bin/bash -c ' 
+        echo "   Want: foobar"
+        seq 5 |xargs -n1 /bin/bash -c ' 
             got="$(get $1 || echo ERR:$?)"
             [[ $got == foobar ]] && x=✅ || x=❌
-            echo "  Got : $got  $x"
+            echo "    Got: $got  $x"
             [[ $got == foobar ]] && exit 0 || sleep 5 
         ' _ $1 || return 404
     }
     export -f scheme
 
-    echo '🧪 === E2E connectivi1ty test : Ingress <=> Service <=> Pod <=> container'
+    [[ $HALB ]] && lb='HALB <=> ' || unset lb
+    echo -e "\n🧪 === E2E test : ${lb}Ingress <=> Service <=> Pod <=> container\n"
     up || return 503
     type get
     [[ $HALB ]] && {
         echo $* |xargs -n1 /bin/bash -c '
-            echo "🛠️ @ ${1^^}://$host"
+            [[ $1 == "https" ]] && glyph=🔒 || glyph=⚡
+            echo "$glyph ${1,,}://$host"
             scheme $1
         ' $host
     } || {
         echo $* |xargs -n1 /bin/bash -c '
+            [[ $1 == "https" ]] && glyph=🔒 || glyph=⚡
             [[ $1 == "https" ]] && host=$0 || host=$(ipv4)
-            echo "🛠️ @ ${1^^}://$host:$(port $1)"
+            echo "$glyph ${1,,}://$host:$(port $1)"
             scheme $1
         ' $host
     }
