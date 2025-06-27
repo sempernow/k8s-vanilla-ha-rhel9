@@ -30,6 +30,15 @@ export PRJ_ROOT := $(shell pwd)
 export LOG_PRE  := make
 export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 
+
+##############################################################################
+## TLS : Domain's Offline Root CA
+
+export TLS_CN ?= Lime LAN Root CA
+export TLS_O  ?= Lime LAN
+export TLS_OU ?= lime.lan
+export TLS_C  ?= US
+
 ##############################################################################
 ## Registry : registry.k8s.io
 
@@ -39,6 +48,7 @@ export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 #export CNCF_REGISTRY_PORT     ?= 5000
 #export CNCF_REGISTRY_ENDPOINT ?= ${CNCF_REGISTRY_HOST}:${CNCF_REGISTRY_PORT}
 #export CNCF_REGISTRY_STORE    ?= /mnt/${CNCF_REGISTRY_HOST}
+
 
 ##############################################################################
 ## HAProxy/Keepalived : HA Application Load Balancer (HALB)
@@ -270,6 +280,10 @@ status hello :
 	'
 sealert :
 	ansibash 'sudo sealert -l "*" |grep -e == -e "Source Path" -e "Last Seen" |grep -v 2024 |grep -B1 -e == -e "Last Seen"'
+
+rootca :
+	bash make.recipes.sh rootCA
+	
 
 #net: ruleset iptables
 net:
