@@ -48,8 +48,13 @@ kind: ClusterConfiguration
 kubernetesVersion: K8S_VERSION
 # imageRepository: K8S_REGISTRY
 apiServer:
-  timeoutForControlPlane: 4m # Wait for apiserver to appear
+  timeoutForControlPlane: 3m # Wait for apiserver to appear
   extraArgs:    # map[string]string : arg(s), each sans leading dashes
+    #tls-cipher-suites: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+    #tls-cipher-suites: "TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+    # Verify : kubectl -n kube-system logs <kube-apiserver-pod-name> |grep tls-cipher-suites
+    # Or     : psk kube-apiserver |grep tls-cipher-suites
+    # Check FIPS compliance of host : cat /proc/sys/crypto/fips_enabled
   extraVolumes: # []HostPathMount
   certSANs:     # []string          : SANs of API Server signing certificate.
 clusterName: K8S_CLUSTER_NAME
@@ -162,6 +167,13 @@ shutdownGracePeriodCriticalPods: 10s
 streamingConnectionIdleTimeout: 0s
 ## TLS Params : See https://pkg.go.dev/crypto/tls#pkg-constants
 # tlsCipherSuites: []
+# tlsCipherSuites:
+#   - TLS_AES_128_GCM_SHA256
+#   - TLS_AES_256_GCM_SHA384
+#   - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+#   - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+#   - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+#   - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
 tlsMinVersion: VersionTLS12
 ---
 apiVersion: kubeproxy.config.k8s.io/v1alpha1
