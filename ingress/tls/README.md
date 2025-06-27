@@ -45,12 +45,11 @@ unless that role is configured otherwise,
 which is a non-trivial task that nearly no organization performs.
 
 ```bash
-root=lime.lan
-cn=kube.$root
-TLS_ST=MD
-TLS_L=AAC
-TLS_O=DisselTree
-TLS_OU=ops
+domain=lime.lan
+cn=kube.$domain
+TLS_CN=$cn
+TLS_O="K8s on $domain"
+TLS_OU=$domain
 ## Create the configuration file (CNF) : See man config
 ## See: man openssl-req : CONFIGURATION FILE FORMAT section
 ## https://www.openssl.org/docs/man1.0.2/man1/openssl-req.html
@@ -62,16 +61,16 @@ default_md          = sha256    # Hashing algorithm.
 distinguished_name  = req_distinguished_name 
 req_extensions      = v3_req    # Extensions to include in the request.
 [ req_distinguished_name ] 
-CN              = $cn                   # Common Name
-C               = ${TLS_C:-US}          # Country
-ST              = ${TLS_ST:-NY}         # State or Province
-L               = ${TLS_L:-Gotham}      # Locality name
-O               = ${TLS_O:-Foobar Inc}  # Organization name
-OU              = ${TLS_OU:-GitOps}     # Organizational Unit name
+CN              = ${TLS_CN:-p.gotham.gov}   # Common Name
+O               = ${TLS_O:-Penguin Inc}     # Organization name
+OU              = ${TLS_OU:-gotham.gov}     # Organizational Unit name
+#L               = ${TLS_L:-Gotham}          # Locality name
+#ST              = ${TLS_ST:-NY}             # State or Province
+C               = ${TLS_C:-US}              # Country
 emailAddress    = admin@$root
 [ v3_req ]
 subjectAltName      = @alt_names
-keyUsage            = digitalSignature
+keyUsage            = critical, digitalSignature
 extendedKeyUsage    = serverAuth
 [ alt_names ]
 DNS.1 = $cn
