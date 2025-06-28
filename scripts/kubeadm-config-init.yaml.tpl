@@ -44,7 +44,7 @@ kind: ClusterConfiguration
 ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ClusterConfiguration
 ## RELEASEs https://kubernetes.io/releases/
 ## Capture after init and store to /etc/kubernetes/kubeadm-config.yaml
-## kubectl get cm kubeadm-config -o yaml |yq .data.ClusterConfiguration
+## kubectl -n kube-system get cm kubeadm-config -o yaml |yq .data.ClusterConfiguration
 kubernetesVersion: K8S_VERSION
 # imageRepository: K8S_REGISTRY
 apiServer:
