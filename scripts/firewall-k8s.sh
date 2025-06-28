@@ -66,7 +66,7 @@ firewall-cmd $at --$do-masquerade   # Allow NAT
 
 ip_based(){
     
-    ## Hardened version : Allow K8s ports only if source is K8s peer
+    ## Hardened version : Allow K8s common/control ports only if source is another K8s node
     
     svc_based remove # Remove permissive, service-based rules
 

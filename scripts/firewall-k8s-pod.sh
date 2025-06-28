@@ -29,20 +29,22 @@ firewall-cmd --set-default-zone=$zone
 at="--permanent --zone=$zone"
 
 ## Allow all Pod and Service (CIDRs) traffic
+## As long as no port is declared in a rich rule, then all are allowed.
 firewall-cmd $at --add-rich-rule='rule family=ipv4 source address='$K8S_POD_CIDR' accept'
 firewall-cmd $at --add-rich-rule='rule family=ipv6 source address='$K8S_POD_CIDR6' accept'
 firewall-cmd $at --add-rich-rule='rule family=ipv4 destination address='$K8S_SERVICE_CIDR' accept'
+
 
 ## Allow outbound traffic via NAT (e.g., IP-in-IP tunneling) and all internal Pod-Service routing.
 firewall-cmd $at --add-forward
 firewall-cmd $at --add-masquerade
 
 ## Allow ICMP for ping request/reply 
-firewall-cmd $at --remove-icmp-block-inversion    # Remove if inverted
-firewall-cmd $at --remove-icmp-block=echo-request # Allow request 
-firewall-cmd $at --remove-icmp-block=echo-reply   # Allow reply
+firewall-cmd $at --add-icmp-block-inversion    # Remove if inverted
+firewall-cmd $at --add-icmp-block=echo-request # Allow request 
+firewall-cmd $at --add-icmp-block=echo-reply   # Allow reply
 
 ## Permissive on these declared CIDRs
-firewall-cmd $at --set-target=ACCEPT  
+firewall-cmd $at --set-target=DROP
 
 firewall-cmd --reload
