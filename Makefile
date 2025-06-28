@@ -52,37 +52,37 @@ export TLS_C  ?= US
 
 ##############################################################################
 ## HAProxy/Keepalived : HA Application Load Balancer (HALB)
-export HALB_DOMAIN   ?= lime.lan
+export HALB_DOMAIN      ?= lime.lan
 export HALB_DOMAIN_CIDR ?= 192.168.11.0/24
-export HALB_VIP      ?= 192.168.11.11
-export HALB_VIP6     ?= 0:0:0:0:0:ffff:c0a8:0b0b
-export HALB_MASK     ?= 24
-export HALB_MASK6    ?= 64
-export HALB_CIDR     ?= ${HALB_VIP}/${HALB_MASK}
-export HALB_CIDR6    ?= ${HALB_VIP6}/${HALB_MASK6}
-export HALB_DEVICE   ?= eth0
-export HALB_FQDN_1   ?= a1.${HALB_DOMAIN}
-export HALB_FQDN_2   ?= a2.${HALB_DOMAIN}
-export HALB_FQDN_3   ?= a3.${HALB_DOMAIN}
-export HALB_PORT_K8S      ?= 8443
-export HALB_PORT_HTTP     ?= 30080
-export HALB_PORT_HTTPS    ?= 30443
+export HALB_VIP         ?= 192.168.11.11
+export HALB_VIP6        ?= 0:0:0:0:0:ffff:c0a8:0b0b
+export HALB_MASK        ?= 24
+export HALB_MASK6       ?= 64
+export HALB_CIDR        ?= ${HALB_VIP}/${HALB_MASK}
+export HALB_CIDR6       ?= ${HALB_VIP6}/${HALB_MASK6}
+export HALB_DEVICE      ?= eth0
+export HALB_FQDN_1      ?= a1.${HALB_DOMAIN}
+export HALB_FQDN_2      ?= a2.${HALB_DOMAIN}
+export HALB_FQDN_3      ?= a3.${HALB_DOMAIN}
+export HALB_PORT_K8S    ?= 8443
+export HALB_PORT_HTTP   ?= 30080
+export HALB_PORT_HTTPS  ?= 30443
 
 ##############################################################################
 ## Cluster
 
 ## ansibash
 ### Public-key string of ssh user must be in ~/.ssh/authorized_keys of ADMIN_USER at all targets.
-#export ADMIN_USER          ?= $(shell id -un)
-export ADMIN_USER          ?= u2
-export ADMIN_KEY           ?= ${HOME}/.ssh/vm_lime
-export ADMIN_HOST          ?= a0
-export ADMIN_NODES_CONTROL ?= a1 a2 a3
-export ADMIN_NODES_WORKER  ?=
-export ADMIN_TARGET_LIST   ?= ${ADMIN_NODES_CONTROL} ${ADMIN_NODES_WORKER}
-export ADMIN_SRC_DIR       ?= $(shell pwd)
-#export ADMIN_DST_DIR       ?= ${ADMIN_SRC_DIR}
-export ADMIN_DST_DIR       ?= /tmp/$(shell basename "${ADMIN_SRC_DIR}")
+#export ADMIN_USER           ?= $(shell id -un)
+export ADMIN_USER           ?= u2
+export ADMIN_KEY            ?= ${HOME}/.ssh/vm_lime
+export ADMIN_HOST           ?= a0
+export ADMIN_NODES_CONTROL  ?= a1 a2 a3
+export ADMIN_NODES_WORKER   ?=
+export ADMIN_TARGET_LIST    ?= ${ADMIN_NODES_CONTROL} ${ADMIN_NODES_WORKER}
+export ADMIN_SRC_DIR        ?= $(shell pwd)
+#export ADMIN_DST_DIR        ?= ${ADMIN_SRC_DIR}
+export ADMIN_DST_DIR        ?= /tmp/$(shell basename "${ADMIN_SRC_DIR}")
 
 export ANSIBASH_TARGET_LIST ?= ${ADMIN_TARGET_LIST}
 export ANSIBASH_USER        ?= ${ADMIN_USER}
@@ -363,8 +363,9 @@ firewall-calico fw-calico :
 firewall-list fw-list:
 	ansibash 'sudo firewall-cmd --list-all --zone=k8s' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-list.log
+when := 15 minute ago
 firewall-log fw-log:
-	ansibash "sudo journalctl --since='15 minute ago' |grep DROP;echo All recent DROP logs until $$(date -Is)" \
+	ansibash "sudo journalctl --since='${when}' |grep DROP;echo All recent DROP logs from \'${when}\' until $$(date -Is)" \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-stat.log
 
 ## K8s cluster creation

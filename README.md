@@ -120,7 +120,7 @@ The CNI plugin is responsible for the (software-defined) Pod Network. It cre ate
 
 The advised scheme is to use the Linux firewall (`NetworkManager`, `nftables`, `firewalld`) only for the host's domain-facing (AKA "public") interface; binding it to some declared zone (e.g., `k8s`) and adding host-traffic services and such on that, as required by applications that traffic across that host-level interface (k8s, Calico, Cilium, external load balancer, ...).
 
-The CNI's virtual adapters, however, should be declared unmanaged WRT `NetworkManager` (`nmcli`). Moreover, `firewalld` should have its `default` zone set to something apropos, such as `trusted`. The default zone is that to which all the CNI's (ephemeral) virtual adapters will be bound. That is, we must prevent the Linux firewall from interfering in the CNI's (far superior and quite dynamic) traffic management.
+The CNI's virtual adapters, however, should be declared unmanaged WRT `NetworkManager` (`nmcli`). Moreover, `firewalld` should have its `default` zone set to something apropos, such as `trusted`. The default zone will bind to all the CNI's (ephemeral) virtual adapters. That is, we must prevent the Linux firewall from interfering in the CNI's (dynamic) traffic management.
 
 
 ## Modify `kubelet` Configuration
