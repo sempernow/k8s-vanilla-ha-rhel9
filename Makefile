@@ -23,6 +23,7 @@ YELLOW  := "\e[1;33m"
 RESTORE := "\e[0m"
 INFO    := @bash -c 'printf $(YELLOW);echo "@ $$1";printf $(RESTORE)' MESSAGE
 
+
 ##############################################################################
 ## Project Meta
 
@@ -39,6 +40,7 @@ export TLS_O  ?= Lime LAN
 export TLS_OU ?= lime.lan
 export TLS_C  ?= US
 
+
 ##############################################################################
 ## Registry : registry.k8s.io
 
@@ -52,21 +54,23 @@ export TLS_C  ?= US
 
 ##############################################################################
 ## HAProxy/Keepalived : HA Application Load Balancer (HALB)
-export HALB_DOMAIN      ?= lime.lan
-export HALB_DOMAIN_CIDR ?= 192.168.11.0/24
-export HALB_VIP         ?= 192.168.11.11
-export HALB_VIP6        ?= 0:0:0:0:0:ffff:c0a8:0b0b
-export HALB_MASK        ?= 24
-export HALB_MASK6       ?= 64
-export HALB_CIDR        ?= ${HALB_VIP}/${HALB_MASK}
-export HALB_CIDR6       ?= ${HALB_VIP6}/${HALB_MASK6}
-export HALB_DEVICE      ?= eth0
-export HALB_FQDN_1      ?= a1.${HALB_DOMAIN}
-export HALB_FQDN_2      ?= a2.${HALB_DOMAIN}
-export HALB_FQDN_3      ?= a3.${HALB_DOMAIN}
-export HALB_PORT_K8S    ?= 8443
-export HALB_PORT_HTTP   ?= 30080
-export HALB_PORT_HTTPS  ?= 30443
+export HALB_DOMAIN       ?= lime.lan
+export HALB_MASK         ?= 24
+export HALB_MASK6        ?= 64
+export HALB_DOMAIN_CIDR  ?= 192.168.11.0/${HALB_MASK}
+export HALB_DOMAIN_CIDR6 ?= fd00:11::/${HALB_MASK6}
+export HALB_VIP          ?= 192.168.11.11
+export HALB_VIP6         ?= fd00:11::100
+export HALB_CIDR         ?= ${HALB_VIP}/${HALB_MASK}
+export HALB_CIDR6        ?= ${HALB_VIP6}/${HALB_MASK6}
+export HALB_DEVICE       ?= eth0
+export HALB_FQDN_1       ?= a1.${HALB_DOMAIN}
+export HALB_FQDN_2       ?= a2.${HALB_DOMAIN}
+export HALB_FQDN_3       ?= a3.${HALB_DOMAIN}
+export HALB_PORT_K8S     ?= 8443
+export HALB_PORT_HTTP    ?= 30080
+export HALB_PORT_HTTPS   ?= 30443
+
 
 ##############################################################################
 ## Cluster
@@ -83,6 +87,7 @@ export ADMIN_TARGET_LIST    ?= ${ADMIN_NODES_CONTROL} ${ADMIN_NODES_WORKER}
 export ADMIN_SRC_DIR        ?= $(shell pwd)
 #export ADMIN_DST_DIR        ?= ${ADMIN_SRC_DIR}
 export ADMIN_DST_DIR        ?= /tmp/$(shell basename "${ADMIN_SRC_DIR}")
+export ADMIN_FW_LOG_SINCE   ?= 15 minute ago
 
 export ANSIBASH_TARGET_LIST ?= ${ADMIN_TARGET_LIST}
 export ANSIBASH_USER        ?= ${ADMIN_USER}
@@ -111,13 +116,14 @@ export K8S_CONTROL_PLANE_PORT ?= ${HALB_PORT_K8S}
 export K8S_NETWORK_DEVICE     ?= ${HALB_DEVICE}
 export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
 export K8S_FQDN               ?= kube.${HALB_DOMAIN}
-## CNI projects notoriously ignore custom CIDRs : Even masks (/16 v. /24) are a shaky proposition
-#export K8S_SERVICE_CIDR       ?= 10.32.0.0/16
+## Pod and Service CIDRs in Private Address space (RFC 1918) that are SLAAC-compliant .
 export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
-#export K8S_POD_CIDR           ?= 10.22.0.0/16
+export K8S_SERVICE_CIDR6      ?= fd00:96::/48
 export K8S_POD_CIDR           ?= 10.244.0.0/16
-export K8S_POD_CIDR6          ?= fd00:10:22::/64
+export K8S_POD_CIDR6          ?= fd00:244::/64
 export K8S_PEERS              ?= 192.168.11.101 192.168.11.102 192.168.11.103
+export K8S_FW_ZONE_EXTERNAL   ?= k8s-external
+export K8S_FW_ZONE_INTERNAL   ?= k8s-internal
 # @ Cilium eBPF mode
 #export K8S_POD_CIDR           ?= 10.0.0.0/8
 export K8S_NODE_CIDR_MASK     ?= 24
@@ -145,11 +151,13 @@ menu :
 	@echo "  -cri       : Install K8s CRI and all deps, and tools"
 	@echo "  -k8s       : Install K8s and CNI plugins"
 	@echo "============== "
-	@echo "firewall, fw : Configure firewalld to domain-facing zone and interface"
-	@echo "  -k8s       : Configure firewalld and NetworkManager for host and K8s"
+	@echo "fw           : Configure Linux firewall for the Kubernetes cluster"
+	@echo "  -k8s       : Configure firewalld and NetworkManager for K8s control and worker nodes"
 	@echo "  -calico    : Configure firewalld for Calico CNI"
-	@echo "  -list      : firewall-cmd --list-all --zone=k8s"
-	@echo "  -drop      : Recently DROPped packets : journalctl --since='15 minute ago' |grep DROP"
+	@echo "  -list      : firewall-cmd --list-all : both k8s zones : ${K8S_FW_ZONE_EXTERNAL} and ${K8S_FW_ZONE_INTERNAL}"
+	@echo "   -external : firewall-cmd --list-all --zone=${K8S_FW_ZONE_EXTERNAL} (zone bound to ${HALB_DEVICE})"
+	@echo "   -internal : firewall-cmd --list-all --zone=${K8S_FW_ZONE_INTERNAL} (default zone)"
+	@echo "  -log       : Recently DROPped packets : journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP"
 	@echo "============== "
 	@echo "init         : Create 1st control node of the cluster"
 	@echo "  -purge     : Purge Makefile.settings of stale PKI params"
@@ -255,6 +263,7 @@ html :
 commit push : html mode
 	gc && git push && gl && gs
 
+
 ##############################################################################
 ## Recipes : Cluster
 
@@ -351,21 +360,41 @@ install-k8s :
 
 ## firewalld
 
-firewall fw : fw-k8s fw-calico
-firewall-k8s fw-k8s :
-	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-k8s.sh
-	ansibash 'sudo bash firewall-k8s.sh ${HALB_DEVICE} k8s || echo "⚠️  ERR : $$?"' \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-k8s.${UTC}.log
-firewall-calico fw-calico :
+fw : fw-k8s fw-calico
+fw-k8s : fw-k8s-external fw-k8s-internal
+fw-k8s-down : fw-k8s-external-down fw-k8s-internal-down
+fw-k8s-external :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-k8s-external.sh
+	ansibash 'sudo bash firewall-k8s-external.sh ${HALB_DEVICE} ${K8S_FW_ZONE_EXTERNAL} || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.fw-k8s-external.${UTC}.log
+fw-k8s-internal :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-k8s-internal.sh
+	ansibash 'sudo bash firewall-k8s-internal.sh ${K8S_FW_ZONE_INTERNAL} "${K8S_POD_CIDR}" "${K8S_SERVICE_CIDR}" || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.fw-k8s-internal.${UTC}.log
+fw-calico :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-calico.sh
-	ansibash 'sudo bash firewall-calico.sh ${HALB_DEVICE} k8s "${K8S_PEERS}" || echo "⚠️  ERR : $$?"' \
+	ansibash 'sudo bash firewall-calico.sh ${HALB_DEVICE} ${K8S_FW_ZONE_EXTERNAL} "${K8S_PEERS}" || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-calico.${UTC}.log
-firewall-list fw-list:
-	ansibash 'sudo firewall-cmd --list-all --zone=k8s' \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-list.log
-when := 15 minute ago
-firewall-log fw-log:
-	ansibash "sudo journalctl --since='${when}' |grep DROP;echo All recent DROP logs from \'${when}\' until $$(date -Is)" \
+fw-k8s-external-down :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-k8s-external.sh
+	ansibash 'sudo bash firewall-k8s-external.sh ${HALB_DEVICE} ${K8S_FW_ZONE_EXTERNAL} x || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-k8s-external-down.${UTC}.log
+fw-k8s-internal-down :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-k8s-internal.sh
+	ansibash 'sudo bash firewall-k8s-internal.sh ${K8S_FW_ZONE_INTERNAL} x || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-k8s-internal-down.${UTC}.log
+fw-list: fw-list-external fw-list-internal
+fw-list-external:
+	ansibash 'sudo firewall-cmd --list-all --zone=${K8S_FW_ZONE_EXTERNAL}' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-list-external.log
+fw-list-internal:
+	ansibash 'sudo firewall-cmd --list-all --zone=${K8S_FW_ZONE_INTERNAL}' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-list-internal.log
+fw-zones :
+	ansibash 'sudo firewall-cmd --get-active-zones'
+	ansibash 'sudo firewall-cmd --get-default-zone'
+fw-log fw-logs:
+	ansibash "sudo journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP;echo All recent DROP logs from \'${ADMIN_FW_LOG_SINCE}\' until $$(date -Is)" \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-stat.log
 
 ## K8s cluster creation
