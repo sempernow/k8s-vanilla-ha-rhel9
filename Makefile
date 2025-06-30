@@ -155,6 +155,7 @@ menu :
 	@echo "  -k8s       : Configure firewalld and NetworkManager for K8s control and worker nodes"
 	@echo "  -calico    : Configure firewalld for Calico CNI"
 	@echo "  -list      : firewall-cmd --list-all : both k8s zones : ${K8S_FW_ZONE_EXTERNAL} and ${K8S_FW_ZONE_INTERNAL}"
+	@echo "  -zones     : firewall-cmd : Verify zones : active (${K8S_FW_ZONE_EXTERNAL}) and default (${K8S_FW_ZONE_INTERNAL})"
 	@echo "   -external : firewall-cmd --list-all --zone=${K8S_FW_ZONE_EXTERNAL} (zone bound to ${HALB_DEVICE})"
 	@echo "   -internal : firewall-cmd --list-all --zone=${K8S_FW_ZONE_INTERNAL} (default zone)"
 	@echo "  -log       : Recently DROPped packets : journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP"
@@ -390,7 +391,7 @@ fw-list-external:
 fw-list-internal:
 	ansibash 'sudo firewall-cmd --list-all --zone=${K8S_FW_ZONE_INTERNAL}' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-list-internal.log
-fw-zones :
+fw-zone fw-zones :
 	ansibash 'sudo firewall-cmd --get-active-zones'
 	ansibash 'sudo firewall-cmd --get-default-zone'
 fw-log fw-logs:
