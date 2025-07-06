@@ -1,5 +1,13 @@
 ## TLS : AD CS
 
+### TL;DR
+
+UPDATE : Root CA created by this method **lacks required extensions**, 
+and so fails at certain clients. 
+
+
+### Work
+
 By default, 
 the AD CS role of Windows Server 2019 provides 
 only RSA type TLS certificates.

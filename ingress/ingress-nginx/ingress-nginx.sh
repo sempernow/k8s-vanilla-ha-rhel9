@@ -42,8 +42,10 @@ secret(){
     kubectl -n $ns get secret $tls -o yaml |tee secret.$tls.yaml
 }
 parse(){
-    yq '.data.["tls.crt"]' <(kubectl -n $ns get secret $tls -o yaml) |base64 -d \
-        |openssl x509 -noout -subject -issuer -startdate -enddate -ext subjectAltName
+    x509v3='subjectAltName,issuerAltName,basicConstraints,keyUsage,extendedKeyUsage,authorityInfoAccess,subjectKeyIdentifier,authorityKeyIdentifier,crlDistributionPoints,issuingDistributionPoints,policyConstraints,nameConstraints'
+    yq '.data.["tls.crt"]' <(kubectl -n $ns get secret $tls -o yaml) \
+        |base64 -d \
+        |openssl x509 -noout -subject -issuer -startdate -enddate -ext "$x509v3" 
 }
 
 helmAction(){
