@@ -21,7 +21,8 @@ clear;echo '
 🚀  Bandwidth test of K8s Pod Network using iperf3
 '
 
-img=nicolaka/netshoot # https://github.com/nicolaka/netshoot
+img=nicolaka/netshoot       # https://github.com/nicolaka/netshoot
+#img=gd9h/iperf:3.19-hard    # https://hub.docker.com/repository/docker/gd9h/iperf/general
 port=${1:-5555} # Presumed okay
 
 echo -e '\n🚧  === Create and set context to a per-run Namespace …'

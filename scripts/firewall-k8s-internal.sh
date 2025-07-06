@@ -21,7 +21,7 @@
 #     - This occurs without intervention at RHEL8+. 
 #     - Verify by unprivileged execution of "nmcli dev status".
 # 
-# ARGs: ZONE  POD_CIDR  SERVICE_CIDR  [ANY(to teardown)]
+# ARGs: ZONE  POD_CIDR  SERVICE_CIDR  HOST_CIDR  [ANY(to teardown)]
 #
 # https://docs.oracle.com/en/operating-systems/olcne/1.1/start/ports.html
 # https://kubernetes.io/docs/reference/networking/ports-and-protocols/
@@ -32,7 +32,7 @@
 
     exit 11
 }
-[[ -n $1 ]] || {
+[[ -n $4 ]] || {
     echo "❌  ERR : Missing args : Environment is UNCONFIGURED" >&2
 
     exit 22
@@ -40,7 +40,8 @@
 export zone=$1
 export podCIDR="$2"
 export svcCIDR="$3"
-[[ -n $4 ]] &&
+export hostCIDR="$4"
+[[ -n $5 ]] &&
     export do='remove' ||
         export do='add'
 
@@ -70,17 +71,32 @@ export at="--permanent --zone=$zone"
     firewall-cmd --set-default-zone=$zone
 }
 
-## Allow all Pod and Service (CIDRs) traffic
-## If rich-rule has no declared port, then all are allowed on that address.
-firewall-cmd $at --$do-rich-rule='rule family=ipv4 source address='$podCIDR' accept'
-#firewall-cmd $at --$do-rich-rule='rule family=ipv6 source address='$K8S_POD_CIDR6' accept'
-firewall-cmd $at --$do-rich-rule='rule family=ipv4 destination address='$svcCIDR' accept'
-#firewall-cmd $at --$do-rich-rule='rule family=ipv6 destination address='$K8S_SERVICE_CIDR6' accept'
-
 ## Allow ICMP for ping request/reply 
 firewall-cmd $at --$do-icmp-block-inversion    # Remove if inverted
 firewall-cmd $at --$do-icmp-block=echo-request # Allow request 
 firewall-cmd $at --$do-icmp-block=echo-reply   # Allow reply
+
+## Allow all Pod and Service (CIDRs) traffic
+## Rich Rule : Requires zone bound to the internal interfaces, but it isn't.  
+## That our zone is "default" is insufficient.
+# for cidr in "$podCIDR" "$svcCIDR" "$hostCIDR"
+# do 
+#    firewall-cmd $at --$do-rich-rule='rule family=ipv4 source address='$cidr' accept'
+#    firewall-cmd $at --$do-rich-rule='rule family=ipv4 destination address='$cidr' accept'
+# done
+
+export at="--permanent --direct"
+
+## A --direct rule should take precedence over zone-based rules, including zone target=DROP.
+## HOWEVER, in practice, when zones are mismatched between IN and OUT interfaces, 
+## or when the kernel isn't able to conclusively route the packet before zone logic, 
+## a --direct rule may be skipped or bypassed in the FORWARD chain evaluation.
+firewall-cmd $at --$do-rule ipv4 filter FORWARD 0 -s "$podCIDR" -d "$podCIDR" -j ACCEPT
+firewall-cmd $at --$do-rule ipv4 filter FORWARD 0 -s "$podCIDR" -d "$svcCIDR" -j ACCEPT
+firewall-cmd $at --$do-rule ipv4 filter FORWARD 0 -s "$podCIDR" -d "$hostCIDR" -j ACCEPT
+firewall-cmd $at --$do-rule ipv4 filter FORWARD 0 -s "$svcCIDR" -d "$hostCIDR" -j ACCEPT # Headless to NodePorts
+firewall-cmd $at --$do-rule ipv4 filter FORWARD 0 -s "$svcCIDR" -d "$podCIDR" -j ACCEPT
+firewall-cmd $at --$do-rule ipv4 filter FORWARD 0 -s "$hostCIDR" -d "$svcCIDR" -j ACCEPT
 
 firewall-cmd --reload
 

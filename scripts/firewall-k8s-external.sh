@@ -106,7 +106,7 @@ systemctl is-active --quiet firewalld ||
     systemctl enable --now firewalld
 
 ## Set the default zone that will bind to all internal (ephemeral/CNI) virtual interfaces 
-#firewall-cmd --set-default-zone=trusted # UPDATE : Too permissive : See firewall-k8s-internal.sh
+firewall-cmd --set-default-zone=trusted # Reset to k8s-internal zone by firewall-k8s-internal.sh
 
 export at="--permanent --zone=$zone"
 

@@ -117,6 +117,8 @@ export K8S_NETWORK_DEVICE     ?= ${HALB_DEVICE}
 export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
 export K8S_FQDN               ?= kube.${HALB_DOMAIN}
 ## Pod and Service CIDRs in Private Address space (RFC 1918) that are SLAAC-compliant .
+export K8S_HOST_CIDR          ?= ${HALB_DOMAIN_CIDR}
+export K8S_HOST_CIDR6         ?= ${HALB_DOMAIN_CIDR6}
 export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
 export K8S_SERVICE_CIDR6      ?= fd00:96::/48
 export K8S_POD_CIDR           ?= 10.244.0.0/16
@@ -153,11 +155,12 @@ menu :
 	@echo "============== "
 	@echo "fw           : Configure Linux firewall for the Kubernetes cluster"
 	@echo "  -k8s       : Configure firewalld and NetworkManager for K8s control and worker nodes"
-	@echo "  -calico    : Configure firewalld for Calico CNI"
-	@echo "  -list      : firewall-cmd --list-all : both k8s zones : ${K8S_FW_ZONE_EXTERNAL} and ${K8S_FW_ZONE_INTERNAL}"
-	@echo "  -zones     : firewall-cmd : Verify zones : active (${K8S_FW_ZONE_EXTERNAL}) and default (${K8S_FW_ZONE_INTERNAL})"
 	@echo "   -external : firewall-cmd --list-all --zone=${K8S_FW_ZONE_EXTERNAL} (zone bound to ${HALB_DEVICE})"
 	@echo "   -internal : firewall-cmd --list-all --zone=${K8S_FW_ZONE_INTERNAL} (default zone)"
+	@echo "  -calico    : Configure firewalld for Calico CNI"
+	@echo "  -list      : firewall-cmd --list-all : both k8s zones : ${K8S_FW_ZONE_EXTERNAL} and ${K8S_FW_ZONE_INTERNAL}"
+	@echo "  -get       : firewall-cmd --info-service={} (each service) and --direct --get-all-rules"
+	@echo "  -zones     : firewall-cmd : Verify zones : active (${K8S_FW_ZONE_EXTERNAL}) and default (${K8S_FW_ZONE_INTERNAL})"
 	@echo "  -log       : Recently DROPped packets : journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP"
 	@echo "============== "
 	@echo "init         : Create 1st control node of the cluster"
@@ -370,7 +373,8 @@ fw-k8s-external :
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.fw-k8s-external.${UTC}.log
 fw-k8s-internal :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-k8s-internal.sh
-	ansibash 'sudo bash firewall-k8s-internal.sh ${K8S_FW_ZONE_INTERNAL} "${K8S_POD_CIDR}" "${K8S_SERVICE_CIDR}" || echo "⚠️  ERR : $$?"' \
+	ansibash 'sudo bash firewall-k8s-internal.sh \
+	    ${K8S_FW_ZONE_INTERNAL} "${K8S_POD_CIDR}" "${K8S_SERVICE_CIDR}" "${K8S_HOST_CIDR}" || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.fw-k8s-internal.${UTC}.log
 fw-calico :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-calico.sh
@@ -382,19 +386,24 @@ fw-k8s-external-down :
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-k8s-external-down.${UTC}.log
 fw-k8s-internal-down :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-k8s-internal.sh
-	ansibash 'sudo bash firewall-k8s-internal.sh ${K8S_FW_ZONE_INTERNAL} x || echo "⚠️  ERR : $$?"' \
+	ansibash 'sudo bash firewall-k8s-internal.sh \
+	    ${K8S_FW_ZONE_INTERNAL} "${K8S_POD_CIDR}" "${K8S_SERVICE_CIDR}" "${K8S_HOST_CIDR}" x || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-k8s-internal-down.${UTC}.log
-fw-list: fw-list-external fw-list-internal
-fw-list-external:
+fw-list : fw-list-external fw-list-internal
+fw-get :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/firewall-get.sh
+	ansibash 'sudo bash firewall-get.sh || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-get.${UTC}.log
+fw-list-external :
 	ansibash 'sudo firewall-cmd --list-all --zone=${K8S_FW_ZONE_EXTERNAL}' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-list-external.log
-fw-list-internal:
+fw-list-internal :
 	ansibash 'sudo firewall-cmd --list-all --zone=${K8S_FW_ZONE_INTERNAL}' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-list-internal.log
 fw-zone fw-zones :
 	ansibash 'sudo firewall-cmd --get-active-zones'
 	ansibash 'sudo firewall-cmd --get-default-zone'
-fw-log fw-logs:
+fw-log fw-logs :
 	ansibash "sudo journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP;echo All recent DROP logs from \'${ADMIN_FW_LOG_SINCE}\' until $$(date -Is)" \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-stat.log
 

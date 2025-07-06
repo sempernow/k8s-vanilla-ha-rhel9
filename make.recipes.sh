@@ -134,6 +134,9 @@ kubeconfig(){
 
 }
 iperftest(){
+    echo '⚠️  DEPRICATED : Run `make iperf`'
+    return 0
+
     ns=default
     pod=nbox
     img=nicolaka/netshoot
