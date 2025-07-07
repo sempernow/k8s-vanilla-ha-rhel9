@@ -138,7 +138,7 @@ export K8S_NODE_CIDR6_MASK    ?= 64
 export K8S_CRI_SOCKET         ?= unix:///var/run/containerd/containerd.sock
 export K8S_CGROUP_DRIVER      ?= systemd
 ## PKI : See Makefile.settings
-export DOMAIN_CA_CERT := ${PRJ_ROOT}/ingress/tls/ca-root-dc1.lime.lan.cer
+export DOMAIN_CA_CERT := ${PRJ_ROOT}/ingress/tls/lime-DC1-CA.cer
 
 
 ##############################################################################

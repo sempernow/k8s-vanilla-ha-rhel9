@@ -7,6 +7,17 @@ export ns_ingress=ingress-nginx
 export host=e2e.$K8S_FQDN
 export ca_cert=${DOMAIN_CA_CERT}
 
+[[ -f "$ca_cert" ]] || {
+    echo "❌  ERR : CA cert does NOT EXIST : '$ca_cert'"
+
+    exit 1
+}
+type -t openssl >/dev/null 2>&1 &&
+    openssl x509 -in "$ca_cert" >/dev/null 2>&1 || {
+        echo "❌  ERR : CA cert fails to parse : '$ca_cert'"
+
+        exit 2
+    }
 
 # scheme=https
 # curl -vfsS --cacert $ca_cert $scheme://$host/{foo,bar}/hostname
