@@ -2,8 +2,21 @@
 
 ### TL;DR
 
-UPDATE : Root CA created by this method **lacks required extensions**, 
-and so fails at certain clients. 
+~~Root CA created by this method **lacks required extensions**, 
+and so fails at certain clients. ~~
+
+Not so sure.
+
+### Add CA cert to Ubuntu trust store
+
+```bash
+# Copy the Root CA to ... MUST have extension: *.crt
+sudo lime-DC1-CA.cer /usr/local/share/ca-certificates/lime-DC1-CA.crt
+# Update the OS trust store
+sudo update-ca-certificates
+# Verify : flag --ca-native to use host's native trust store
+curl --ca-native  https://e2e.kube.lime.lan/foo/hostname
+```
 
 
 ### Work

@@ -5,7 +5,7 @@
 export ns_app=test-ingress
 export ns_ingress=ingress-nginx
 export host=e2e.$K8S_FQDN
-export ca_cert=${DOMAIN_CA_CERT}
+export ca_cert="$DOMAIN_CA_CERT"
 
 [[ -f "$ca_cert" ]] || {
     echo "❌  ERR : CA cert does NOT EXIST : '$ca_cert'"
@@ -104,6 +104,6 @@ e2e(){
     [[ $1 == 'teardown' ]] && teardown
 }
 
-pushd ${BASH_SOURCE%/*} 2>/dev/null || push . || exit 
+pushd ${BASH_SOURCE%/*} 2>/dev/null || push . || exit $?
 "$@"
 popd
