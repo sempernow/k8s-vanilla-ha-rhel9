@@ -58,7 +58,7 @@ export ADMIN_DST_DIR         ?= /tmp/$(shell basename "${ADMIN_SRC_DIR}")
 
 export ANSIBASH_TARGET_LIST  ?= ${ADMIN_TARGET_LIST}
 export ANSIBASH_USER         ?= ${ADMIN_USER}
-
+export ADMIN_FW_LOG_SINCE    ?= 5 minute ago
 
 ##############################################################################
 ## Registry : registry.k8s.io
@@ -201,13 +201,16 @@ menu :
 	@echo "watch        : kubectl get pods -A -o wide -w"
 	@echo "psk          : ps of K8s processes"
 	@echo "nodes        : K8s Node(s) status"
-	@echo "prune        : Delete all problemed Pods of certain Status values"
 	@echo "psrss        : ps sorted by RSS usage"
 	@echo "crictl       : containerd status"
 	@echo "  -images    : Images in containerd cache"
 	@echo "  -pods      : Pods of containerd"
 	@echo "  -ps        : Containers of containerd"
 	@echo "crictl-ready : Delete all containerd Pods in 'NotReady' status"
+	@echo "prune        : Delete all problemed Pods of certain Status values"
+	@echo "dump         : kubectl cluster-info dump |grep -i error"
+	@echo "etcd         : Summary"
+	@echo "journal      : Recent kubelet logs ... --since='${ADMIN_FW_LOG_SINCE}'"
 	@echo "============== "
 	@echo "ingress-nginx: Ingress NGINX Controller"
 	@echo "  -up        : Install"
@@ -286,6 +289,9 @@ scan :
 #	sudo arp-scan --interface ${HALB_DEVICE} --localnet \
 #	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.scan.arp-scan.${UTC}.log
 
+rootca-create :
+	bash make.recipes.sh rootCA
+
 # Smoke test this setup
 status hello :
 	@ansibash 'printf "%12s: %s\n" Host $$(hostname) \
@@ -298,12 +304,6 @@ status hello :
 	'
 sealert :
 	ansibash 'sudo sealert -l "*" |grep -e == -e "Source Path" -e "Last Seen" |grep -v 2024 |grep -B1 -e == -e "Last Seen"'
-
-rootca :
-	bash make.recipes.sh rootCA
-
-
-#net: ruleset iptables
 net:
 	ansibash '\
 	    sudo nmcli dev status; \
@@ -313,7 +313,6 @@ ruleset:
 	ansibash sudo nft list ruleset
 iptables:
 	ansibash sudo iptables -L -n -v
-
 psrss :
 	ansibash -s scripts/psrss.sh
 
@@ -576,6 +575,9 @@ kubeproxy-restore :
 	kubectl patch ds -n kube-system kube-proxy \
     --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
 
+
+## Recipes : K8s Status
+
 healthz :
 	curl -fksIX GET https://${K8S_ENDPOINT}/healthz |grep HTTP || echo "ERR : $$?"
 	curl -ks https://${K8S_FQDN}:${HALB_PORT_K8S}/healthz?verbose || echo "ERR : $$?"
@@ -603,6 +605,15 @@ crictl-ready :
 prune :
 	bash make.recipes.sh prune
 #	bash scripts/kubectl-mass-delete-pods.sh StatusUnk
+dump :
+	kubectl cluster-info dump |grep -i error
+journal journald journalctl :
+	ansibash "sudo journalctl --no-pager -u kubelet --since='${ADMIN_FW_LOG_SINCE}' |grep -i error"
+etcd :
+	ansibash 'sudo ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+		--cert=/etc/kubernetes/pki/etcd/server.crt \
+		--key=/etc/kubernetes/pki/etcd/server.key \
+		--endpoints=https://127.0.0.1:2379 endpoint status --write-out=table'
 
 ingress := ingress/ingress-nginx/ingress-nginx.sh
 ## Unset HALB if not configured for it
