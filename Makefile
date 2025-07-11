@@ -3,7 +3,7 @@
 include Makefile.settings
 # … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × ₽ € ¥ £ ¢ ¤ ♻  ⚐ ⚑
 # ☢  ☣  ☠  ¦ ¶ § † ‡ ß µ ø Ø ƒ Δ ☡ ☈ ☧ ☩ ✚ ☨ ☦  ☓ ♰ ♱ ✖  ☘  웃 𝐀𝐏𝐏 𝐋𝐀𝐁
-# ⚠️  ✅ 🚀 🚧 🛠️ 🔧 🔍 🧪 👈 ⚡ ❌ 💡 🔒 📊 📈 🧩 📦 🧳 🥇 ✨️ 🔚
+# ⚠️ ✅ 🚀 🚧 🛠️ 🔧 🔍 🧪 👈 ⚡ ❌ 💡 🔒 📊 📈 🧩 📦 🧳 🥇 ✨️ 🔚
 ##############################################################################
 ## Environment variable rules:
 ## - Any TRAILING whitespace KILLS its variable value and may break recipes.
@@ -209,7 +209,7 @@ menu :
 	@echo "crictl-ready : Delete all containerd Pods in 'NotReady' status"
 	@echo "prune        : Delete all problemed Pods of certain Status values"
 	@echo "dump         : kubectl cluster-info dump |grep -i error"
-	@echo "etcd         : Summary"
+	@echo "etcd         : Certain endpoints"
 	@echo "journal      : Recent kubelet logs ... --since='${ADMIN_FW_LOG_SINCE}'"
 	@echo "============== "
 	@echo "ingress-nginx: Ingress NGINX Controller"
@@ -610,10 +610,9 @@ dump :
 journal journald journalctl :
 	ansibash "sudo journalctl --no-pager -u kubelet --since='${ADMIN_FW_LOG_SINCE}' |grep -i error"
 etcd :
-	ansibash 'sudo ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/etcd/ca.crt \
-		--cert=/etc/kubernetes/pki/etcd/server.crt \
-		--key=/etc/kubernetes/pki/etcd/server.key \
-		--endpoints=https://127.0.0.1:2379 endpoint status --write-out=table'
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
+	ansibash 'sudo bash etcd.sh status || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.${UTC}.log
 
 ingress := ingress/ingress-nginx/ingress-nginx.sh
 ## Unset HALB if not configured for it

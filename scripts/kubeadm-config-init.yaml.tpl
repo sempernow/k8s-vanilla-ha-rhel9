@@ -141,7 +141,7 @@ hairpinMode: hairpin-veth
 evictionHard:
   nodefs.available: "10%"
   imagefs.available: "15%"
-  memory.available: "100Mi"
+  memory.available: "<500Mi"
 evictionSoft:
   nodefs.available: "15%"
   imagefs.available: "20%"
