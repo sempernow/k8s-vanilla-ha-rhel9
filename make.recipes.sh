@@ -177,6 +177,8 @@ prune(){
     kubectl get pod -A -o wide |grep Completed |awk '{print $1,$2}' |xargs -n2 /bin/bash -c '
         [[ $2 ]] && kubectl -n $1 delete pod $2
     ' _
+
+    return 0
 }
 
 sudoer(){
