@@ -583,7 +583,7 @@ healthz :
 	curl -ks https://${K8S_FQDN}:${HALB_PORT_K8S}/healthz?verbose || echo "ERR : $$?"
 export port := 5551
 iperf :
-	bash ${ADMIN_SRC_DIR}/observability/metrics/netshoot/k8s-iperf.sh ${port} || echo
+	bash ${ADMIN_SRC_DIR}/observability/metrics/iperf3/k8s-iperf.sh ${port} || echo
 watch :
 	kubectl get pod -A -o wide -w
 nodes :
