@@ -1,43 +1,52 @@
-# [`nicolaka/netshoot`](https://hub.docker.com/r/nicolaka/netshoot "hub.docker.com")
-
-
-## `iperf3`
+# [iPerf|iPerf3](https://iperf.fr/) | [`gd9h/iperf`](https://hub.docker.com/repository/docker/gd9h/iperf/general "hub.docker.com")
 
 ### TL;DR
 
-One of `netshoot`'s many tools. Performs __network throughput__ tests.
+Performs __network throughput__ tests.
 It performs a measure of the maximum network transfer rate between server and client.
 Used in a K8s environment, we measure that maximum `Gbits/sec` (`Gbps`) for east-west traffic, 
 both cross-node (__5 Gpbs__) and intra-node (__35 Gbps__), 
 under Calico CNI configured for direct path (eBPF).
 
-__Findings__:
+__Findings__ of bandwidth for traffic on Pod Network:
 
 |East-west| `Gbps`|
 |--|--|
 |Intra-node| __`5`__|
 |Inter-node|__`35`__|
 
-### Work
 
-@ `Ubuntu (master) [07:42:17] [2] [#0] /s/DEV/devops/infra/kubernetes/k8s-vanilla-ha-rhel9`
+## [`k8s-iperf3.sh`](k8s-iperf.sh) | [`sempernow/k8s-iperf`](https://github.com/sempernow/k8s-iperf "GitHub.com")
 
 ```bash
-img=nicolaka/netshoot
-p=5555
-name=nbox1
-k run $name --image=$img -- iperf3 -s -p $p
+git clone git@github.com:sempernow/k8s-iperf.git
+cd k8s-iperf
+bash k8s-iperf.sh
 ```
 
-@ __Same node__
+## Pod Network Performce Test
+
+@ __Server__
 
 ```bash
-name=nbox1
-node=$(kubectl get pod $name -o jsonpath='{.spec.nodeName}')
-ip=$(k get pod $name -o wide -o jsonpath='{.status.podIPs[].ip}')
-img=nicolaka/netshoot
+img=gd9h/iperf:3.19-hard
 p=5555
-name=nbox2
+name=server
+k run $name --image=$img -- iperf3 -s -p $p
+
+```
+
+@ __Client__ : __Same node__
+
+```bash
+name=server
+node=$(kubectl get pod $name -o jsonpath='{.spec.nodeName}') ||
+    echo "⚠️  ERR @ node: $?" >&2
+ip=$(kubectl get pod $name -o wide -o jsonpath='{.status.podIPs[].ip}') ||
+    echo "⚠️  ERR @ ip: $?" >&2
+img=gd9h/iperf:3.19-hard
+p=5555
+name=client-same
 k run $name -it --rm \
     --image=$img \
     --overrides='{"spec": {"nodeName": "'$node'"}}' \
@@ -64,17 +73,24 @@ k run $name -it --rm \
 ```
 
 
-@ __Other node__
+@ __Client__ : __Cross node__
 
 ```bash
-name=nbox1
+name=server
 node=$(kubectl get pod $name -o jsonpath='{.spec.nodeName}')
-node=$(kubectl get node -oname -o yaml |yq '.[][].metadata |select (.name != "'$node'") |.name' |head -n1)
-k run nbox2 -it --rm \
+node=$(kubectl get node -o yaml |yq '.[][].metadata |select (.name != "'$node'") |.name' |head -n1) ||
+    echo "⚠️  ERR @ node: $?" >&2
+ip=$(kubectl get pod $name -o wide -o jsonpath='{.status.podIPs[].ip}') ||
+    echo "⚠️  ERR @ ip: $?" >&2
+
+img=gd9h/iperf:3.19-hard
+name=client-cross
+k run $name -it --rm \
     --image=$img \
     --overrides='{"spec": {"nodeName": "'$node'"}}' \
     --restart=Never  -- \
     iperf3 -c $ip -p $p
+
 ```
 ```plaintext
 ...
@@ -122,90 +138,4 @@ Accepted connection from 10.244.182.130, port 33168
 
 
 
-
-## Box for Debugging
-
-```bash
-k run nbox -it --rm \
-    --env TARGET_HOST=$ip \
-    --env TARGET_PORT=$p  \
-    --image=$img  -- \
-    bash
-```
-```bash
-nbox:~# nmap -p 5500-5559 -dd $TARGET_HOST 2>/dev/null |grep open
-Discovered open port 5555/tcp on 10.244.182.128
-5555/tcp open   freeciv         syn-ack ttl 63
-```
-
-```bash
-netstat -tulpn
-tcpdump -i eth0 port $TARGET_PORT -c 1 -Xvv
-...
-```
-
-__All tools__
-
-```bash
-apache2-utils
-bash
-bind-tools
-bird
-bridge-utils
-busybox-extras
-calicoctl
-conntrack-tools
-ctop
-curl
-dhcping
-drill
-ethtool
-file
-fping
-httpie
-iftop
-iperf
-iproute2
-ipset
-iptables
-iptraf-ng
-iputils
-ipvsadm
-jq
-libc6-compat
-liboping
-mtr
-net-snmp-tools
-netcat-openbsd
-netgen
-nftables
-ngrep
-nmap
-nmap-nping
-openssl
-py-crypto
-py2-virtualenv
-python2
-scapy
-socat
-strace
-tcpdump
-tcptraceroute
-termshark
-tshark
-util-linux
-vim
-websocat
-
-```
-
 ### &nbsp;
-
-## [`k8s-iperf`](https://github.com/sempernow/k8s-iperf "GitHub.com")
-
-```bash
-git clone git@github.com:sempernow/k8s-iperf.git
-cd k8s-iperf
-bash k8s-iperf.sh
-```
-- [__`k8s-iperf.sh`__](k8s-iperf.sh)
