@@ -615,7 +615,7 @@ etcd :
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.${UTC}.log
 
 ingress := ingress/ingress-nginx/ingress-nginx.sh
-## Unset HALB if not configured for it
+## Unset HALB unless the Ingress is configured for it.
 export HALB ?= yes
 ingress-nginx-secret :
 	bash ${ADMIN_SRC_DIR}/${ingress} secret
