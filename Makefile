@@ -246,6 +246,7 @@ menu :
 	@echo "net          : Interfaces' info"
 	@echo "ruleset      : nftables rulesets"
 	@echo "iptables     : iptables"
+	@echo "podcidr      : PodCIDR and per node"
 	@echo "psrss        : Print targets' top memory usage : RSS [MiB]"
 	@echo "userrc       : Configure targets' bash shell using latest @ github.com/sempernow/userrc.git"
 	@echo "============== "
@@ -315,6 +316,10 @@ iptables:
 	ansibash sudo iptables -L -n -v
 psrss :
 	ansibash -s scripts/psrss.sh
+
+podcidr :
+	kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.podCIDR}{"\n"}{end}'
+	@echo "PodCIDR ${K8S_POD_CIDR}"
 
 # Configure bash shell of target hosts using the declared Git project
 userrc :
