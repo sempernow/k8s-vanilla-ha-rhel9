@@ -45,7 +45,7 @@ parse(){
     x509v3='subjectAltName,issuerAltName,basicConstraints,keyUsage,extendedKeyUsage,authorityInfoAccess,subjectKeyIdentifier,authorityKeyIdentifier,crlDistributionPoints,issuingDistributionPoints,policyConstraints,nameConstraints'
     yq '.data.["tls.crt"]' <(kubectl -n $ns get secret $tls -o yaml) \
         |base64 -d \
-        |openssl x509 -noout -subject -issuer -startdate -enddate -ext "$x509v3" 
+        |openssl x509 -noout -subject -issuer -startdate -enddate -serial -ext "$x509v3" 
 }
 
 helmAction(){
