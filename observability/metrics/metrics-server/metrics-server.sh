@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/
 # https://github.com/kubernetes-sigs/metrics-server
-set -euo pipefail
 
 apply(){
     [[ -f components.yaml ]] ||
@@ -9,6 +8,9 @@ apply(){
     # See deploy.metrics-server.yaml : A modified components.yaml
     kubectl apply -f components.yaml --wait=true
     kubectl apply -f deploy.metrics-server.yaml --wait=true
+
+    kubectl top pod -A
+    kubectl top node
 }
 
 delete(){
