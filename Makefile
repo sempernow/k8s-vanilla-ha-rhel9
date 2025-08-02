@@ -60,6 +60,7 @@ export ANSIBASH_TARGET_LIST  ?= ${ADMIN_TARGET_LIST}
 export ANSIBASH_USER         ?= ${ADMIN_USER}
 export ADMIN_FW_LOG_SINCE    ?= 5 minute ago
 
+
 ##############################################################################
 ## Registry : registry.k8s.io
 
@@ -178,7 +179,7 @@ menu :
 	@echo "  -certs     : kubeadm init phase upload certs …"
 	@echo "  -now       : kubeadm init … : at 1st node (${ADMIN_USER}@${K8S_INIT_NODE})"
 	@echo "============== "
-	@echo "kubeconfig 	: Configure the client"
+	@echo "kubeconfig   : Configure the client"
 	@echo "============== "
 	@echo "cilium       : Install Cilium"
 	@echo "calico       : Install Calico"
@@ -708,3 +709,5 @@ prom-delete prom-uninstall:
 teardown :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ansibash sudo bash teardown.sh
+
+
