@@ -41,6 +41,7 @@ quay.io/prometheus/prometheus:v3.3.1
 registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.15.0
 ```
 
+## About
 
 *Widely considered reliable* in K8s.
 
