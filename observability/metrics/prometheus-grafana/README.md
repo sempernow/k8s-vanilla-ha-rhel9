@@ -1,5 +1,47 @@
 # Prometheus / Grafana | [K8s Monitoring](https://grafana.com/solutions/kubernetes/kubernetes-monitoring-introduction/ "grafana.com")
 
+## TL;DR
+
+Use KPS : Helm chart `kube-prometheus-stack` based on Prometheus Operator.
+
+See:
+
+- `kps.minimal.*`([MD](kps/kps.minimal.md)|[HTML](kps/kps.minimal.html))
+- [`stack.sh`](kps/stack.sh)
+- [`values.minimal.yaml`](kps/values.minimal.yaml)
+- [`kps.images.log`](kps/kps.images.log)
+
+```bash
+make prom-install
+make prom-access
+```
+
+```bash
+☩ kw
+=== a1 : 2/12
+kps-kube-state-metrics-7d6845769d-vrmf4              1/1     Running   0          19m   10.244.141.143   a1     <none>           <none>
+kps-prometheus-node-exporter-vj5vh                   1/1     Running   0          19m   192.168.11.101   a1     <none>           <none>
+=== a2 : 2/12
+kps-prometheus-node-exporter-j56qq                   1/1     Running   0          19m   192.168.11.102   a2     <none>           <none>
+prometheus-kps-kube-prometheus-stack-prometheus-0    2/2     Running   0          19m   10.244.78.210    a2     <none>           <none>
+=== a3 : 3/11
+kps-grafana-679ff68fc-pq62l                          3/3     Running   0          19m   10.244.65.88     a3     <none>           <none>
+kps-kube-prometheus-stack-operator-64496876f-fm8fd   1/1     Running   0          19m   10.244.65.98     a3     <none>           <none>
+kps-prometheus-node-exporter-9sqvp                   1/1     Running   0          19m   192.168.11.103   a3     <none>           <none>
+
+7/35 @ kube-metrics
+
+☩ k get pod -o yaml |yq .items[].spec.containers[].image |sort -u
+docker.io/grafana/grafana:12.0.0
+quay.io/kiwigrid/k8s-sidecar:1.30.0
+quay.io/prometheus-operator/prometheus-config-reloader:v0.82.2
+quay.io/prometheus-operator/prometheus-operator:v0.82.2
+quay.io/prometheus/node-exporter:v1.9.1
+quay.io/prometheus/prometheus:v3.3.1
+registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.15.0
+```
+
+
 *Widely considered reliable* in K8s.
 
 **Pros:**
