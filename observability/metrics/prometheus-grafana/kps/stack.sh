@@ -3,7 +3,7 @@
 # Install/Delete kube-prometheus-stack by Helm method
 # GitHub : https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
 #######################################################
-set -euo pipefail
+#set -euo pipefail
 
 export RELEASE='kps'
 export NAMESPACE='kube-metrics'
@@ -27,12 +27,15 @@ install(){
     v=72.4.0
     repo=prometheus-community
     chart=kube-prometheus-stack
-    values=values.v0.0.0.yaml # v0.0.0 is the chart values.yaml (default).
+    values=values.v0.0.0.yaml  # Chart default values.yaml
+    values=values.minimal.yaml # Minimal diff for core functionality.
     opts="-n $NAMESPACE --create-namespace --version $v -f $values" 
     helm repo add $repo https://$repo.github.io/helm-charts --force-update &&
         helm show values $repo/$chart --version $v |tee values.yaml &&
             helm template $RELEASE $repo/$chart $opts |tee helm.template.yaml &&
                 helm upgrade $RELEASE $repo/$chart --install $opts
+
+    grep image: helm.template.yaml |sort -u |sed 's/^[[:space:]]*//g' |cut -d' ' -f2 |sed 's/"//g' >kps.images.log
 }
 
 access(){

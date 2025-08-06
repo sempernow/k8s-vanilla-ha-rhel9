@@ -1,4 +1,4 @@
-# [iPerf|iPerf3](https://iperf.fr/) | [`gd9h/iperf`](https://hub.docker.com/repository/docker/gd9h/iperf/general "hub.docker.com")
+# [iPerf|iPerf3](https://iperf.fr/) | [`gd9h/iperf`](https://hub.docker.com/r/gd9h/iperf "hub.docker.com")
 
 ### TL;DR
 

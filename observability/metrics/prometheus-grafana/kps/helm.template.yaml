@@ -46,26 +46,6 @@ metadata:
     release: kps
 automountServiceAccountToken: false
 ---
-# Source: kube-prometheus-stack/templates/alertmanager/serviceaccount.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: kps-kube-prometheus-stack-alertmanager
-  namespace: kube-metrics
-  labels:
-    app: kube-prometheus-stack-alertmanager
-    app.kubernetes.io/name: kube-prometheus-stack-alertmanager
-    app.kubernetes.io/component: alertmanager
-    
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/instance: kps
-    app.kubernetes.io/version: "72.4.0"
-    app.kubernetes.io/part-of: kube-prometheus-stack
-    chart: kube-prometheus-stack-72.4.0
-    release: "kps"
-    heritage: "Helm"
-automountServiceAccountToken: true
----
 # Source: kube-prometheus-stack/templates/prometheus-operator/serviceaccount.yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -123,25 +103,6 @@ data:
   admin-user: "YWRtaW4="
   admin-password: "cHJvbS1vcGVyYXRvcg=="
   ldap-toml: ""
----
-# Source: kube-prometheus-stack/templates/alertmanager/secret.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: alertmanager-kps-kube-prometheus-stack-alertmanager
-  namespace: kube-metrics
-  labels:
-    app: kube-prometheus-stack-alertmanager
-    
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/instance: kps
-    app.kubernetes.io/version: "72.4.0"
-    app.kubernetes.io/part-of: kube-prometheus-stack
-    chart: kube-prometheus-stack-72.4.0
-    release: "kps"
-    heritage: "Helm"
-data:
-  alertmanager.yaml: "Z2xvYmFsOgogIHJlc29sdmVfdGltZW91dDogNW0KaW5oaWJpdF9ydWxlczoKLSBlcXVhbDoKICAtIG5hbWVzcGFjZQogIC0gYWxlcnRuYW1lCiAgc291cmNlX21hdGNoZXJzOgogIC0gc2V2ZXJpdHkgPSBjcml0aWNhbAogIHRhcmdldF9tYXRjaGVyczoKICAtIHNldmVyaXR5ID1+IHdhcm5pbmd8aW5mbwotIGVxdWFsOgogIC0gbmFtZXNwYWNlCiAgLSBhbGVydG5hbWUKICBzb3VyY2VfbWF0Y2hlcnM6CiAgLSBzZXZlcml0eSA9IHdhcm5pbmcKICB0YXJnZXRfbWF0Y2hlcnM6CiAgLSBzZXZlcml0eSA9IGluZm8KLSBlcXVhbDoKICAtIG5hbWVzcGFjZQogIHNvdXJjZV9tYXRjaGVyczoKICAtIGFsZXJ0bmFtZSA9IEluZm9JbmhpYml0b3IKICB0YXJnZXRfbWF0Y2hlcnM6CiAgLSBzZXZlcml0eSA9IGluZm8KLSB0YXJnZXRfbWF0Y2hlcnM6CiAgLSBhbGVydG5hbWUgPSBJbmZvSW5oaWJpdG9yCnJlY2VpdmVyczoKLSBuYW1lOiAibnVsbCIKcm91dGU6CiAgZ3JvdXBfYnk6CiAgLSBuYW1lc3BhY2UKICBncm91cF9pbnRlcnZhbDogNW0KICBncm91cF93YWl0OiAzMHMKICByZWNlaXZlcjogIm51bGwiCiAgcmVwZWF0X2ludGVydmFsOiAxMmgKICByb3V0ZXM6CiAgLSBtYXRjaGVyczoKICAgIC0gYWxlcnRuYW1lID0gIldhdGNoZG9nIgogICAgcmVjZWl2ZXI6ICJudWxsIgp0ZW1wbGF0ZXM6Ci0gL2V0Yy9hbGVydG1hbmFnZXIvY29uZmlnLyoudG1wbA=="
 ---
 # Source: kube-prometheus-stack/charts/grafana/templates/configmap-dashboard-provider.yaml
 apiVersion: v1
@@ -236,29 +197,6 @@ data:
       jsonData:
         handleGrafanaManagedAlerts: false
         implementation: prometheus
----
-# Source: kube-prometheus-stack/templates/grafana/dashboards-1.14/alertmanager-overview.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  namespace: kube-metrics
-  name: kps-kube-prometheus-stack-alertmanager-overview
-  annotations:
-    {}
-  labels:
-    grafana_dashboard: "1"
-    app: kube-prometheus-stack-grafana
-    
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/instance: kps
-    app.kubernetes.io/version: "72.4.0"
-    app.kubernetes.io/part-of: kube-prometheus-stack
-    chart: kube-prometheus-stack-72.4.0
-    release: "kps"
-    heritage: "Helm"
-data:
-  alertmanager-overview.json: |-
-    {"graphTooltip":1,"panels":[{"collapsed":false,"gridPos":{"h":1,"w":24,"x":0,"y":0},"id":1,"panels":[],"title":"Alerts","type":"row"},{"datasource":{"type":"prometheus","uid":"$datasource"},"description":"current set of alerts stored in the Alertmanager","fieldConfig":{"defaults":{"custom":{"fillOpacity":10,"showPoints":"never","stacking":{"mode":"normal"}},"unit":"none"}},"gridPos":{"h":7,"w":12,"x":0,"y":1},"id":2,"options":{"legend":{"showLegend":false},"tooltip":{"mode":"multi"}},"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"$datasource"},"expr":"sum(alertmanager_alerts{namespace=~\"$namespace\",service=~\"$service\"}) by (namespace,service,instance)","intervalFactor":2,"legendFormat":"{{instance}}"}],"title":"Alerts","type":"timeseries"},{"datasource":{"type":"prometheus","uid":"$datasource"},"description":"rate of successful and invalid alerts received by the Alertmanager","fieldConfig":{"defaults":{"custom":{"fillOpacity":10,"showPoints":"never","stacking":{"mode":"normal"}},"unit":"ops"}},"gridPos":{"h":7,"w":12,"x":12,"y":1},"id":3,"options":{"legend":{"showLegend":false},"tooltip":{"mode":"multi"}},"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"$datasource"},"expr":"sum(rate(alertmanager_alerts_received_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])) by (namespace,service,instance)","intervalFactor":2,"legendFormat":"{{instance}} Received"},{"datasource":{"type":"prometheus","uid":"$datasource"},"expr":"sum(rate(alertmanager_alerts_invalid_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])) by (namespace,service,instance)","intervalFactor":2,"legendFormat":"{{instance}} Invalid"}],"title":"Alerts receive rate","type":"timeseries"},{"collapsed":false,"gridPos":{"h":1,"w":24,"x":0,"y":8},"id":4,"panels":[],"title":"Notifications","type":"row"},{"datasource":{"type":"prometheus","uid":"$datasource"},"description":"rate of successful and invalid notifications sent by the Alertmanager","fieldConfig":{"defaults":{"custom":{"fillOpacity":10,"showPoints":"never","stacking":{"mode":"normal"}},"unit":"ops"}},"gridPos":{"h":7,"w":12,"x":0,"y":9},"id":5,"options":{"legend":{"showLegend":false},"tooltip":{"mode":"multi"}},"pluginVersion":"v11.4.0","repeat":"integration","targets":[{"datasource":{"type":"prometheus","uid":"$datasource"},"expr":"sum(rate(alertmanager_notifications_total{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (integration,namespace,service,instance)","intervalFactor":2,"legendFormat":"{{instance}} Total"},{"datasource":{"type":"prometheus","uid":"$datasource"},"expr":"sum(rate(alertmanager_notifications_failed_total{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (integration,namespace,service,instance)","intervalFactor":2,"legendFormat":"{{instance}} Failed"}],"title":"$integration: Notifications Send Rate","type":"timeseries"},{"datasource":{"type":"prometheus","uid":"$datasource"},"description":"latency of notifications sent by the Alertmanager","fieldConfig":{"defaults":{"custom":{"fillOpacity":10,"showPoints":"never","stacking":{"mode":"normal"}},"unit":"s"}},"gridPos":{"h":7,"w":12,"x":12,"y":9},"id":6,"options":{"legend":{"showLegend":false},"tooltip":{"mode":"multi"}},"pluginVersion":"v11.4.0","repeat":"integration","targets":[{"datasource":{"type":"prometheus","uid":"$datasource"},"expr":"histogram_quantile(0.99,\n  sum(rate(alertmanager_notification_latency_seconds_bucket{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (le,namespace,service,instance)\n)\n","intervalFactor":2,"legendFormat":"{{instance}} 99th Percentile"},{"datasource":{"type":"prometheus","uid":"$datasource"},"expr":"histogram_quantile(0.50,\n  sum(rate(alertmanager_notification_latency_seconds_bucket{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (le,namespace,service,instance)\n)\n","intervalFactor":2,"legendFormat":"{{instance}} Median"},{"datasource":{"type":"prometheus","uid":"$datasource"},"expr":"sum(rate(alertmanager_notification_latency_seconds_sum{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (namespace,service,instance)\n/\nsum(rate(alertmanager_notification_latency_seconds_count{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (namespace,service,instance)\n","intervalFactor":2,"legendFormat":"{{instance}} Average"}],"title":"$integration: Notification Duration","type":"timeseries"}],"schemaVersion":39,"tags":["alertmanager-mixin"],"templating":{"list":[{"current":{"selected":false,"text":"Prometheus","value":"Prometheus"},"hide":0,"label":"Data Source","name":"datasource","query":"prometheus","type":"datasource"},{"current":{"selected":false,"text":"","value":""},"datasource":{"type":"prometheus","uid":"${datasource}"},"includeAll":false,"label":"namespace","name":"namespace","query":"label_values(alertmanager_alerts, namespace)","refresh":2,"sort":1,"type":"query"},{"current":{"selected":false,"text":"","value":""},"datasource":{"type":"prometheus","uid":"${datasource}"},"includeAll":false,"label":"service","name":"service","query":"label_values(alertmanager_alerts, service)","refresh":2,"sort":1,"type":"query"},{"current":{"selected":false,"text":"$__all","value":"$__all"},"datasource":{"type":"prometheus","uid":"${datasource}"},"hide":2,"includeAll":true,"name":"integration","query":"label_values(alertmanager_notifications_total{integration=~\".*\"}, integration)","refresh":2,"sort":1,"type":"query"}]},"time":{"from":"now-1h","to":"now"},"timepicker":{"refresh_intervals":["30s"]},"timezone": "utc","title":"Alertmanager / Overview","uid":"alertmanager-overview"}
 ---
 # Source: kube-prometheus-stack/templates/grafana/dashboards-1.14/apiserver.yaml
 apiVersion: v1
@@ -1403,39 +1341,6 @@ spec:
     app.kubernetes.io/name: prometheus-node-exporter
     app.kubernetes.io/instance: kps
 ---
-# Source: kube-prometheus-stack/templates/alertmanager/service.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: kps-kube-prometheus-stack-alertmanager
-  namespace: kube-metrics
-  labels:
-    app: kube-prometheus-stack-alertmanager
-    self-monitor: "true"
-    
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/instance: kps
-    app.kubernetes.io/version: "72.4.0"
-    app.kubernetes.io/part-of: kube-prometheus-stack
-    chart: kube-prometheus-stack-72.4.0
-    release: "kps"
-    heritage: "Helm"
-spec:
-  ports:
-  - name: http-web
-    port: 9093
-    targetPort: 9093
-    protocol: TCP
-  - name: reloader-web
-    appProtocol: http
-    port: 8080
-    targetPort: reloader-web
-  selector:
-    app.kubernetes.io/name: alertmanager
-    alertmanager: kps-kube-prometheus-stack-alertmanager
-  sessionAffinity: None
-  type: "ClusterIP"
----
 # Source: kube-prometheus-stack/templates/exporters/core-dns/service.yaml
 apiVersion: v1
 kind: Service
@@ -2180,56 +2085,6 @@ spec:
       automountServiceAccountToken: true
       terminationGracePeriodSeconds: 30
 ---
-# Source: kube-prometheus-stack/templates/alertmanager/alertmanager.yaml
-apiVersion: monitoring.coreos.com/v1
-kind: Alertmanager
-metadata:
-  name: kps-kube-prometheus-stack-alertmanager
-  namespace: kube-metrics
-  labels:
-    app: kube-prometheus-stack-alertmanager
-    
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/instance: kps
-    app.kubernetes.io/version: "72.4.0"
-    app.kubernetes.io/part-of: kube-prometheus-stack
-    chart: kube-prometheus-stack-72.4.0
-    release: "kps"
-    heritage: "Helm"
-spec:
-  image: "quay.io/prometheus/alertmanager:v0.28.1"
-  version: v0.28.1
-  replicas: 1
-  listenLocal: false
-  serviceAccountName: kps-kube-prometheus-stack-alertmanager
-  automountServiceAccountToken: true
-  externalUrl: http://kps-kube-prometheus-stack-alertmanager.kube-metrics:9093
-  paused: false
-  logFormat: "logfmt"
-  logLevel:  "info"
-  retention: "120h"
-  alertmanagerConfigSelector: {}
-  alertmanagerConfigNamespaceSelector: {}
-  routePrefix: "/"
-  securityContext:
-    fsGroup: 2000
-    runAsGroup: 2000
-    runAsNonRoot: true
-    runAsUser: 1000
-    seccompProfile:
-      type: RuntimeDefault
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          topologyKey: kubernetes.io/hostname
-          labelSelector:
-            matchExpressions:
-              - {key: app.kubernetes.io/name, operator: In, values: [alertmanager]}
-              - {key: alertmanager, operator: In, values: [kps-kube-prometheus-stack-alertmanager]}
-  portName: http-web
----
 # Source: kube-prometheus-stack/templates/prometheus-operator/admission-webhooks/mutatingWebhookConfiguration.yaml
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
@@ -2289,13 +2144,6 @@ metadata:
     heritage: "Helm"
 spec:
   automountServiceAccountToken: true
-  alerting:
-    alertmanagers:
-      - namespace: kube-metrics
-        name: kps-kube-prometheus-stack-alertmanager
-        port: http-web
-        pathPrefix: "/"
-        apiVersion: v2
   image: "quay.io/prometheus/prometheus:v3.3.1"
   version: v3.3.1
   externalUrl: http://kps-kube-prometheus-stack-prometheus.kube-metrics:9090
@@ -2312,15 +2160,9 @@ spec:
   walCompression: true
   routePrefix: "/"
   serviceAccountName: kps-kube-prometheus-stack-prometheus
-  serviceMonitorSelector:
-    matchLabels:
-      release: "kps"
-
+  serviceMonitorSelector: {}
   serviceMonitorNamespaceSelector: {}
-  podMonitorSelector:
-    matchLabels:
-      release: "kps"
-
+  podMonitorSelector: {}
   podMonitorNamespaceSelector: {}
   probeSelector:
     matchLabels:
@@ -2335,10 +2177,7 @@ spec:
     seccompProfile:
       type: RuntimeDefault
   ruleNamespaceSelector: {}
-  ruleSelector:
-    matchLabels:
-      release: "kps"
-
+  ruleSelector: {}
   scrapeConfigSelector:
     matchLabels:
       release: "kps"
@@ -5712,39 +5551,6 @@ spec:
   endpoints:
     - port: http-metrics
       scheme: http
----
-# Source: kube-prometheus-stack/templates/alertmanager/servicemonitor.yaml
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: kps-kube-prometheus-stack-alertmanager
-  namespace: kube-metrics
-  labels:
-    app: kube-prometheus-stack-alertmanager
-    
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/instance: kps
-    app.kubernetes.io/version: "72.4.0"
-    app.kubernetes.io/part-of: kube-prometheus-stack
-    chart: kube-prometheus-stack-72.4.0
-    release: "kps"
-    heritage: "Helm"
-spec:
-  
-  selector:
-    matchLabels:
-      app: kube-prometheus-stack-alertmanager
-      release: "kps"
-      self-monitor: "true"
-  namespaceSelector:
-    matchNames:
-      - "kube-metrics"
-  endpoints:
-  - port: http-web
-    enableHttp2: true
-    path: "/metrics"
-  - port: reloader-web
-    path: "/metrics"
 ---
 # Source: kube-prometheus-stack/templates/exporters/core-dns/servicemonitor.yaml
 apiVersion: monitoring.coreos.com/v1
