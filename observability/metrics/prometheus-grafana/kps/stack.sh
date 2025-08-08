@@ -3,7 +3,7 @@
 # Install/Delete kube-prometheus-stack by Helm method
 # GitHub : https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
 #######################################################
-#set -euo pipefail
+set -euo pipefail
 
 export RELEASE='kps'
 export NAMESPACE='kube-metrics'
@@ -38,7 +38,7 @@ install(){
     grep image: helm.template.yaml |sort -u |sed 's/^[[:space:]]*//g' |cut -d' ' -f2 |sed 's/"//g' >kps.images.log
 }
 
-access(){
+ZZZaccess(){
     helm status $RELEASE -n $NAMESPACE
     echo === Grafana 
     port=3000 # Host port
@@ -61,10 +61,56 @@ access(){
                     echo FAILed at GET http://localhost:$port
 }
 
+access(){
+    _access(){
+        ns=${NAMESPACE:-kube-metrics}
+        target=${1:-grafana} 
+        labels="app.kubernetes.io/name=$target,app.kubernetes.io/instance=$RELEASE"
+
+        echo === ${target^}
+        kubectl -n $ns get svc |grep $target >/dev/null 2>&1 || return $?
+
+        case "$target" in
+            grafana)        svc=kps-grafana; pmap=3000:80; path=login;;
+            prometheus)     svc=kps-kube-prometheus-stack-prometheus; pmap=9090:9090; path=query;;
+            alertmanager)   svc=kps-kube-prometheus-stack-alertmanager; pmap=9093:9093; path='';;
+            node-exporter)  svc=kps-prometheus-node-exporter; pmap=9100:9100; path='';;
+            *) echo "❌  UNKNOWN target: $target" >&2; return 2;;
+        esac
+        #echo -e "svc: $svc\npmap: $pmap\npath: $path"
+
+        pgrep -f "port-forward .* $svc $pmap" >/dev/null ||
+            kubectl -n "$ns" port-forward svc/$svc $pmap >/dev/null 2>&1 &
+
+        sleep 1
+
+        curl -sfIX GET "http://localhost:${pmap%:*}/$path" |head -1 ||
+            echo "❌  NOT up on :${pmap%:*}"
+    }
+    for svc in grafana prometheus alertmanager
+    do 
+        _access $svc || {
+            echo "❌  NO Service having '*${svc}*' in name"
+            continue
+        }
+        [[ $svc == 'grafana' ]] && {
+            port=3000
+            curl --max-time 3 -sfIX GET http://localhost:$port/login |grep HTTP &&
+                echo Origin : http://localhost:$port &&
+                pass="$(
+                    kubectl -n $NAMESPACE get secrets $RELEASE-grafana -o jsonpath="{.data.admin-password}" \
+                    |base64 -d
+                )" &&
+                echo Login  : admin:$pass ||
+                echo FAILed at GET http://localhost:${port}
+        }
+    done
+}
+
 delete(){
     helm delete $RELEASE -n $NAMESPACE
 }
 
 pushd ${BASH_SOURCE%/*} || pushd . || exit 1
-"$@" || echo ERR $?
+"$@" || echo "❌  ERR : $?" >&2
 popd
