@@ -41,8 +41,10 @@ quay.io/prometheus/prometheus:v3.3.1
 registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.15.0
 ```
 
+### Add/Merge Ingress into the running release
 
-To add ingress, append to `values.minimal.yaml` &hellip;
+
+To add ingress, create separate values file, [`values.minimal.yaml`](kps) &hellip;
 
 
 ```yaml
@@ -50,38 +52,69 @@ grafana:
   ingress:
     enabled: true
     hosts: [ "grafana.kube.lime.lan" ]
+    ...
 prometheus:
   ingress:
     enabled: true
     hosts: [ "prometheus.kube.lime.lan" ]
+    ...
 alertmanager:
   ingress:
     enabled: true
     hosts: [ "alertmanager.kube.lime.lan" ]
+    ...
 ```
-- Modify `hosts:` value(s) to fit the cluster's 
-  DNS/TLS configuration. Inspect SANs:
-    ```bash
-    ☩ make ingress-nginx-parse
-    ...
-    X509v3 Subject Alternative Name:
-        DNS:kube.lime.lan, DNS:*.kube.lime.lan
-    ...
-    ```
-    - So any host FQDN of pattern __`*.kube.lime.lan`__ 
-      will survive TLS handshake.
-- `kube-prometheus-stack` chart defaults to `ingress-nginx`, 
-  which is `IngressClass` of  `name: nginx`.
+- [__`values.ingress.yaml`__](./observability/metrics/prometheus-grafana/kps/values.ingress.yaml)
+    - Requires DNS/TLS configured. Our DNS (WinSrv2019 DNS) 
+      has  `CNAME` record __`*.kube.lime.lan`__ pointing to 
+      the cluster's HA entrypoint (Apex record). 
+      Regarding TLS,  inspect SANs:
+        ```bash
+        ☩ make ingress-nginx-parse
+        ...
+        X509v3 Subject Alternative Name:
+            DNS:kube.lime.lan, DNS:*.kube.lime.lan
+        ...
+        ```
+        - So any host FQDN of pattern __`*.kube.lime.lan`__ 
+        will survive TLS handshake.
+    - The Helm chart, `kube-prometheus-stack`, 
+       defaults to `ingress-nginx`, 
+       which is `IngressClass` of  `name: nginx`.
 
 
+Then update by merge of the ingress declarations into the existing release, 
+using the __`--reuse-values`__ option.
 
 ```bash
-☩ make ingress-nginx-parse
-...
-X509v3 Subject Alternative Name:
-    DNS:kube.lime.lan, DNS:*.kube.lime.lan
-...
+ns='kube-metrics'
+repo=prometheus-community
+chart=kube-prometheus-stack
+v=72.4.0
+release='kps'
+
+# Dry run / capture
+helm template $release $repo/$chart \
+    -n $ns \
+    --version $v \
+    -f values.minimal.yaml \
+    -f values.ingress.yaml \
+    |tee helm.template.ingress.yaml
+
+# Rolling upgrade / merge
+helm upgrade $release $repo/$chart \
+    -n $ns \
+    --version $v \
+    -f values.ingress.yaml \
+    --reuse-values
+
 ```
+- __Success__!
+    - Grafana
+        - https://grafana.kube.lime.lan/dashboards
+    - Prometheus
+        - https://prometheus.kube.lime.lan/targets
+ 
 
 ## About
 
