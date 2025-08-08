@@ -41,6 +41,48 @@ quay.io/prometheus/prometheus:v3.3.1
 registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.15.0
 ```
 
+
+To add ingress, append to `values.minimal.yaml` &hellip;
+
+
+```yaml
+grafana:
+  ingress:
+    enabled: true
+    hosts: [ "grafana.kube.lime.lan" ]
+prometheus:
+  ingress:
+    enabled: true
+    hosts: [ "prometheus.kube.lime.lan" ]
+alertmanager:
+  ingress:
+    enabled: true
+    hosts: [ "alertmanager.kube.lime.lan" ]
+```
+- Modify `hosts:` value(s) to fit the cluster's 
+  DNS/TLS configuration. Inspect SANs:
+    ```bash
+    ☩ make ingress-nginx-parse
+    ...
+    X509v3 Subject Alternative Name:
+        DNS:kube.lime.lan, DNS:*.kube.lime.lan
+    ...
+    ```
+    - So any host FQDN of pattern __`*.kube.lime.lan`__ 
+      will survive TLS handshake.
+- `kube-prometheus-stack` chart defaults to `ingress-nginx`, 
+  which is `IngressClass` of  `name: nginx`.
+
+
+
+```bash
+☩ make ingress-nginx-parse
+...
+X509v3 Subject Alternative Name:
+    DNS:kube.lime.lan, DNS:*.kube.lime.lan
+...
+```
+
 ## About
 
 *Widely considered reliable* in K8s.
