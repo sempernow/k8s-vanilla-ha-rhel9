@@ -1,11 +1,6 @@
-## TLS : AD CS
+# TLS
 
-### TL;DR
-
-~~Root CA created by this method **lacks required extensions**, 
-and so fails at certain clients. ~~
-
-Not so sure.
+## AD CS (Manual Microsoft Hellscape)
 
 ### Add CA cert to Ubuntu trust store
 
@@ -18,12 +13,9 @@ sudo update-ca-certificates
 curl --ca-native  https://e2e.kube.lime.lan/foo/hostname
 ```
 
-
-### Work
-
 By default, 
 the AD CS role of Windows Server 2019 provides 
-only RSA type TLS certificates.
+_only RSA type_ TLS certificates.
 
 We successfully obtained a TLS certificate for web server usage 
 from AD CS web form of its Certificate Server 
@@ -106,3 +98,88 @@ openssl req -new -noenc -config $cn.cnf -extensions v3_req -newkey ed25519 -keyo
 openssl req -new -noenc -config $cn.cnf -extensions v3_req -newkey ec:<(openssl ecparam -name prime256v1 -genkey) -keyout $cn.key -out $cn.csr
 
 ```
+
+## [Automated TLS Management (Enterprise Grade)](https://chatgpt.com/share/6897a869-d390-8009-b873-da33b20e8e0b "ChatGPT 5")
+
+- [__cert-manager__](https://github.com/cert-manager)
+- Backends:
+    - Smallstep [__`step-ca`__](https://smallstep.com/docs/step-ca/ "smallstep.com")  
+    An online CA for secure, automated X.509 and SSH certificate management. It's the server counterpart to `step` CLI. Run step-ca (internal ACME) + `step-issuer` or use `cert-manager`’s ACME issuer pointed at `step-ca`. Provides air-gapped ACME + tight Kubernetes integration.
+        - Generate TLS certificates for private infrastructure using the ACME protocol.
+        - Automate TLS certificate renewal.
+        - Add Automated Certificate Management Environment (ACME) support to a legacy subordinate CA.
+        - Issue short-lived SSH certificates via OAuth OIDC single sign on.
+        - Issue customized X.509 and SSH certificates.
+    - __Hashicorp Vault PKI__ | [__OpenBao PKI__](https://openbao.org/docs/secrets/pki/)
+    - __Venafi TLS Protect for Kubernetes__ (the commercial successor to __Jetstack__ Secure): central policy/visibility across clusters and CAs (public or private). If you want enterprise governance and inventory at scale, this is the “batteries-included” option.
+
+### Recommendations 
+
+__Per environment__:
+
+- Air-gapped / Regulated:   
+  __cert-manager + Vault PKI__ (__or step-ca__ if you want ACME everywhere). Both are proven, policy-driven, and keep keys/CAs entirely under your control. 
+- Large enterprise needing fleet-wide governance:   
+  V__enafi TLS Protect for Kubernetes__ integrated with __cert-manager__ (__or Venafi issuer__) for policy, workflows, and inventory. 
+- AWS-only edge:   
+  ACM + AWS Load Balancer Controller for public ingress, optionally cert-manager + Vault/step-ca for internal services and mTLS.
+
+## [ACME DA vs. SPIFFE/SPIRE](https://chatgpt.com/share/6897ae64-9964-8009-a329-9c600bf77d7f)
+
+### TL;DR 
+
+**ACME DA** and **SPIFFE/SPIRE** came from different problem spaces, although both live in the identity/authentication world.
+
+
+Here’s the breakdown:
+
+
+* ACME solves *domain ownership proof → certificate issuance*.
+* SPIFFE/SPIRE solves *workload attestation → workload identity issuance*.
+
+The only conceptual overlap is that **both automate TLS cert issuance** — but they serve different audiences and trust models.
+
+That said, it’s theoretically possible to integrate them: a SPIRE server could act as an **ACME CA** to issue domain-bound certificates for workloads that also have SPIFFE identities, but that’s not common.
+
+---
+
+### [ACME DA](https://smallstep.com/platform/acme-device-attestation/index.html "smallstep.com")
+
+Automated Certificate Management Environment (__ACME__) Domain Authority (__DA__)
+
+* **Origin:** ACME is an IETF standard (RFC 8555) created by the __Let's Encrypt__ project to automate the issuance of publicly trusted TLS certificates.
+* **Purpose:** Automates domain-validated (DV) certificate requests and renewals from a Certificate Authority (CA).
+* **Focus:**
+    * Primarily for *internet-facing* services.
+    * Proves control of DNS names via challenges  
+    (HTTP-01, DNS-01, TLS-ALPN-01) 
+    to prove the requestor has domain control.
+    * Result: an X.509 certificate signed by a public CA.
+* **ACME DA:** The "Domain Authority" variant isn’t a separate protocol but a deployment concept — a trusted CA endpoint that issues certs after validating domain control.
+
+---
+
+### [SPIFFE/SPIRE](https://spiffe.io/ "SPIFFE.io")
+
+* **Origin:** CNCF project, inspired by Google’s internal service identity system (Borg + Loas).
+* **Purpose:** Issues *workload identities* in the form of **SPIFFE IDs** (e.g., `spiffe://trust-domain/service-name`), often in **SPIFFE Verifiable Identity Documents** (X.509-SVIDs or JWT-SVIDs).
+* **Focus:**
+
+  * Designed for *service-to-service authentication* in distributed systems, including zero-trust environments.
+  * No DNS-based proof — instead, proof of workload identity is done via attestation plugins (K8s, AWS IAM, etc.).
+  * Certificates are usually short-lived (minutes to hours) and signed by a private CA inside the trust domain.
+
+---
+
+### **Key Differences**
+
+| Aspect             | ACME DA                                      | SPIFFE/SPIRE                                       |
+| ------------------ | -------------------------------------------- | -------------------------------------------------- |
+| **Primary Goal**   | Automate DV certificate issuance for domains | Issue cryptographic identities to workloads        |
+| **Scope**          | Internet-facing domain certs                 | Internal service/service or workload/workload auth |
+| **Identity Basis** | Domain control (DNS)                         | Workload attestation                               |
+| **Trust Model**    | Public CA ecosystem                          | Private trust domain                               |
+| **Cert Lifetimes** | Usually 90 days (Let's Encrypt default)      | Minutes–hours                                      |
+| **Standard**       | RFC 8555 (ACME)                              | SPIFFE spec                                        |
+
+---

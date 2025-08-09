@@ -196,52 +196,63 @@ sudoer(){
 }
 
 rootCA(){
+    echo "  ℹ  Use recipe at windows-server project : make rootca"
+    
+    return 0
+    
+    ## Below is 2025-08-09 copy/mod of same func at windows-server project 
     len=4096
     days=3650
-    cn=${TLS_CN:-Penguin Root CA}
-    o=${TLS_O:-Penguin Inc}
-    ou=${TLS_OU:-gotham.gov}
-    c=${TLS_C:-US}
+    ca_ext=v3_ca
+    cn=${DC_TLS_CN:-Penguin Root CA}
+    o=${DC_TLS_O:-Penguin Inc}
+    ou=${DC_TLS_OU:-gotham.gov}
+    c=${DC_TLS_C:-US}
 
-    dir=${PRJ_ROOT:-__PRJ_ROOT_is_unset__}/ingress/tls
+    dir=${PRJ_ROOT:-__PRJ_ROOT_is_unset__}/ingress/tls/root-ca
     [[ -d $dir ]] || {
-        echo "⚠️  ERR : Path does NOT EXIST : '$dir'" >&2
+        echo "❌️  ERR : Path does NOT EXIST : '$dir'" >&2
         return 11
     }
-    echo "🛠️  Create all PKI of the Root CA" >&2
+    rm -rf $dir/*.*
     path="$dir/${cn// /-}"
+    
+    echo "🛠️  Create all PKI of the Root CA" >&2
 
-	tee $path.cnf <<-EOR
+	tee $path.cnf <<-EOH
+	# Generated @ ${BASH_SOURCE##*/}
 	[ req ]
 	prompt              = no
 	default_bits        = $len
 	default_md          = sha256
 	distinguished_name  = req_distinguished_name
-	x509_extensions = v3_ca
+	x509_extensions = $ca_ext
 	[ req_distinguished_name ]
 	CN  = $cn
 	O   = $o
 	OU  = $ou
 	C   = $c
-	[ v3_ca ]
+	[ $ca_ext ]
 	basicConstraints        = critical, CA:TRUE # Append pathlen:1 to limit chain to one subordinate CA
-	keyUsage                = critical, keyCertSign, cRLSign
+	keyUsage                = critical, digitalSignature, keyCertSign, cRLSign
 	subjectKeyIdentifier    = hash
-	EOR
+	EOH
 
-    # ## Generate key and CSR  : -noenc else -aes256 to encrypt w/ AES-256 (password)
-    # openssl req -new -config $path.cnf -noenc -newkey rsa:$len -keyout $path.key -out $path.csr
-    # ## Sign the root cert with root key, applying the extensions of CSR
-    # openssl x509 -req -in $path.csr -extensions v3_ca -extfile $path.cnf -signkey $path.key \
-    #     -days $days -sha384 -out $path.crt
+    ## Generate key and CSR  : -noenc else -aes256 to encrypt w/ AES-256 (password)
+    openssl req -new -config $path.cnf -noenc -newkey rsa:$len -keyout $path.key -out $path.csr
+    ## Sign the root cert with root key, applying the extensions of CSR
+    openssl x509 -req -in $path.csr -extensions $ca_ext -extfile $path.cnf -signkey $path.key \
+        -days $days -sha384 -out $path.crt
     
-    ## Generate both key and cert from CNF in one statement; skip the CSR
-    openssl req -x509 -new -nodes -keyout $path.key -days $days -config $path.cnf -extensions v3_ca 
-        -out $path.crt
+    # ## Generate both key and cert from CNF in one statement; skip the CSR
+    # openssl req -x509 -new -nodes -keyout $path.key -days $days -config $path.cnf -extensions v3_ca 
+    #     -out $path.crt
 
     echo "🔍  Parse the certificate located at '$path.crt'" >&2 # man x509v3_config
-    openssl x509 -in $path.crt -noout -issuer -subject -startdate -enddate \
-        -ext subjectAltName,basicConstraints,keyUsage,subjectKeyIdentifier
+    # The extension (x509v3) of most interest in leaf certs is subjectAltName (SAN); other ext's are mostly inspected of CA certs.
+    x509v3='subjectAltName,issuerAltName,basicConstraints,keyUsage,extendedKeyUsage,authorityInfoAccess,subjectKeyIdentifier,authorityKeyIdentifier,crlDistributionPoints,issuingDistributionPoints,policyConstraints,nameConstraints'
+    openssl x509 -noout -subject -issuer -startdate -enddate -ext "$x509v3" -in $path.crt \
+        |tee $path.crt.parse
 
 }
 

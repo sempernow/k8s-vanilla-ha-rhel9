@@ -3,7 +3,7 @@
 include Makefile.settings
 # … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × ₽ € ¥ £ ¢ ¤ ♻  ⚐ ⚑
 # ☢  ☣  ☠  ¦ ¶ § † ‡ ß µ ø Ø ƒ Δ ☡ ☈ ☧ ☩ ✚ ☨ ☦  ☓ ♰ ♱ ✖  ☘  웃 𝐀𝐏𝐏 𝐋𝐀𝐁
-# ⚠️ ✅ 🚀 🚧 🛠️ 🔧 🔍 🧪 👈 ⚡ ❌ 💡 🔒 📊 📈 🧩 📦 🧳 🥇 ✨️ 🔚
+# ℹ ⚠️ ✅ 🚀 🚧 🛠️ 🔧 🔍 🧪 👈 ⚡ ❌ 💡 🔒 📊 📈 🧩 📦 🧳 🥇 ✨️ 🔚
 ##############################################################################
 ## Environment variable rules:
 ## - Any TRAILING whitespace KILLS its variable value and may break recipes.
@@ -213,6 +213,7 @@ menu :
 	@echo "etcd         : Certain endpoints"
 	@echo "journal      : Recent kubelet logs ... --since='${ADMIN_FW_LOG_SINCE}'"
 	@echo "============== "
+	@echo "rootca       : Create PKI for a Root CA"
 	@echo "ingress-nginx: Ingress NGINX Controller"
 	@echo "  -up        : Install"
 	@echo "  -secret    : Create K8s Secret for default TLS certificate"
@@ -623,6 +624,9 @@ etcd :
 ingress := ingress/ingress-nginx/ingress-nginx.sh
 ## Unset HALB unless the Ingress is configured for it.
 export HALB ?= yes
+rootca :
+	bash make.recipes.sh rootCA
+#@echo "  ℹ  See project: windows-server : make rootca"
 ingress-nginx-secret :
 	bash ${ADMIN_SRC_DIR}/${ingress} secret
 ingress-nginx-parse ingress-nginx-secret-parse :
@@ -709,5 +713,3 @@ prom-delete prom-uninstall:
 teardown :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/teardown.sh
 	ansibash sudo bash teardown.sh
-
-
