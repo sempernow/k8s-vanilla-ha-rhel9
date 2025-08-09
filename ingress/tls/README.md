@@ -102,7 +102,7 @@ openssl req -new -noenc -config $cn.cnf -extensions v3_req -newkey ec:<(openssl 
 ## [Automated TLS Management (Enterprise Grade)](https://chatgpt.com/share/6897a869-d390-8009-b873-da33b20e8e0b "ChatGPT 5")
 
 - [__cert-manager__](https://github.com/cert-manager)
-- Backends:
+- Private Issuers (Backends):
     - Smallstep [__`step-ca`__](https://smallstep.com/docs/step-ca/ "smallstep.com")  
     An online CA for secure, automated X.509 and SSH certificate management. It's the server counterpart to `step` CLI. Run step-ca (internal ACME) + `step-issuer` or use `cert-manager`’s ACME issuer pointed at `step-ca`. Provides air-gapped ACME + tight Kubernetes integration.
         - Generate TLS certificates for private infrastructure using the ACME protocol.

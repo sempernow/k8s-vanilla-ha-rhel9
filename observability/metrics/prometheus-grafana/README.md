@@ -141,6 +141,15 @@ All are pre-wired for cluster observability.
 
 # [`kube-prometheus-stack`](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack#kube-prometheus-stack "GitHub") 
 
+>A collection of Kubernetes manifests, Grafana dashboards, and Prometheus rules combined with documentation and scripts to provide easy to operate end-to-end Kubernetes cluster monitoring with Prometheus using the [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator "GitHub : prometheus-operator/prometheus-operator").
+
+See the kube-prometheus readme for details about componen
+- __Helm method__ : [`kube-prometheus-stack`](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack#kube-prometheus-stack "GitHub : prometheus-community/helm-charts") : 
+    - __kps.minimal.*__ ([MD](kps/kps.minimal.md)|[HTML](kps/kps.minimal.html)) 
+        - __This is the method we use__ 
+    - [All `prometheus-community` charts](https://github.com/prometheus-community/helm-charts/tree/main/charts "GitHub : prometheus-community/helm-charts")
+- __Manifests method__ : [`kube-prometheus`](https://github.com/prometheus-operator/kube-prometheus "GitHub : prometheus-operator/kube-prometheus")
+
 
 By default this chart installs additional, dependent charts:
 
