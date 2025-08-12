@@ -377,6 +377,11 @@ kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nod
 
 ```
 
+## Fix on 
+
+kubectl delete pod -A --field-selector=status.phase=Failed
+
+
 ## Manual Recovery of Pod Network
 
 It's true that once Calico (or any CNI) is completely broken, deleting leftover sandboxes (and getting kubelet & containerd to "un‐stick" themselves) can feel impossible. In most cases, however, you can recover without resorting to `kubeadm reset`, provided you restore Calico's CNI binaries/config for containerd and then force‐remove the orphaned sandboxes. Below are the key points and an ordered set of steps that have worked on kubeadm‐built clusters (even when the pod network is down):

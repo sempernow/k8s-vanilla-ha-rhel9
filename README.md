@@ -43,6 +43,77 @@ kubectl proxy # K8s API @ http://127.0.0.1:8001 (Blocks)
 curl http://127.0.0.1:8001/healthz #> ok
 ```
 
+## Cleanup Pod Network after Hard Reboot
+
+### Cause
+
+A host-level hard reboot leaves a bunch of “half-torn-down” state on each node, and when kubelet/CRI tries to clean it up on boot the Calico CNI DEL path needs a valid K8s token,but the file it uses (`/etc/cni/net.d/calico-kubeconfig`) often contains an expired bound-SA token. 
+
+Result: Unauthorized → sandbox teardown fails → pods stick in Terminating.
+
+Kubernetes with Calico has a recurring pattern where a pod is forever stuck in a non-functional state and can't be deleted:
+
+__Confirm__ Calico has an expired token
+
+
+```bash
+# 1) Grab the token (raw string, not YAML-quoted)
+TOKEN=$(sudo yq -r '.users[0].user.token' /etc/cni/net.d/calico-kubeconfig)
+
+# 2) Decode the JWT payload (handles base64url + missing padding)
+python3 - <<'PY'
+import os, json, base64, time
+tok = os.environ["TOKEN"]
+parts = tok.split(".")
+payload = parts[1]  # middle part
+# add padding for base64url
+payload += "=" * (-len(payload) % 4)
+claims = json.loads(base64.urlsafe_b64decode(payload).decode())
+print(json.dumps(claims, indent=2))
+print("now_unix:", int(time.time()))
+print("exp_ok  :", "exp" in claims and claims["exp"] > time.time())
+PY
+```
+- Token is base64url encoded.
+    ```bash
+    decodebase64url "$(sudo yq -r '.users[0].user.token' /etc/cni/net.d/calico-kubeconfig)"
+    ```
+- If __`exp_ok` is `false`__ (or `exp < now_unix`) then the __token is expired__. 
+  That’s exactly why Calico CNI “DEL” is failing with connection is unauthorized.
+
+
+
+### Symptoms
+
+Request to delete pod, "`kubectl delete pod ...`", 
+leaves it stuck at status "`Terminating`":
+
+```bash
+☩ k get pod -o wide
+NAME   READY   STATUS        RESTARTS   AGE   IP              NODE   NOMINATED NODE   READINESS GATES
+bar    0/1     Terminating   0          25h   10.244.65.113   a3     <none>           <none>
+```
+
+Attempts to stop pod using "`crictl stopp`" fail AuthN:
+
+```bash
+☩ ssh a3 sudo crictl stopp 9c9c058905188
+E0812 18:35:51.567809  518652 remote_runtime.go:222] "StopPodSandbox from runtime service failed" err="rpc error: code = Unknown desc = failed to destroy network for sandbox \"9c9c058905188c7047a3a42272be25b13afac1169e2184522fe8d5eeefff71ea\": plugin type=\"calico\" failed (delete): error getting ClusterInformation: connection is unauthorized: Unauthorized" podSandboxID="9c9c058905188"
+FATA[0000] stopping the pod sandbox "9c9c058905188": rpc error: code = Unknown desc = failed to destroy network for sandbox "9c9c058905188c7047a3a42272be25b13afac1169e2184522fe8d5eeefff71ea": plugin type="calico" failed (delete): error getting ClusterInformation: connection is unauthorized: Unauthorized
+
+```
+- __"`ClusterInformation: connection is unauthorized: Unauthorized`"__
+
+### Fix
+
+E.g., If CNI Add-on is Calico
+
+```bash
+kubectl -n kube-system rollout restart ds/calico-node
+# Verify
+kubectl -n kube-system rollout status  ds/calico-node
+```
+
 ## Delete/Re-join a Control-Plane Node
 
 Modifications to Static Pod manifest(s) do not typically require `drain`/`delete`/`join` of (control-plane) nodes.
