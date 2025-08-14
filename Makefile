@@ -589,6 +589,7 @@ kubeproxy-restore :
 
 healthz :
 	curl -fksIX GET https://${K8S_ENDPOINT}/healthz |grep HTTP || echo "ERR : $$?"
+	#kubectl get --raw /healthz?verbose || echo "ERR : $$?"
 	curl -ks https://${K8S_FQDN}:${HALB_PORT_K8S}/healthz?verbose || echo "ERR : $$?"
 export port := 5551
 iperf :
