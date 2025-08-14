@@ -548,17 +548,19 @@ calico-pull :
 calico : calico-manifest
 calicoctl calico-status :
 	ansibash sudo /usr/local/bin/calicoctl node status \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
 	kubectl calico get ippool \
-	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
+	kubectl calico ipam check \
+	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
 	kubectl calico ipam show --show-blocks \
-	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
 	kubectl calico ipam show --show-configuration \
-	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
+	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
 	kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP} \
-	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log
-	kubectl get tigerastatuses && kubectl get tigerastatuses \
-	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.${UTC}.log || echo
+	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
+	kubectl get tigerastatuses 2>/dev/null && kubectl get tigerastatuses \
+	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log || echo
 calico-manifest :
 	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/${calico_manifest} \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-manifest.${UTC}.log
