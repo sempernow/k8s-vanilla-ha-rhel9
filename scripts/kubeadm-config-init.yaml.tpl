@@ -18,7 +18,7 @@ certificateKey: K8S_CERTIFICATE_KEY
 #   advertiseAddress: 1.2.3.4  # IP address of this control node
 #   bindPort: 6443             # 6443 (default)
 nodeRegistration:
-  name: "K8S_INIT_NODE" # Defaults to $(hostname)
+  name: "K8S_NODE_INIT" # Defaults to $(hostname)
   # imagePullPolicy: IfNotPresent ## Always|Never|IfNotPresent (default)
   criSocket: K8S_CRI_SOCKET
   # taints: null   # Default taints on control nodes
@@ -185,7 +185,7 @@ clusterCIDR: "K8S_POD_CIDR"             # Replace with your cluster's pod networ
 detectLocalMode: "ClusterCIDR"          # Detect local traffic based on the cluster CIDR.
 healthzBindAddress: "0.0.0.0:10256"
 metricsBindAddress: "0.0.0.0:10249"     # Enable metrics for monitoring tools (Prometheus, etc.).
-# hostnameOverride: "K8S_INIT_NODE"       # Overriding current hostname prevents future changes from being injested by K8s,
+# hostnameOverride: "K8S_NODE_INIT"       # Overriding current hostname prevents future changes from being injested by K8s,
                                         # which has caused systemic mTLS failure on the subsequent rotation.
                                         # However, this setting would be required at each node?
 ipvs:

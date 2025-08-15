@@ -30,9 +30,9 @@ controller:
     ## for backwards compatibility consider setting the full image url via the repository value below
     ## use *either* current default registry/image or repository format or installing chart by providing the values.yaml will fail
     ## repository:
-    tag: "v1.12.0"
-    digest: sha256:e6b8de175acda6ca913891f0f727bca4527e797d52688cbe9fec9040d6f6b6fa
-    digestChroot: sha256:87c88e1c38a6c8d4483c8f70b69e2cca49853bb3ec3124b9b1be648edf139af3
+    tag: "v1.12.3"
+    digest: sha256:ac444cd9515af325ba577b596fe4f27a34be1aa330538e8b317ad9d6c8fb94ee
+    digestChroot: sha256:d830fba93e9e0f5ef1462f5fe8a7cd7b167178b79e6c10c041c7da19f1ac66ab
     pullPolicy: IfNotPresent
     runAsNonRoot: true
     # -- This value must not be changed using the official image.
@@ -206,7 +206,7 @@ controller:
   # E.g. to specify the default SSL certificate you can use
   extraArgs: {}
   ## extraArgs:
-  ##   default-ssl-certificate: "<namespace>/<secret_name>" # The default TLS certificate
+  ##   default-ssl-certificate: "<namespace>/<secret_name>"
   ##   time-buckets: "0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2.5,5,10"
   ##   length-buckets: "10,20,30,40,50,60,70,80,90,100"
   ##   size-buckets: "10,100,1000,10000,100000,1e+06,1e+07"
@@ -796,8 +796,8 @@ controller:
         ## for backwards compatibility consider setting the full image url via the repository value below
         ## use *either* current default registry/image or repository format or installing chart by providing the values.yaml will fail
         ## repository:
-        tag: v1.5.0
-        digest: sha256:aaafd456bda110628b2d4ca6296f38731a3aaf0bf7581efae824a41c770a8fc4
+        tag: v1.5.4
+        digest: sha256:7a38cf0f8480775baaee71ab519c7465fd1dfeac66c421f28f087786e631456e
         pullPolicy: IfNotPresent
       # -- Provide a priority class name to the webhook patching job
       ##

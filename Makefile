@@ -1,8 +1,8 @@
 ##############################################################################
 ## Makefile.settings : Environment Variables for Makefile(s)
 include Makefile.settings
-# … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × ₽ € ¥ £ ¢ ¤ ♻  ⚐ ⚑  \ufe0f ➔
-# ☢  ☣  ☠  ¦ ¶ § † ‡ ß µ ø Ø ƒ Δ ☡ ☈ ☧ ☩ ✚ ☨ ☦  ☓ ♰ ♱ ✖  ☘  웃 𝐀𝐏𝐏 𝐋𝐀𝐁
+# … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × ₽ € ¥ £ ¢ ¤ ♻ ⚐ ⚑ ✪ ❤ \ufe0f
+# ☢ ☣ ☠ ¦ ¶ § † ‡ ß µ Ø ƒ Δ ☡ ☈ ☧ ☩ ✚ ☨ ☦ ☓ ♰ ♱ ✖  ☘  웃 𝐀𝐏𝐏 🡸 🡺 ➔
 # ℹ️ ⚠️ ✅ ⌛ 🚀 🚧 🛠️ 🔧 🔍 🧪 👈 ⚡ ❌ 💡 🔒 📊 📈 🧩 📦 🥇 ✨️ 🔚
 ##############################################################################
 ## Environment variable rules:
@@ -40,25 +40,6 @@ export TLS_CN ?= Lime LAN Root CA
 export TLS_O  ?= Lime LAN
 export TLS_OU ?= lime.lan
 export TLS_C  ?= US
-
-
-##############################################################################
-## ansibash
-
-## Public-key string of ssh user must be in ~/.ssh/authorized_keys of ADMIN_USER at all targets.
-#export ADMIN_USER            ?= $(shell id -un)
-export ADMIN_USER            ?= u2
-export ADMIN_KEY             ?= ${HOME}/.ssh/vm_lime
-export ADMIN_HOST            ?= a0
-export ADMIN_NODES_CONTROL   ?= a1 a2 a3
-export ADMIN_TARGET_LIST     ?= ${ADMIN_NODES_CONTROL}
-export ADMIN_SRC_DIR         ?= $(shell pwd)
-#export ADMIN_DST_DIR         ?= ${ADMIN_SRC_DIR}
-export ADMIN_DST_DIR         ?= /tmp/$(shell basename "${ADMIN_SRC_DIR}")
-
-export ANSIBASH_TARGET_LIST  ?= ${ADMIN_TARGET_LIST}
-export ANSIBASH_USER         ?= ${ADMIN_USER}
-export ADMIN_FW_LOG_SINCE    ?= 5 minute ago
 
 
 ##############################################################################
@@ -110,8 +91,11 @@ export K8S_PROVISIONER_KEY    ?= ${ADMIN_KEY}
 #export K8S_REGISTRY           ?= ${CNCF_REGISTRY_ENDPOINT}
 export K8S_REGISTRY           ?= registry.k8s.io
 export K8S_VERBOSITY          ?= 5
-export K8S_INIT_NODE          ?= $(shell echo ${ADMIN_NODES_CONTROL} |awk '{printf $$1}')
-export K8S_JOIN_NODES         ?= $(shell echo ${ADMIN_NODES_CONTROL} |awk '{for (i=2; i<NF; i++) printf $$i " "; print $$NF}')
+export K8S_NODE_INIT          ?= a1
+export K8S_NODES_CONTROL      ?= ${K8S_NODE_INIT} a2 a3
+export K8S_NODES_WORKER       ?=
+export K8S_NODES              ?= ${K8S_NODES_CONTROL} ${K8S_NODES_WORKER}
+export K8S_NODES_JOIN         ?= $(shell echo ${K8S_NODES_CONTROL} |awk '{for (i=2; i<NF; i++) printf $$i " "; print $$NF}')
 export K8S_KUBEADM_CONF_INIT  ?= kubeadm-config-init.yaml
 export K8S_KUBEADM_CONF_JOIN  ?= kubeadm-config-join.yaml
 export K8S_JOIN_KUBECONFIG    ?= discovery.yaml
@@ -122,7 +106,7 @@ export K8S_CONTROL_PLANE_PORT ?= ${HALB_PORT_K8S}
 export K8S_NETWORK_DEVICE     ?= ${HALB_DEVICE}
 export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
 export K8S_FQDN               ?= kube.${HALB_DOMAIN}
-## Pod and Service CIDRs in Private Address space (RFC 1918) that are SLAAC-compliant .
+## Pod and Service CIDRs : Set to Private Address space (RFC 1918) that is SLAAC-compliant .
 export K8S_HOST_CIDR          ?= ${HALB_DOMAIN_CIDR}
 export K8S_HOST_CIDR6         ?= ${HALB_DOMAIN_CIDR6}
 export K8S_SERVICE_CIDR       ?= 10.96.0.0/12
@@ -143,12 +127,32 @@ export DOMAIN_CA_CERT := ${PRJ_ROOT}/ingress/tls/lime-DC1-CA.cer
 
 
 ##############################################################################
+## ansibash
+
+## Public-key string of ssh user must be in ~/.ssh/authorized_keys of ADMIN_USER at all targets.
+#export ADMIN_USER            ?= $(shell id -un)
+export ADMIN_USER            ?= u2
+export ADMIN_KEY             ?= ${HOME}/.ssh/vm_lime
+export ADMIN_HOST            ?= a0
+#export ADMIN_TARGET_LIST     ?= ${K8S_NODES_CONTROL} ${K8S_NODES_WORKER}
+export ADMIN_TARGET_LIST     ?= ${K8S_NODES_CONTROL}
+export ADMIN_SRC_DIR         ?= $(shell pwd)
+#export ADMIN_DST_DIR         ?= ${ADMIN_SRC_DIR}
+export ADMIN_DST_DIR         ?= /tmp/$(shell basename "${ADMIN_SRC_DIR}")
+
+export ANSIBASH_TARGET_LIST  ?= ${ADMIN_TARGET_LIST}
+export ANSIBASH_USER         ?= ${ADMIN_USER}
+export ADMIN_FW_LOG_SINCE    ?= 5 minute ago
+
+##############################################################################
 ## Recipes : Meta
 
 menu :
 	$(INFO) 'Install K8s onto all target hosts : RHEL9 is expected'
 	@echo "upgrade      : dnf upgrade all targets"
-	@echo "reboot       : Reboot all targets"
+	@echo "reboot       : Reboot all (K8S_NODES) : ${K8S_NODES}"
+	@echo "  -soft      : drain ➔  reboot ➔  uncordon"
+	@echo "  -hard      : reboot ${K8S_NODES}"
 	@echo "conf         : kernel selinux swap : See scripts/configure-*"
 	@echo "  -kernel    : Configure kernel for K8s/CNI/CRI : load modules and set runtime params"
 	@echo "  -selinux   : Configure targets' SELinux"
@@ -177,7 +181,7 @@ menu :
 	@echo "  -pki       : Generate cluster PKI (once)"
 	@echo "  -pre       : kubeadm init phase preflight …"
 	@echo "  -certs     : kubeadm init phase upload certs …"
-	@echo "  -now       : kubeadm init … : at 1st node (${ADMIN_USER}@${K8S_INIT_NODE})"
+	@echo "  -now       : kubeadm init … : at 1st node (${ADMIN_USER}@${K8S_NODE_INIT})"
 	@echo "============== "
 	@echo "kubeconfig   : Configure the client"
 	@echo "============== "
@@ -264,6 +268,7 @@ env :
 	@env |grep K8S_
 	@env |grep ADMIN_
 	@env |grep DOMAIN_
+	@env |grep HALB_
 
 eol :
 	find . -type f ! -path '*/.git/*' -exec dos2unix {} \+
@@ -328,10 +333,14 @@ userrc :
 	ansibash 'git clone https://github.com/sempernow/userrc 2>/dev/null || echo ok'
 	ansibash 'pushd userrc && git pull && make sync-user && make user'
 
-reboot :
-	ANSIBASH_TARGET_LIST='${ADMIN_TARGET_LIST}' \
-	    ansibash sudo reboot
+reboot : reboot-soft
+reboot-hard :
+	@echo -e "  ⚠️ : HARD reboot of hosts: ${ADMIN_TARGET_LIST}"
+	ansibash sudo reboot
+reboot-soft :
+	bash make.recipes.sh rebootSoft ${K8S_NODES}
 upgrade :
+	ansibash 'sudo dnf makecache || echo "⚠️  ERR : $$?"' \
 	ansibash 'sudo dnf -y --color=never upgrade || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.upgrade.${UTC}.log
 
@@ -421,14 +430,14 @@ fw-log fw-logs :
 ## K8s cluster creation
 
 init-imperative :
-	ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} \
+	ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} \
 	    sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
 	        --kubernetes-version ${K8S_VERSION} \
 	        --upload-certs \
 	        --pod-network-cidr "${K8S_POD_CIDR}" \
 	        --service-cidr "${K8S_SERVICE_CIDR}" \
 	        --apiserver-advertise-address ${K8S_CONTROL_PLANE_IP} \
-	        --node-name ${K8S_INIT_NODE} \
+	        --node-name ${K8S_NODE_INIT} \
 	        --cri-socket "${K8S_CRI_SOCKET}" \
 	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kubeadm.init-imperative.${UTC}.log
 
@@ -443,27 +452,27 @@ init-gen :
 	bash make.recipes.sh settings_inject ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-gen.${UTC}.log
 init-push :
-	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
+	ANSIBASH_TARGET_LIST='${K8S_NODES_CONTROL}' \
 	    ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
 	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-push.${UTC}.log
 init-images :
-	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
+	ANSIBASH_TARGET_LIST='${K8S_NODES_CONTROL}' \
 	    ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
 	        --config ${K8S_KUBEADM_CONF_INIT} \
 	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-images.${UTC}.log
 ## Generate cluster PKI (if not exist) : Cleanup old settings
 ## This K8S_KUBEADM_CONF_INIT must NOT have PKI (key, hash, token)
 init-pki :
-	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-pki.sh ${K8S_INIT_NODE}:. \
-	    && ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-pki.sh ${K8S_KUBEADM_CONF_INIT} \
+	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-pki.sh ${K8S_NODE_INIT}:. \
+	    && ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} sudo bash kubeadm-init-pki.sh ${K8S_KUBEADM_CONF_INIT} \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pki.${UTC}.log
 init-pre :
-	ANSIBASH_TARGET_LIST='${ADMIN_NODES_CONTROL}' \
+	ANSIBASH_TARGET_LIST='${K8S_NODES_CONTROL}' \
 	    ansibash sudo kubeadm init phase preflight -v${K8S_VERBOSITY} \
 	        --config ${K8S_KUBEADM_CONF_INIT} \
 	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pre.${UTC}.log
 init-now :
-	ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} \
+	ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} \
 	  sudo kubeadm init -v${K8S_VERBOSITY} \
 	      --upload-certs \
 	      --config ${K8S_KUBEADM_CONF_INIT} \
@@ -482,10 +491,10 @@ kubeconfig :
 ## init-certs is RUN ONLY IF the (bootstrap) certificate KEY HAS EXPIRED.
 ## Run prior to running the join-control recipe, only if key has expired.
 init-certs :
-	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh ${ADMIN_USER}@${K8S_INIT_NODE}:. \
-	    && ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} sudo bash kubeadm-init-certs.sh ${K8S_KUBEADM_CONF_INIT} \
+	scp -p ${ADMIN_SRC_DIR}/scripts/kubeadm-init-certs.sh ${ADMIN_USER}@${K8S_NODE_INIT}:. \
+	    && ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} sudo bash kubeadm-init-certs.sh ${K8S_KUBEADM_CONF_INIT} \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-certs.${UTC}.log
-	scp -p ${ADMIN_USER}@${K8S_INIT_NODE}:Makefile.settings Makefile.${K8S_INIT_NODE}.settings
+	scp -p ${ADMIN_USER}@${K8S_NODE_INIT}:Makefile.settings Makefile.${K8S_NODE_INIT}.settings
 join-control : join-prep join-now
 join-prep : join-gen join-push
 ## K8S_CERTIFICATE_KEY must be set PRIOR TO RUNNING join-gen
@@ -493,21 +502,21 @@ join-gen :
 	bash make.recipes.sh settings_inject ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN} \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-gen.${UTC}.log
 join-push :
-	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
+	ANSIBASH_TARGET_LIST='${K8S_NODES_JOIN}' \
 	    ansibash -u ${ADMIN_SRC_DIR}/scripts/join-control.sh
-	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
+	ANSIBASH_TARGET_LIST='${K8S_NODES_JOIN}' \
 	    ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_JOIN}
-	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
+	ANSIBASH_TARGET_LIST='${K8S_NODES_JOIN}' \
 	    ansibash -u ~/.kube/config discovery.yaml
 join-now :
-	ANSIBASH_TARGET_LIST='${K8S_JOIN_NODES}' \
+	ANSIBASH_TARGET_LIST='${K8S_NODES_JOIN}' \
 	    ansibash sudo bash join-control.sh ${K8S_NETWORK_DEVICE} ${K8S_KUBEADM_CONF_JOIN} \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.join-control.${UTC}.log
 # Print command to join a node into CONTROL PLANE; same cert key/hash; new token
 # join-token :
 # 	@sudo kubeadm token list |awk '{printf "%25s\t%s\t%s\n",$$1,$$2,$$4}'
 join-command :
-	ssh -t ${ADMIN_USER}@${K8S_INIT_NODE} \
+	ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} \
 	    sudo kubeadm token create --print-join-command \
 	        --certificate-key ${K8S_CERTIFICATE_KEY} \
 	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.print-join-command.${UTC}.log
@@ -630,6 +639,12 @@ export HALB ?= yes
 rootca :
 	bash make.recipes.sh rootCA
 #@echo "  ℹ  See project: windows-server : make rootca"
+
+ingress-nginx ingress-nginx-up : ingress-nginx-values ingress-nginx-secret
+#	bash ${ADMIN_SRC_DIR}/${ingress} upManifest
+	bash ${ADMIN_SRC_DIR}/${ingress} upChart
+ingress-nginx-values :
+	bash ${ADMIN_SRC_DIR}/${ingress} values
 ingress-nginx-secret :
 	bash ${ADMIN_SRC_DIR}/${ingress} secret
 ingress-nginx-parse ingress-nginx-secret-parse :
@@ -640,9 +655,6 @@ ingress-nginx-manifest :
 	bash ${ADMIN_SRC_DIR}/${ingress} manifest
 ingress-nginx-diff :
 	bash ${ADMIN_SRC_DIR}/${ingress} diff
-ingress-nginx ingress-nginx-up : ingress-nginx-secret
-#	bash ${ADMIN_SRC_DIR}/${ingress} upManifest
-	bash ${ADMIN_SRC_DIR}/${ingress} upChart
 ingress-nginx-get :
 	bash ${ADMIN_SRC_DIR}/${ingress} get
 ingress-nginx-e2e :

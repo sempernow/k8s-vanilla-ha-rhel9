@@ -9,10 +9,11 @@
 v=4.12.3
 chart=ingress-nginx # Folder name on chart archive extract
 repo=https://kubernetes.github.io/$chart
+localrepo=$chart
 release=$chart
 ns=$release
 
-values=values.yaml
+values=values.diff.yaml
 template=helm.template.yaml
 manifest=helm.manifest.yaml
 
@@ -29,6 +30,22 @@ repo(){
     helm repo add $chart $repo &&
     helm repo update $chart ||
         echo "⚠️  ERR on helm repo add/update : $repo"
+}
+pull(){
+    repo 
+    helm pull $chart/$chart --version $v
+}
+values(){
+    # Generate the values file (diff) from its template
+    cat $values.tpl \
+        |sed "s/HALB_PORT_HTTPS/$HALB_PORT_HTTPS/" \
+        |sed "s/HALB_PORT_HTTP/$HALB_PORT_HTTP/" \
+        |sed "s/NAMESPACE/$ns/" \
+        |sed "s/DEFAULT_SSL_CERTIFICATE/$tls/" \
+        |sed "s,HALB_DOMAIN_CIDR,$HALB_DOMAIN_CIDR," \
+        |tee $values
+    
+    [[ -f $values ]] || return 1
 }
 secret(){
     ## Use for manifest method (upManifest) only. 
@@ -51,6 +68,7 @@ parse(){
 helmAction(){
     ## ARGs: template|upgrade|install
     [[ $1 ]] || return 1
+    [[ -f $values ]] || return 2
     [[ $1 == 'upgrade' ]] && install='--install'
     helm $1 $release $chart \
         $install \
@@ -58,17 +76,19 @@ helmAction(){
         --version $v \
         --namespace $ns \
         --create-namespace \
-        --set controller.kind=DaemonSet \
-        --set controller.allowSnippetAnnotations="true" \
-        --set controller.service.externalTrafficPolicy=Local \
-        --set controller.service.type=NodePort \
-        --set controller.service.nodePorts.http="$http" \
-        --set controller.service.nodePorts.https="$https" \
-        --set controller.extraArgs.default-ssl-certificate="$ns/$tls" \
-        --set controller.config.use-proxy-protocol="true" \
-        --set controller.config.enable-real-ip="true" \
-        --set controller.config.forwarded-for-header=X-Forwarded-For \
-        --set controller.config.proxy-real-ip-cidr="$proxy_real_ip_cidr"
+        --values $values
+
+        # --set controller.kind=DaemonSet \
+        # --set controller.allowSnippetAnnotations="true" \
+        # --set controller.service.externalTrafficPolicy=Local \
+        # --set controller.service.type=NodePort \
+        # --set controller.service.nodePorts.http="$http" \
+        # --set controller.service.nodePorts.https="$https" \
+        # --set controller.extraArgs.default-ssl-certificate="$ns/$tls" \
+        # --set controller.config.use-proxy-protocol="true" \
+        # --set controller.config.enable-real-ip="true" \
+        # --set controller.config.forwarded-for-header=X-Forwarded-For \
+        # --set controller.config.proxy-real-ip-cidr="$proxy_real_ip_cidr"
 
 
     # --set controller.proxySetHeaders.use-proxy-protocol="true" \

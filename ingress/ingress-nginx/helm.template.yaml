@@ -31,7 +31,6 @@ metadata:
   namespace: ingress-nginx
 data:
   allow-snippet-annotations: "true"
-  enable-real-ip: "true"
   forwarded-for-header: "X-Forwarded-For"
   proxy-real-ip-cidr: "192.168.11.0/24"
   use-proxy-protocol: "true"

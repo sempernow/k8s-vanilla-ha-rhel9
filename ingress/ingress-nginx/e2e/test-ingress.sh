@@ -83,8 +83,8 @@ e2e(){
     }
     export -f scheme
 
-    [[ $HALB ]] && lb='HALB <=> ' || unset lb
-    echo -e "\n🧪 === E2E test : ${lb}Ingress <=> Service <=> Pod <=> container\n"
+    [[ $HALB ]] && lb='External LB <=> ' || unset lb
+    echo -e "\n🧪 === E2E test : Client <==> ${lb}Ingress <=> Service <=> Pod <=> Container\n"
     up || return 503
     type get
     [[ $HALB ]] && {

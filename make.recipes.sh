@@ -24,7 +24,7 @@ settings_inject(){
         |sed "s,K8S_VERSION,${K8S_VERSION/v/},g" \
         |sed "s,K8S_VERBOSITY,${K8S_VERBOSITY},g" \
         |sed "s,K8S_CLUSTER_NAME,${K8S_CLUSTER_NAME},g" \
-        |sed "s,K8S_INIT_NODE,${K8S_INIT_NODE},g" \
+        |sed "s,K8S_NODE_INIT,${K8S_NODE_INIT},g" \
         |sed "s,K8S_REGISTRY,${K8S_REGISTRY},g" \
         |sed "s,K8S_NETWORK_DEVICE,${K8S_NETWORK_DEVICE},g" \
         |sed "s,K8S_CONTROL_PLANE_IP,${K8S_CONTROL_PLANE_IP},g" \
@@ -109,14 +109,14 @@ halb(){
     popd
 }
 kubeconfig(){
-    [[ $K8S_INIT_NODE ]] || { echo 'ERR : K8S_INIT_NODE is UNSET'; return; }
-    ssh ${ADMIN_USER}@${K8S_INIT_NODE} '
+    [[ $K8S_NODE_INIT ]] || { echo 'ERR : K8S_NODE_INIT is UNSET'; return; }
+    ssh ${ADMIN_USER}@${K8S_NODE_INIT} '
       sudo cp -p /etc/kubernetes/*admin.conf .
       sudo chown $(id -u):$(id -g) *admin.conf
     '
     mkdir -p ~/.kube
 
-    scp -p $K8S_INIT_NODE:*admin.conf ~/.kube/ && {
+    scp -p $K8S_NODE_INIT:*admin.conf ~/.kube/ && {
 
         target=~/.kube/config
         [[ -f $target ]] &&
@@ -170,14 +170,18 @@ iperftest(){
 }
 
 prune(){
-    kubectl get pod -A -o wide |grep StatusUnk |awk '{print $1,$2}' |xargs -n2 /bin/bash -c '
-        [[ $2 ]] && kubectl -n $1 delete pod $2
-    ' _
-
-    kubectl get pod -A -o wide |grep Completed |awk '{print $1,$2}' |xargs -n2 /bin/bash -c '
-        [[ $2 ]] && kubectl -n $1 delete pod $2
-    ' _
-
+    echo -e "🚧 === Deleting problemed Pods across all Namespaces …"
+    for stat in StatusUnk Completed Error; do 
+        echo -e "\n🔧 Delete all Pods having STATUS: $stat"
+        kubectl get pod -A -o wide |grep '\b'$stat'\b' |awk '{print $1,$2}' |xargs -n2 /bin/bash -c '
+            [[ $2 ]] || {
+                echo "   There were none."
+                exit 0
+            }
+            kubectl -n $1 delete pod $2 ||
+                echo "⚠️ Something went wrong deleting Pod: $2 in Namespace: $1"
+        ' _
+    done
     return 0
 }
 
@@ -194,7 +198,29 @@ sudoer(){
             sudo systemctl daemon-reload
         '
 }
+rebootSoft(){
+    nodes="$@"
+    domain=${HALB_DOMAIN:-HALB_DOMAIN}
+    echo -e "🛠️ === Soft reboot of K8s nodes: $nodes : drain ➔  reboot ➔  uncordon"
+    for node in $nodes; do
+        nslookup $node.$domain >/dev/null 2>&1 || { echo "❌ : DNS does NOT RESOLVE '$node.$domain'"; break; }
+        echo -e "\n🔧 : '$node.$domain'"
+        
+        kubectl drain $node --ignore-daemonsets --delete-emptydir-data 
+        ssh -t $node sudo reboot
 
+        request="https://$node.$domain:6443/healthz"
+        echo -e "⌛ : Awaiting response from $request"
+        while true; do
+            echo -e "  $(date -Im) ..."
+            curl -fksIX GET --connect-timeout 30 $request >/dev/null 2>&1 &&
+                break
+        done
+
+        kubectl uncordon $node
+    done
+    echo -e "\n✅ : Done."
+}
 rootCA(){
     echo "  ℹ  Use recipe at windows-server project : make rootca"
     

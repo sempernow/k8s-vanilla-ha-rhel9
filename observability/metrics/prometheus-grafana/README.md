@@ -112,6 +112,8 @@ helm upgrade $release $repo/$chart \
 - __Success__!
     - Grafana
         - https://grafana.kube.lime.lan/dashboards
+            - __AuthN__: __`admin:prom-operator`__ (chart default)
+                - pass: `kubectl --namespace kube-metrics get secrets kps-grafana -o jsonpath="{.data.admin-password}" |base64 -d ; echo`
     - Prometheus
         - https://prometheus.kube.lime.lan/targets
  

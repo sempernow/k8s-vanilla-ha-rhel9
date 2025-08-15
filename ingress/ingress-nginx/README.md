@@ -3,16 +3,12 @@
 
 ## TL;DR
 
-Using manifest method on generated helm template because bug in `--set controller.proxySetHeaders` causes non-string mapping on direct install by `helm upgrade ...`. 
+~~Using manifest method on generated helm template because bug in `--set controller.proxySetHeaders` causes non-string mapping on direct install by `helm upgrade ...`. ~~
+
+Install by Chart method.
 
 See [`ingress-nginx.sh`](ingress-nginx.sh).
 
-```ini
-        --set controller.proxySetHeaders.use-proxy-protocol="true" \
-        --set controller.proxySetHeaders.enable-real-ip="true" \
-        --set controller.proxySetHeaders.forwarded-for-header=X-Forwarded-For \
-        --set controller.proxySetHeaders.proxy-real-ip-cidr="$proxy_real_ip_cidr"
-```
 
 ## `Ingress` : Rewrite ([`rewrite-target`](https://github.com/kubernetes/ingress-nginx/blob/main/docs/examples/rewrite/README.md "github.com/kubernetes/ingress-nginx")) Syntax
 
@@ -118,50 +114,6 @@ See [__`ingress-nginx.sh`__](ingress-nginx.sh)
 
 Install by __Helm__ chart :
 
-```bash
-v=4.12.3
-chart=ingress-nginx # Folder name on chart archive extract
-repo=https://kubernetes.github.io/$chart
-release=$chart
-ns=$release
-
-values=values.yaml
-template=helm.template.yaml
-manifest=helm.manifest.yaml
-
-http="${HALB_PORT_HTTP:-31080}"
-https="${HALB_PORT_HTTPS:-31443}"
-proxy_real_ip_cidr="${HALB_DOMAIN_CIDR}"
-tls=default-tls-cert
-cn=${K8S_FQDN:-example.local}
-crt=../tls/$cn/$cn.crt
-key=../tls/$cn/$cn.key
-
-# Add/Update repo
-helm repo add $chart $repo &&
-    helm repo update $chart ||
-        echo ERR on helm repo add/update : $repo
-
-# Install
-helm upgrade $release $chart \
-    $install \
-    --repo $repo \
-    --version $v \
-    --namespace $ns \
-    --create-namespace \
-    --set controller.kind=DaemonSet \
-    --set controller.allowSnippetAnnotations="true" \
-    --set controller.service.externalTrafficPolicy=Local \
-    --set controller.service.type=NodePort \
-    --set controller.service.nodePorts.http="$http" \
-    --set controller.service.nodePorts.https="$https" \
-    --set controller.extraArgs.default-ssl-certificate="$ns/$tls" \
-    --set controller.config.use-proxy-protocol="true" \
-    --set controller.config.enable-real-ip="true" \
-    --set controller.config.forwarded-for-header=X-Forwarded-For \
-    --set controller.config.proxy-real-ip-cidr="$proxy_real_ip_cidr"
-```
-
 | Setting                                                    | Purpose                                                                                       |
 | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `controller.kind=DaemonSet`                                | Ensures each node has a controller pod, needed for `NodePort` + `externalTrafficPolicy=Local` |
@@ -174,7 +126,8 @@ helm upgrade $release $chart \
 
 
 
-@ [__`ingress-nginx-baremetal-v1.12.0.yaml`__](ingress-nginx-baremetal-v1.12.0.yaml)
+__Needn't bother with__ @ [__`ingress-nginx-baremetal-v1.12.0.yaml`__](ingress-nginx-baremetal-v1.12.0.yaml). Use the chart method of [__`ingress-nginx.sh`__](ingress-nginx.sh)
+
 
 The Ingress-NGINX-Controller project uses the term "bare metal" as a synonym for on-prem. Use their "baremetal" configuration for on-prem clusters, 
 whether those hosts are "bare-metal" (physical sever) or on a hypervisor. Compare to the default by generating the manifest using "`helm template ...`". (See below.)
@@ -334,3 +287,85 @@ is configured to proxy both the control and data planes,
 providing a single, stable (HA) entrypoint to the (multi-node) cluster.
 
 ### &nbsp;
+
+## Metrics of Ingress NGINX
+
+Enable them. See [__`values.diff.yaml`__](values.diff.yaml).
+
+### Options to Expose the Metrics Service
+
+Quick test : Expose by `port-forward`ing the Service
+
+```bash
+☩ kubectl port-forward svc/ingress-nginx-controller-metrics -n ingress-nginx 8080:10254 &
+[1] 33329
+Forwarding from [::1]:8080 -> 10254
+
+☩ curl -fsSIX GET http://localhost:8080/healthz
+...
+HTTP/1.1 200 OK
+...
+```
+
+Better to __patch__ the metrics Service,
+`ingress-nginx-controller-metrics`,
+from `type: ClusterIP` __to `type: NodePort`__
+
+```bash
+kubectl patch svc ingress-nginx-controller-metrics -n ingress-nginx -p '{"spec":{"type":"NodePort"}}'
+
+☩ kubectl patch svc ingress-nginx-controller-metrics -n ingress-nginx -p '{"spec":{"type":"NodePort"}}'
+service/ingress-nginx-controller-metrics patched
+
+☩ k get svc
+NAME                                 TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE
+ingress-nginx-controller             NodePort    10.103.201.149   <none>        80:30080/TCP,443:30443/TCP   48m
+ingress-nginx-controller-admission   ClusterIP   10.103.122.51    <none>        443/TCP                      48m
+ingress-nginx-controller-metrics     NodePort    10.97.37.75      <none>        10254:31435/TCP              25m
+
+# Confirm
+NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+METRICS_PORT=$(kubectl get svc ingress-nginx-controller-metrics -n ingress-nginx -o jsonpath='{.spec.ports[0].nodePort}')
+curl http://$NODE_IP:$METRICS_PORT/healthz
+
+# Or simply
+☩ curl -fsS http://kube.lime.lan:31435/healthz
+ok
+```
+
+Better yet to leave as `type: ClusterIP` 
+and rather expose it using Ingress:
+
+@ `values.diff.yaml` : Add ...
+
+```yaml
+controller:
+  metrics:
+    service:
+      type: ClusterIP  # Keep as ClusterIP
+      
+  extraArgs:
+    metrics-port: "10254"
+
+  # Add ingress for metrics
+  extraResources:
+    - apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: nginx-metrics
+        annotations:
+          nginx.ingress.kubernetes.io/rewrite-target: /metrics
+      spec:
+        ingressClassName: nginx
+        rules:
+        - host: metrics.yourdomain.com
+          http:
+            paths:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: ingress-nginx-controller-metrics
+                  port:
+                    number: 10254
+```
