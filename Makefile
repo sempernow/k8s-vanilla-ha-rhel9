@@ -187,9 +187,11 @@ menu :
 	@echo "============== "
 	@echo "cilium       : Install Cilium"
 	@echo "calico       : Install Calico"
-	@echo "  -status    : calicoctl commands"
+	@echo "  -status    : kubectl get …"
+	@echo "  -teardown  : Teardown Calico"
+	@echo "calicoctl    : Reports of calicoctl via K8s plugin : kubectl calico …"
 	@echo "kuberouter   : Install Kube Router"
-	@echo "  -teardown  : Per-CNI teardown"
+	@echo "  -teardown  : Teardown Kuberoute"
 	@echo "============== "
 	@echo "join-control : Join all other control-plane nodes into cluster"
 	@echo "  -prep      : join-certs join-gen join-push"
@@ -555,7 +557,7 @@ calico-pull :
 	bash cni/calico/calico-pull.sh
 #calico : calico-operator
 calico : calico-manifest
-calicoctl calico-status :
+calicoctl :
 	ansibash sudo /usr/local/bin/calicoctl node status \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
 	kubectl calico get ippool \
@@ -570,6 +572,13 @@ calicoctl calico-status :
 	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
 	kubectl get tigerastatuses 2>/dev/null && kubectl get tigerastatuses \
 	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log || echo
+calico-restart :
+	kubectl -n kube-system rollout restart ds/calico-node
+	kubectl -n kube-system rollout status  ds/calico-node
+	kubectl -n kube-system rollout restart deploy/calico-kube-controllers
+	kubectl -n kube-system rollout status deploy/calico-kube-controllers
+calico-status :
+	@kubectl get pod,ds,deploy,cm -A |grep -e calico -e NAME |sed 's/NAMESPACE/\nNAMESPACE/'
 calico-manifest :
 	kubectl apply -f ${ADMIN_SRC_DIR}/cni/calico/manifest-method/${calico_manifest} \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.calico-manifest.${UTC}.log
