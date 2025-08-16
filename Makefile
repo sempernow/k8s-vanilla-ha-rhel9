@@ -54,7 +54,7 @@ export TLS_C  ?= US
 
 
 ##############################################################################
-## HAProxy/Keepalived : HA Application Load Balancer (HALB)
+## HAProxy/Keepalived : HA Network Load Balancer (HANLB)
 
 export HALB_DOMAIN       ?= lime.lan
 export HALB_FQDN         ?= kube.${HALB_DOMAIN}
