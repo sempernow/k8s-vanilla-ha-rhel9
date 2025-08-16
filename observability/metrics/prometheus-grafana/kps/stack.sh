@@ -38,29 +38,6 @@ install(){
     grep image: helm.template.yaml |sort -u |sed 's/^[[:space:]]*//g' |cut -d' ' -f2 |sed 's/"//g' >kps.images.log
 }
 
-ZZZaccess(){
-    helm status $RELEASE -n $NAMESPACE
-    echo === Grafana 
-    port=3000 # Host port
-    labels="app.kubernetes.io/name=grafana,app.kubernetes.io/instance=$RELEASE"
-    export pod=$(kubectl -n $NAMESPACE get pod -l "$labels" -o name)
-    pgrep kubectl || {
-       echo Expose : localhost:$port
-       /bin/bash -c '
-           kubectl -n $1 port-forward $2 $3
-       ' _ $NAMESPACE $pod $port >/dev/null 2>&1 &
-       sleep 1
-    }
-    curl --max-time 3 -sfIX GET http://localhost:$port/login | grep HTTP &&
-        echo Origin : http://localhost:$port &&
-            pass="$(
-                kubectl -n $NAMESPACE get secrets $RELEASE-grafana -o jsonpath="{.data.admin-password}" \
-                |base64 -d
-            )" &&
-                echo Login  : admin:$pass ||
-                    echo FAILed at GET http://localhost:$port
-}
-
 access(){
     _access(){
         ns=${NAMESPACE:-kube-metrics}

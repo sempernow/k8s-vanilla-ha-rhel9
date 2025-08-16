@@ -110,6 +110,15 @@ Respond to request of root (`/`) with redirect to app root `/a`. There is no int
 
 ## Deploy (DaemonSet) : Baremetal (On-prem) Configuration
 
+See "[Using a self-provisioned edge](https://kubernetes.github.io/ingress-nginx/deploy/baremetal/#using-a-self-provisioned-edge "Ingress NGINX Controller : Deployment : Bare-metal considerations")".
+
+The Ingress-NGINX-Controller project uses the term "bare metal" as a synonym for on-prem, whether those hosts are "bare-metal" (physical sever) or on a hypervisor. Compare to the default by generating the manifest using "`helm template ...`". 
+
+At the core of the on-prem Edge configuration is its Service, `ingress-nginx-controller`, configuration, which wires each service port (`http`, `https`) to a `nodePort` (`port`), 
+each an upstream target of the external (HA)LB pool of such.
+
+However, we needn't bother with the project's default baremmetal considerations configuration;  [__`ingress-nginx-baremetal-v1.12.0.yaml`__](ingress-nginx-baremetal-v1.12.0.yaml). __We have migrated past that on-prem Edge example__ to include its `NodePort` and such settings amongst other modifications of the chart's default `values.yaml` for our on-prem environments. Rather use the chart method of [__`ingress-nginx.sh`__](ingress-nginx.sh)
+
 See [__`ingress-nginx.sh`__](ingress-nginx.sh)
 
 Install by __Helm__ chart :
@@ -123,62 +132,6 @@ Install by __Helm__ chart :
 | `controller.config.forwarded-for-header=X-Forwarded-For`   | Ensures consistent header interpretation                                                      |
 | `controller.config.proxy-real-ip-cidr=$proxy_real_ip_cidr` | Crucial to trust only the HAProxy LB (e.g., `192.168.11.0/24`) as a legitimate PROXY sender   |
 
-
-
-
-__Needn't bother with__ @ [__`ingress-nginx-baremetal-v1.12.0.yaml`__](ingress-nginx-baremetal-v1.12.0.yaml). Use the chart method of [__`ingress-nginx.sh`__](ingress-nginx.sh)
-
-
-The Ingress-NGINX-Controller project uses the term "bare metal" as a synonym for on-prem. Use their "baremetal" configuration for on-prem clusters, 
-whether those hosts are "bare-metal" (physical sever) or on a hypervisor. Compare to the default by generating the manifest using "`helm template ...`". (See below.)
-
-```bash
-# https://github.com/kubernetes/ingress-nginx/releases
-v=1.11.3
-url=https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v$v/deploy/static/provider/baremetal/deploy.yaml
-manifest=ingress-nginx-baremetal.yaml
-curl -sSL -o $manifest $url
-
-kubectl apply -f $manifest
-```
-- This manifest is from project owners;
-  an edited version of that generated 
-  by a "`helm template ...`" statement.
-
-
-```bash
-# To use remote chart
-helm show values $repo/$chart |tee $values
-# Or
-helm show values $chart --repo $repo |tee $values
-vi $values # Edit to fit environment
-helm upgrade $release $chart \
-    --install \   
-    --repo $repo \
-    --values $values \
-    --namespace $release \
-    --create-namespace 
-
-# To use local chart
-helm pull $repo/$chart --version $v
-# Or
-helm pull $chart --repo $repo
-tar -xaf ${chart}-${v}.tgz
-cp $chart/$values .
-vi $values # Edit to fit environment
-helm upgrade $release $chart \
-    --install \
-    --values $values \  
-    --namespace $release \
-    --create-namespace 
-
-```
-- [`helm.template.ingress-nginx.4.12.0.yaml`](helm.template.ingress-nginx.4.12.0.yaml)
-
-The baremetal configuration Service `ingress-nginx-controller` 
-wires each service port (`http`, `https`) to a `nodePort` (`port`), 
-each an upstream target of the external (HA)LB pool of such.
-See [Using a self-provisioned edge](https://kubernetes.github.io/ingress-nginx/deploy/baremetal/#using-a-self-provisioned-edge "Ingress NGINX Controller : Deployment : Bare-metal considerations").
 
 ```yaml
 apiVersion: v1
@@ -205,11 +158,15 @@ spec:
   ...
 ```
 
-## [Configuration Options](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#configuration-options)
 
+## All [Configuration Options](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#configuration-options) of Ingress NGINX
+
+
+__For example__:
 
 Modify the `ConfigMap` (`cm.ingress-nginx-controller`) 
 of a release __to overwrite any parameter__.
+
 
 ```yaml
 ---
@@ -249,44 +206,8 @@ data:
 
 ```
 
-## E2E Test
+## E2E Test : [__`e2e/test-ingress.sh`__](e2e/test-ingress.sh)
 
-- [`ingress-nginx.sh`](ingress-nginx.sh)
-    - [`ingress-nginx-usage.yaml`](ingress-nginx-usage.yaml)
-
-
-```bash
-☩ bash ingress-nginx.sh e2e
-```
-
-Or
-
-```bash
-☩ k apply -f ingress-nginx-usage.yaml
-
-☩ k get node a1 -o wide
-NAME   STATUS   ROLES           AGE   VERSION   INTERNAL-IP      EXTERNAL-IP ...
-a1     Ready    control-plane   17h   v1.29.6   192.168.11.101   <none>      ...
-
-☩ kubectl -n ingress-nginx get svc ingress-nginx-controller
-NAME                       TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)                     
-ingress-nginx-controller   NodePort   10.37.30.17   <none>        80:30409/TCP,443:32390/TCP
-
-☩ curl http://192.168.11.101:30409/foo/hostname
-foo
-```
-- HTTP @ `30409`
-- HTTPS @ `32390`
-
-We would declare these if connecting to an external (HA) load balancer (LB).
-Those service ports of this Ingress controller would be 
-the cluster's data-plane upstreams proxied by that HA LB. 
-
-Typically, a single external loadbalancer (HA LB) 
-is configured to proxy both the control and data planes, 
-providing a single, stable (HA) entrypoint to the (multi-node) cluster.
-
-### &nbsp;
 
 ## Metrics of Ingress NGINX
 
@@ -369,3 +290,117 @@ controller:
                   port:
                     number: 10254
 ```
+
+## [Monitoring](https://kubernetes.github.io/ingress-nginx/user-guide/monitoring/) : Prometheus/Grafana
+
+
+To enable the Prometheus metrics interface in the `ingress-nginx` Helm chart, several key configurations in the `values.yaml` file need to be modified. Here’s a breakdown of the changes required:
+
+---
+
+### **1. Enable Metrics in the Controller**
+The primary setting to enable Prometheus metrics is:
+```yaml
+controller:
+  metrics:
+    enabled: true  # Must be set to true
+```
+This exposes the metrics endpoint on port `10254` by default .
+
+---
+
+### **2. Configure the Metrics Service**
+To create a dedicated `ClusterIP` service for metrics:
+```yaml
+controller:
+  metrics:
+    service:
+      enabled: true  # Creates a Service for metrics
+      type: ClusterIP  # Default; change to NodePort/LoadBalancer for external access
+      port: 10254      # Metrics port
+```
+This service allows Prometheus to scrape the metrics internally .
+
+---
+
+### **3. Add Pod Annotations (Optional)**
+For Prometheus to auto-discover the metrics endpoint via pod annotations:
+```yaml
+controller:
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "10254"
+```
+This is useful if Prometheus is configured to scrape pods with these annotations .
+
+---
+
+### **4. Enable ServiceMonitor (For Prometheus Operator)**
+If using `kube-prometheus-stack`, enable the `ServiceMonitor`:
+```yaml
+controller:
+  metrics:
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: PROMETHEUS_OPERATOR_RELEASE    # Match Prometheus Operator's selector
+      namespace: PROMETHEUS_OPERATOR_NAMESPACE  # Match Prometheus namespace
+
+
+```
+This automatically creates a `ServiceMonitor` resource for Prometheus to scrape metrics .
+
+---
+
+### **5. Adjust Metrics Port (Optional)**
+To change the default metrics port (e.g., to `9113`):
+```yaml
+controller:
+  extraArgs:
+    metrics-port: "9113"  # Overrides default 10254
+  metrics:
+    port: 9113            # Update service port accordingly
+```
+This aligns with some configurations where Prometheus expects metrics on port `9113` .
+
+---
+
+### **6. Enable Latency Metrics (Optional)**
+For upstream latency metrics:
+```yaml
+controller:
+  extraArgs:
+    enable-latency-metrics: "true"
+```
+This adds metrics like `controller_upstream_server_response_latency_ms_count` .
+
+---
+
+### **Summary of Key Changes**
+| Parameter | Purpose | Default | Required? |
+|-----------|---------|---------|-----------|
+| `controller.metrics.enabled` | Enable metrics endpoint | `false` | Yes |
+| `controller.metrics.service.enabled` | Create metrics `Service` | `false` | Yes |
+| `controller.metrics.serviceMonitor.enabled` | Create `ServiceMonitor` | `false` | If using Prometheus Operator |
+| `controller.podAnnotations` | Auto-discovery by Prometheus | None | Optional |
+| `controller.extraArgs.metrics-port` | Custom metrics port | `10254` | Optional |
+
+---
+
+### **Verification**
+After applying these changes:
+1. Check the metrics service:
+   ```bash
+   kubectl get svc -n ingress-nginx | grep metrics
+   ```
+2. Test the endpoint:
+   ```bash
+   kubectl port-forward svc/ingress-nginx-controller-metrics -n ingress-nginx 10254:10254
+   curl http://localhost:10254/metrics
+   ```
+3. For Prometheus Operator, verify the `ServiceMonitor`:
+   ```bash
+   kubectl get servicemonitor -n ingress-nginx
+   ```
+
+For further customization (e.g., TLS for metrics), refer to the [official docs](https://kubernetes.github.io/ingress-nginx/user-guide/monitoring/) .

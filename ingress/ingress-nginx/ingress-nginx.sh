@@ -13,7 +13,7 @@ localrepo=$chart
 release=$chart
 ns=$release
 
-values=values.diff.yaml
+values=values.diff.yaml # Generate using func: values(){..}.
 template=helm.template.yaml
 manifest=helm.manifest.yaml
 
@@ -25,7 +25,10 @@ cn=${K8S_FQDN:-example.local}
 crt=../tls/$cn/$cn.crt
 key=../tls/$cn/$cn.key
 
-# Add/Update repo
+prometheus_operator_release="$(helm list -A |grep prometheus |cut -f1)"
+prometheus_operator_namespace="$(helm list -A |grep prometheus |cut -f2)"
+
+## Add/Update repo
 repo(){
     helm repo add $chart $repo &&
     helm repo update $chart ||
@@ -34,18 +37,6 @@ repo(){
 pull(){
     repo 
     helm pull $chart/$chart --version $v
-}
-values(){
-    # Generate the values file (diff) from its template
-    cat $values.tpl \
-        |sed "s/HALB_PORT_HTTPS/$HALB_PORT_HTTPS/" \
-        |sed "s/HALB_PORT_HTTP/$HALB_PORT_HTTP/" \
-        |sed "s/NAMESPACE/$ns/" \
-        |sed "s/DEFAULT_SSL_CERTIFICATE/$tls/" \
-        |sed "s,HALB_DOMAIN_CIDR,$HALB_DOMAIN_CIDR," \
-        |tee $values
-    
-    [[ -f $values ]] || return 1
 }
 secret(){
     ## Use for manifest method (upManifest) only. 
@@ -65,19 +56,40 @@ parse(){
         |openssl x509 -noout -subject -issuer -startdate -enddate -serial -ext "$x509v3" 
 }
 
+values(){
+    ## This function generates the values override (diff) file from its template.
+    ## Template needs only those keys that differ from chart's default (values.yaml).
+    cat $values.tpl \
+        |sed "s/HALB_PORT_HTTPS/$HALB_PORT_HTTPS/" \
+        |sed "s/HALB_PORT_HTTP/$HALB_PORT_HTTP/" \
+        |sed "s/INGRESS_NGINX_NAMESPACE/$ns/" \
+        |sed "s/DEFAULT_SSL_CERTIFICATE/$tls/" \
+        |sed "s,HALB_DOMAIN_CIDR,$HALB_DOMAIN_CIDR," \
+        |sed "s,PROMETHEUS_OPERATOR_RELEASE,${prometheus_operator_release:-DNE}," \
+        |sed "s,PROMETHEUS_OPERATOR_NAMESPACE,${prometheus_operator_namespace:-DNE}," \
+        |tee $values
+    
+    [[ -f $values ]] || return 1
+}
 helmAction(){
     ## ARGs: template|upgrade|install
     [[ $1 ]] || return 1
     [[ -f $values ]] || return 2
-    [[ $1 == 'upgrade' ]] && install='--install'
-    helm $1 $release $chart \
+    
+    command=$1
+    [[ $command == 'upgrade' ]] && install='--install'
+
+    helm $command $release $chart \
         $install \
         --repo $repo \
         --version $v \
         --namespace $ns \
         --create-namespace \
         --values $values
-
+        
+        #######################################
+        ## Else by --set instead of --values :
+        #######################################
         # --set controller.kind=DaemonSet \
         # --set controller.allowSnippetAnnotations="true" \
         # --set controller.service.externalTrafficPolicy=Local \
@@ -89,24 +101,6 @@ helmAction(){
         # --set controller.config.enable-real-ip="true" \
         # --set controller.config.forwarded-for-header=X-Forwarded-For \
         # --set controller.config.proxy-real-ip-cidr="$proxy_real_ip_cidr"
-
-
-    # --set controller.proxySetHeaders.use-proxy-protocol="true" \
-    # --set controller.proxySetHeaders.enable-real-ip="true" \
-    # --set controller.proxySetHeaders.forwarded-for-header=X-Forwarded-For \
-    # --set controller.proxySetHeaders.proxy-real-ip-cidr="$proxy_real_ip_cidr"
-
-    ## BUG @ proxySetHeaders : ConfigMap requires string values, yet ...
-    ## Want:
-    # enable-real-ip: "true"
-    # forwarded-for-header: X-Forwarded-For
-    # proxy-real-ip-cidr: 192.168.11.0/24
-    # use-proxy-protocol: "true"
-    ## Got:
-    # enable-real-ip: true
-    # forwarded-for-header: X-Forwarded-For
-    # proxy-real-ip-cidr: 192.168.11.0/24
-    # use-proxy-protocol: true
 }
 template(){
     helmAction template |tee $template
@@ -122,14 +116,14 @@ diff(){
         echo 🔍  kind: $kind
         command diff <(yq .$kind $template) <(yq .$kind $manifest) \
             |grep -v -- '---' \
-            |grep -v 'null'
+            |grep -v '\bnull\b'
     done
 }
 upChart(){
     helmAction upgrade
 }
 upManifest(){
-    ## Manifest *method* of deployment uses helm-generated *template*.
+    ## Manifest *method* of deployment uses a helm-generated *template*.
     secret && kubectl -n $ns apply -f $template
 }
 get(){

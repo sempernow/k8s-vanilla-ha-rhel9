@@ -31,7 +31,6 @@ metadata:
   namespace: ingress-nginx
 data:
   allow-snippet-annotations: "true"
-  enable-real-ip: "true"
   forwarded-for-header: "X-Forwarded-For"
   proxy-real-ip-cidr: "192.168.11.0/24"
   use-proxy-protocol: "true"
@@ -258,6 +257,32 @@ subjects:
     name: ingress-nginx
     namespace: ingress-nginx
 ---
+# Source: ingress-nginx/templates/controller-service-metrics.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.12.3
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/version: "1.12.3"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: ingress-nginx-controller-metrics
+  namespace: ingress-nginx
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 10254
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/component: controller
+---
 # Source: ingress-nginx/templates/controller-service-webhook.yaml
 apiVersion: v1
 kind: Service
@@ -347,6 +372,9 @@ spec:
   minReadySeconds: 0
   template:
     metadata:
+      annotations:
+        prometheus.io/port: "10254"
+        prometheus.io/scrape: "true"
       labels:
         helm.sh/chart: ingress-nginx-4.12.3
         app.kubernetes.io/name: ingress-nginx
@@ -376,6 +404,7 @@ spec:
             - --validating-webhook=:8443
             - --validating-webhook-certificate=/usr/local/certificates/cert
             - --validating-webhook-key=/usr/local/certificates/key
+            - --enable-metrics=true
             - --default-ssl-certificate=ingress-nginx/default-tls-cert
           securityContext: 
             runAsNonRoot: true
@@ -428,6 +457,9 @@ spec:
             - name: https
               containerPort: 443
               protocol: TCP
+            - name: metrics
+              containerPort: 10254
+              protocol: TCP
             - name: webhook
               containerPort: 8443
               protocol: TCP
@@ -467,6 +499,92 @@ spec:
 # Source: ingress-nginx/templates/controller-poddisruptionbudget.yaml
 # PDB is not supported for DaemonSets.
 # https://github.com/kubernetes/kubernetes/issues/108124
+---
+# Source: ingress-nginx/templates/controller-prometheusrule.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+  labels:
+    helm.sh/chart: ingress-nginx-4.12.3
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/version: "1.12.3"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+    release: kps
+spec:
+  groups:
+  - name: ingress-nginx
+    rules:
+    - alert: NginxIngressDown
+      expr: nginx_ingress_controller_nginx_process_requests_total == 0
+      for: 5m
+    - alert: NGINXConfigFailed
+      annotations:
+        description: bad ingress config - nginx config test failed
+        summary: uninstall the latest ingress changes to allow config reloads to resume
+      expr: count(nginx_ingress_controller_config_last_reload_successful == 0) > 0
+      for: 1s
+      labels:
+        severity: critical
+    - alert: NGINXCertificateExpiry
+      annotations:
+        description: ssl certificate(s) will expire in less then a week
+        summary: renew expiring certificates to avoid downtime
+      expr: (avg(nginx_ingress_controller_ssl_expire_time_seconds{host!="_"}) by (host)
+        - time()) < 604800
+      for: 1s
+      labels:
+        severity: critical
+    - alert: NGINXTooMany500s
+      annotations:
+        description: Too many 5XXs
+        summary: More than 5% of all requests returned 5XX, this requires your attention
+      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"5.+"} ) / sum(nginx_ingress_controller_requests)
+        ) > 5
+      for: 1m
+      labels:
+        severity: warning
+    - alert: NGINXTooMany400s
+      annotations:
+        description: Too many 4XXs
+        summary: More than 5% of all requests returned 4XX, this requires your attention
+      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"4.+"} ) / sum(nginx_ingress_controller_requests)
+        ) > 5
+      for: 1m
+      labels:
+        severity: warning
+---
+# Source: ingress-nginx/templates/controller-servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ingress-nginx-controller
+  namespace: kube-metrics
+  labels:
+    helm.sh/chart: ingress-nginx-4.12.3
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/version: "1.12.3"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+    release: kps
+spec:
+  namespaceSelector:
+    matchNames:
+    - ingress-nginx
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+      app.kubernetes.io/instance: ingress-nginx
+      app.kubernetes.io/component: controller
+  endpoints:
+  - port: metrics
+    interval: 30s
 ---
 # Source: ingress-nginx/templates/admission-webhooks/validating-webhook.yaml
 # before changing this value, check the required kubernetes version

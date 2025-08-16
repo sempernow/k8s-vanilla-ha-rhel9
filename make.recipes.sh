@@ -54,6 +54,7 @@ settings_purge(){
 	EOH
 }
 halb(){
+    echo "ℹ️ This method is DEPRICATED : Use project github.com/sempernow/halb"
     # Function halb generates the configuration for a 2-node 
     # Highly Available Load Balancer (HALB) built of HAProxy and Keepalived.
     # Configuration files, haproxy.cfg (LB) and keepalived-*.conf (HA; node failover),
@@ -134,7 +135,7 @@ kubeconfig(){
 
 }
 iperftest(){
-    echo '⚠️  DEPRICATED : Run `make iperf`'
+    echo 'ℹ️ This method is DEPRICATED : Run `make iperf`'
     return 0
 
     ns=default
@@ -222,8 +223,8 @@ rebootSoft(){
     echo -e "\n✅ : Done."
 }
 rootCA(){
-    echo "  ℹ  Use recipe at windows-server project : make rootca"
-    
+    echo "ℹ️ This method is DEPRICATED : Use project github.com/sempernow/window-server"
+   
     return 0
     
     ## Below is 2025-08-09 copy/mod of same func at windows-server project 

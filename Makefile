@@ -55,6 +55,7 @@ export TLS_C  ?= US
 
 ##############################################################################
 ## HAProxy/Keepalived : HA Network Load Balancer (HANLB)
+## (See project at github.com/sempernow/halb)
 
 export HALB_DOMAIN       ?= lime.lan
 export HALB_FQDN         ?= kube.${HALB_DOMAIN}
@@ -144,6 +145,7 @@ export ANSIBASH_TARGET_LIST  ?= ${ADMIN_TARGET_LIST}
 export ANSIBASH_USER         ?= ${ADMIN_USER}
 export ADMIN_FW_LOG_SINCE    ?= 5 minute ago
 
+
 ##############################################################################
 ## Recipes : Meta
 
@@ -162,6 +164,7 @@ menu :
 	@echo "  -cni       : Install K8s CNI Pod network providers"
 	@echo "  -cri       : Install K8s CRI and all deps, and tools"
 	@echo "  -k8s       : Install K8s and CNI plugins"
+	@echo "rootca       : Create PKI for a Root CA"
 	@echo "============== "
 	@echo "fw           : Configure Linux firewall for the Kubernetes cluster"
 	@echo "  -k8s       : Configure firewalld and NetworkManager for K8s control and worker nodes"
@@ -217,18 +220,18 @@ menu :
 	@echo "prune        : Delete all problemed Pods of certain Status values"
 	@echo "dump         : kubectl cluster-info dump |grep -i error"
 	@echo "etcd         : Certain endpoints"
-	@echo "journal      : Recent kubelet logs ... --since='${ADMIN_FW_LOG_SINCE}'"
+	@echo "journal      : Recent kubelet logs … --since='${ADMIN_FW_LOG_SINCE}'"
 	@echo "============== "
-	@echo "rootca       : Create PKI for a Root CA"
 	@echo "ingress-nginx: Ingress NGINX Controller"
+	@echo "  -status    : kubectl get "
 	@echo "  -up        : Install"
 	@echo "  -secret    : Create K8s Secret for default TLS certificate"
-	@echo "  -parse     : Parse the TLS certificate of K8s Secret"
+	@echo "    -parse   : Parse the TLS certificate of K8s Secret"
 	@echo "  -down      : Teardown"
 	@echo "  -e2e       : End-to-end HTTP  test : curl -s http://\$$host:\$$nodePort/{foo,bar}/hostname"
 	@echo "  -e2e-tls   : End-to-end HTTPS test : curl -s https://e2e.${K8S_FQDN}/{foo,bar}/hostname"
 	@echo "============== "
-	@echo "metrics      : Install metrics-server, enabling: kubectl top ..."
+	@echo "metrics      : Install metrics-server, enabling: kubectl top …"
 	@echo "dashboard    : Install K8s Dashboard : Web UI for K8s API"
 	@echo "trivy        : Install Trivy Operator by Helm"
 	@echo "============== "
@@ -299,18 +302,15 @@ scan :
 #	sudo arp-scan --interface ${HALB_DEVICE} --localnet \
 #	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.scan.arp-scan.${UTC}.log
 
-rootca-create :
-	bash make.recipes.sh rootCA
-
-# Smoke test this setup
 status hello :
 	@ansibash 'printf "%12s: %s\n" Host $$(hostname) \
 	    && printf "%12s: %s\n" User $$(id -un) \
-	    && printf "%12s: %s\n" Kernel $$(uname -r) \
 	    && printf "%12s: %s\n" firewalld $$(systemctl is-active firewalld.service) \
 	    && printf "%12s: %s\n" SELinux $$(getenforce) \
 	    && printf "%12s: %s\n" containerd $$(systemctl is-active containerd) \
 	    && printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
+	    && printf "%12s: %s\n" Kernel $$(uname -r) \
+	    && printf "%12s:%s\n" uptime "$$(uptime)" \
 	'
 sealert :
 	ansibash 'sudo sealert -l "*" |grep -e == -e "Source Path" -e "Last Seen" |grep -v 2024 |grep -B1 -e == -e "Last Seen"'
@@ -346,7 +346,9 @@ upgrade :
 	ansibash 'sudo dnf -y --color=never upgrade || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.upgrade.${UTC}.log
 
-## Host config
+rootca :
+	bash make.recipes.sh rootCA
+
 conf-sudoer :
 	bash make.recipes.sh sudoer \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-sudoer.${UTC}.log
@@ -365,7 +367,6 @@ conf-swap :
 	ansibash 'sudo bash configure-swap.sh || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.conf-swap.${UTC}.log
 
-## Installs
 install installs : install-rpms install-cni install-cri install-k8s
 install-rpms:
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/install-rpms.sh
@@ -383,8 +384,6 @@ install-k8s :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/install-k8s.sh
 	ansibash 'sudo bash install-k8s.sh ${K8S_VERSION} ${K8S_REGISTRY} || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.install-k8s.${UTC}.log
-
-## firewalld
 
 fw : fw-k8s fw-calico
 fw-k8s : fw-k8s-external fw-k8s-internal
@@ -428,8 +427,6 @@ fw-zone fw-zones :
 fw-log fw-logs :
 	ansibash "sudo journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP;echo All recent DROP logs from \'${ADMIN_FW_LOG_SINCE}\' until $$(date -Is)" \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-stat.log
-
-## K8s cluster creation
 
 init-imperative :
 	ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} \
@@ -475,10 +472,10 @@ init-pre :
 	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-pre.${UTC}.log
 init-now :
 	ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} \
-	  sudo kubeadm init -v${K8S_VERBOSITY} \
-	      --upload-certs \
-	      --config ${K8S_KUBEADM_CONF_INIT} \
-	      |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-now.${UTC}.log
+	    sudo kubeadm init -v${K8S_VERBOSITY} \
+	        --upload-certs \
+	        --config ${K8S_KUBEADM_CONF_INIT} \
+	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-now.${UTC}.log
 
 static-stop :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/static-rotate.sh
@@ -600,10 +597,8 @@ kubeproxy-cleanup :
 	ansibash sudo bash kube-proxy-cleanup.sh
 kubeproxy-restore :
 	kubectl patch ds -n kube-system kube-proxy \
-    --type=json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
-
-
-## Recipes : K8s Status
+	    --type=json \
+	    -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
 
 healthz :
 	curl -fksIX GET https://${K8S_ENDPOINT}/healthz |grep HTTP || echo "ERR : $$?"
@@ -614,8 +609,12 @@ iperf :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/iperf3/k8s-iperf.sh ${port} || echo
 watch :
 	kubectl get pod -A -o wide -w
-nodes :
-	type yq && kubectl get node -o yaml |yq '.[][].status.conditions[] |select(.status == "True")' || echo REQUIREs yq
+nodes node no :
+	@kubectl get node && echo
+	@type yq >/dev/null 2>&1 \
+	    && kubectl get node -o yaml \
+	        |yq '.items[]? | [{"name": .metadata.name, "trueConditions": (.status.conditions[] | select(.status == "True")), "nodeInfo": .status.nodeInfo}]' \
+	            || echo REQUIREs yq
 psk :
 	ansibash psk
 crictl : crictl-images crictl-ps crictl-pods
@@ -642,30 +641,40 @@ etcd :
 	ansibash 'sudo bash etcd.sh status || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.${UTC}.log
 
+metrics metrics-up :
+	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh apply
+metrics-down:
+	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh delete
+dashboard :
+	bash ${ADMIN_SRC_DIR}/observability/metrics/dashboard/dashboard.sh
+
+# k apply -f observability/metrics/dashboard/recommended.yaml
+# k -n kubernetes-dashboard create token kubernetes-dashboard
+# printf "\n  %s\n" Access @ http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
+# k proxy
+
 ingress := ingress/ingress-nginx/ingress-nginx.sh
 ## Unset HALB unless the Ingress is configured for it.
 export HALB ?= yes
-rootca :
-	bash make.recipes.sh rootCA
-#@echo "  ℹ  See project: windows-server : make rootca"
-
-ingress-nginx ingress-nginx-up : ingress-nginx-values ingress-nginx-secret
+ingress-nginx :
+	@echo "  Recipes for ingress-nginx-* : up down get values secret secret-parse template manifest diff e2e e2e-tls"
+ingress-nginx-up : ingress-nginx-values ingress-nginx-secret
 #	bash ${ADMIN_SRC_DIR}/${ingress} upManifest
 	bash ${ADMIN_SRC_DIR}/${ingress} upChart
+ingress-nginx-get ingress-nginx-status :
+	bash ${ADMIN_SRC_DIR}/${ingress} get
 ingress-nginx-values :
 	bash ${ADMIN_SRC_DIR}/${ingress} values
 ingress-nginx-secret :
 	bash ${ADMIN_SRC_DIR}/${ingress} secret
-ingress-nginx-parse ingress-nginx-secret-parse :
+ingress-nginx-secret-parse ingress-nginx-parse :
 	bash ${ADMIN_SRC_DIR}/${ingress} parse
+ingress-nginx-diff :
+	bash ${ADMIN_SRC_DIR}/${ingress} diff
 ingress-nginx-template :
 	bash ${ADMIN_SRC_DIR}/${ingress} template
 ingress-nginx-manifest :
 	bash ${ADMIN_SRC_DIR}/${ingress} manifest
-ingress-nginx-diff :
-	bash ${ADMIN_SRC_DIR}/${ingress} diff
-ingress-nginx-get :
-	bash ${ADMIN_SRC_DIR}/${ingress} get
 ingress-nginx-e2e :
 	bash ${ADMIN_SRC_DIR}/ingress/ingress-nginx/e2e/test-ingress.sh e2e http https || echo ERR $$?
 ingress-nginx-e2e-tls :
@@ -675,27 +684,12 @@ ingress-nginx-e2e-down ingress-nginx-e2e-tls-down ingress-nginx-e2e-teardown :
 ingress-nginx-down ingress-nginx-teardown :
 	bash ${ADMIN_SRC_DIR}/${ingress} teardown
 
-metrics metrics-up :
-	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh apply
-metrics-down:
-	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh delete
-dashboard :
-	bash ${ADMIN_SRC_DIR}/observability/metrics/dashboard/dashboard.sh
-
-iperftest :
-	bash make.recipes.sh iperftest
-
-# k apply -f observability/metrics/dashboard/recommended.yaml
-# k -n kubernetes-dashboard create token kubernetes-dashboard
-# printf "\n  %s\n" Access @ http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
-# k proxy
-
 trivy :
 	bash ${ADMIN_SRC_DIR}/security/trivy/trivy-operator-install.sh
 
 csi-nfs :
 	pushd csi/nfs/nfs-subdir-external-provisioner \
-	  && bash nfs-subdir-provisioner.sh
+	    && bash nfs-subdir-provisioner.sh
 csi-local :
 	bash ${ADMIN_SRC_DIR}/csi/local-path-provisioner/local-path-provisioner.sh
 csi-rook-up :
@@ -730,7 +724,9 @@ prom-install prom-apply :
 prom-access :
 	bash ${ADMIN_SRC_DIR}/${kps} access
 prom-delete prom-uninstall:
-	pkill kubectl || echo Has no port-forward
+	pkill kubectl \
+	    && echo "ℹ️ : Killing all kubectl processes" \
+	    || echo "ℹ️ : No kubectl processes were running"
 	bash ${ADMIN_SRC_DIR}/${kps} delete
 
 #teardown : calico-teardown cilium-teardown kuberouter-teardown
