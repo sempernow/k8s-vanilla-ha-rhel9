@@ -294,11 +294,13 @@ controller:
 ## [Monitoring](https://kubernetes.github.io/ingress-nginx/user-guide/monitoring/) : Prometheus/Grafana
 
 
+### Mods to `values.diff.yaml`
+
 To enable the Prometheus metrics interface in the `ingress-nginx` Helm chart, several key configurations in the `values.yaml` file need to be modified. Here’s a breakdown of the changes required:
 
 ---
 
-### **1. Enable Metrics in the Controller**
+#### **1. Enable Metrics in the Controller**
 The primary setting to enable Prometheus metrics is:
 ```yaml
 controller:
@@ -309,7 +311,7 @@ This exposes the metrics endpoint on port `10254` by default .
 
 ---
 
-### **2. Configure the Metrics Service**
+#### **2. Configure the Metrics Service**
 To create a dedicated `ClusterIP` service for metrics:
 ```yaml
 controller:
@@ -323,7 +325,7 @@ This service allows Prometheus to scrape the metrics internally .
 
 ---
 
-### **3. Add Pod Annotations (Optional)**
+#### **3. Add Pod Annotations (Optional)**
 For Prometheus to auto-discover the metrics endpoint via pod annotations:
 ```yaml
 controller:
@@ -335,7 +337,7 @@ This is useful if Prometheus is configured to scrape pods with these annotations
 
 ---
 
-### **4. Enable ServiceMonitor (For Prometheus Operator)**
+#### **4. Enable ServiceMonitor (For Prometheus Operator)**
 If using `kube-prometheus-stack`, enable the `ServiceMonitor`:
 ```yaml
 controller:
@@ -352,7 +354,7 @@ This automatically creates a `ServiceMonitor` resource for Prometheus to scrape 
 
 ---
 
-### **5. Adjust Metrics Port (Optional)**
+#### **5. Adjust Metrics Port (Optional)**
 To change the default metrics port (e.g., to `9113`):
 ```yaml
 controller:
@@ -365,7 +367,10 @@ This aligns with some configurations where Prometheus expects metrics on port `9
 
 ---
 
-### **6. Enable Latency Metrics (Optional)**
+#### ~~**6. Enable Latency Metrics (Optional)**~~ 
+
+__OBSOLETE : Handled automatically__
+
 For upstream latency metrics:
 ```yaml
 controller:
@@ -376,7 +381,7 @@ This adds metrics like `controller_upstream_server_response_latency_ms_count` .
 
 ---
 
-### **Summary of Key Changes**
+#### **Summary of Key Changes**
 | Parameter | Purpose | Default | Required? |
 |-----------|---------|---------|-----------|
 | `controller.metrics.enabled` | Enable metrics endpoint | `false` | Yes |
@@ -387,7 +392,7 @@ This adds metrics like `controller_upstream_server_response_latency_ms_count` .
 
 ---
 
-### **Verification**
+#### **Verification**
 After applying these changes:
 1. Check the metrics service:
    ```bash
@@ -403,4 +408,40 @@ After applying these changes:
    kubectl get servicemonitor -n ingress-nginx
    ```
 
-For further customization (e.g., TLS for metrics), refer to the [official docs](https://kubernetes.github.io/ingress-nginx/user-guide/monitoring/) .
+
+### [Ingress NGINX : Grafana Dashboard ](https://github.com/kubernetes/ingress-nginx/tree/main/deploy/grafana/dashboards)
+
+#### [Grafana : __Import `ingress-nginx` Dashboard__
+
+Instructions at [Ingress NGINX](https://kubernetes.github.io/ingress-nginx/user-guide/monitoring/#connect-and-view-grafana-dashboard) are __obsolete__.
+
+-Download the Ingress NGINX project's Dashboard JSON (__`nginx.json`__) from one of:
+    - https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/grafana/dashboards/nginx.json
+    - https://github.com/kubernetes/ingress-nginx/tree/main/deploy/grafana/dashboards
+- Click on "Dashboards" (Left-side panel)
+    - Click "New" button
+        - Select "Import" 
+            - Import the JSON (by file upload, or string paste)
+            - Enter the Grafana.com dashboard ID (9614)
+- Configure the Data Source:
+    - After importing, Grafana prompts to select a __Prometheus data source__
+        - Select same data source we're using for Ingress-Nginx metrics
+            - Typically "__Prometheus__"
+    - Click "Import"
+
+
+To add a data source:
+
+1. Select "Data Sources" from Grafana menu (Left-side pane)
+2. Click "__+ Add new data source__" button
+3. Select __prometheus-1__ and enter at form input:
+    - Connection: http://10.111.170.42:9090  
+    That IP address and port are that Prometheus' `Service` : 
+    ```bash
+    svc=kps-kube-prometheus-stack-prometheus
+    kubectl -n kube-metrics get svc $svc -o yaml \
+        |yq '.spec | {
+            "ip": .clusterIP,
+            "port": (.ports[] | select(.name == "http-web").port)
+        }'
+    ```
