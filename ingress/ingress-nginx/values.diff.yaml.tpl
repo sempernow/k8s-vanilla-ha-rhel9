@@ -9,7 +9,7 @@ controller:
   config:
     use-proxy-protocol: true
     forwarded-for-header: "X-Forwarded-For"
-    proxy-real-ip-cidr: "HALB_DOMAIN_CIDR"
+    proxy-real-ip-cidr: "$HALB_DOMAIN_CIDR"
   # -- This configuration defines if Ingress Controller should allow users to set
   # their own *-snippet annotations, otherwise this is forbidden / dropped
   # when users add those annotations.
@@ -18,7 +18,7 @@ controller:
   # -- Additional command line arguments to pass to Ingress-Nginx Controller
   # E.g. to specify the default SSL certificate you can use
   extraArgs:
-    default-ssl-certificate: "INGRESS_NGINX_NAMESPACE/DEFAULT_SSL_CERTIFICATE"
+    default-ssl-certificate: "$INGRESS_NGINX_NAMESPACE/$DEFAULT_SSL_CERTIFICATE"
   # -- Use a `DaemonSet` or `Deployment`
   kind: DaemonSet # ds for 3-node cluster; want at least 2 instances and not on same node.
   podAnnotations:
@@ -33,9 +33,9 @@ controller:
     type: NodePort
     nodePorts:
       # -- Node port allocated for the external HTTP listener. If left empty, the service controller allocates one from the configured node port range.
-      http: "HALB_PORT_HTTP"
+      http: "$HALB_PORT_HTTP"
       # -- Node port allocated for the external HTTPS listener. If left empty, the service controller allocates one from the configured node port range.
-      https: "HALB_PORT_HTTPS"
+      https: "$HALB_PORT_HTTPS"
   metrics:
     port: 10254
     portName: metrics
@@ -49,13 +49,13 @@ controller:
     serviceMonitor:
       enabled: true
       additionalLabels:
-        release: PROMETHEUS_OPERATOR_RELEASE    # Match Prometheus Operator's selector
-      namespace: PROMETHEUS_OPERATOR_NAMESPACE  # Match Prometheus namespace
+        release: $PROMETHEUS_OPERATOR_RELEASE    # Match Prometheus Operator's selector
+      namespace: $PROMETHEUS_OPERATOR_NAMESPACE  # Match Prometheus namespace
 
     prometheusRule:
       enabled: true # Deploys alert rules
       additionalLabels:
-        release: PROMETHEUS_OPERATOR_RELEASE  # Must match Prometheus Operator's selector
+        release: $PROMETHEUS_OPERATOR_RELEASE  # Must match Prometheus Operator's selector
       rules:  # Customize defaults (optional)
         ## **Examples**
         - alert: NginxIngressDown

@@ -206,7 +206,8 @@ menu :
 	@echo "join-command : Print join command for control-plane node : same cert key/hash; new token"
 	@echo "join-token   : kubeadm token list"
 	@echo "============== "
-	@echo "healthz      : K8s API smoke test (at unprotected endpoint) : GET /healthz?verbose"
+	@echo "healthz      : GET /healthz?verbose"
+	@echo "version      : GET /version"
 	@echo "iperf        : Bandwidth tests of the Cluster (Pod) Network"
 	@echo "watch        : kubectl get pods -A -o wide -w"
 	@echo "psk          : ps of K8s processes"
@@ -601,9 +602,15 @@ kubeproxy-restore :
 	    -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
 
 healthz :
-	curl -fksIX GET https://${K8S_ENDPOINT}/healthz |grep HTTP || echo "ERR : $$?"
 	#kubectl get --raw /healthz?verbose || echo "ERR : $$?"
-	curl -ks https://${K8S_FQDN}:${HALB_PORT_K8S}/healthz?verbose || echo "ERR : $$?"
+	curl -fksSIX GET https://${K8S_ENDPOINT}/healthz |grep HTTP || echo "ERR : $$?"
+	curl -ksS https://${K8S_FQDN}:${HALB_PORT_K8S}/healthz?verbose || echo "ERR : $$?"
+version :
+	type jq >/dev/null 2>&1 \
+	    && curl -fksS https://${K8S_FQDN}:8443/version |jq . \
+	    || curl -fksS https://${K8S_ENDPOINT}/version \
+	    || echo "ERR : $$?"
+
 export port := 5551
 iperf :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/iperf3/k8s-iperf.sh ${port} || echo

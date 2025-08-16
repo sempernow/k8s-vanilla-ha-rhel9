@@ -25,8 +25,11 @@ cn=${K8S_FQDN:-example.local}
 crt=../tls/$cn/$cn.crt
 key=../tls/$cn/$cn.key
 
-prometheus_operator_release="$(helm list -A |grep prometheus |cut -f1)"
-prometheus_operator_namespace="$(helm list -A |grep prometheus |cut -f2)"
+# @ envsubst 
+export INGRESS_NGINX_NAMESPACE=$ns
+export DEFAULT_SSL_CERTIFICATE=$tls
+export PROMETHEUS_OPERATOR_RELEASE="$(helm list -A |grep prometheus |cut -f1)"
+export PROMETHEUS_OPERATOR_NAMESPACE="$(helm list -A |grep prometheus |cut -f2)"
 
 ## Add/Update repo
 repo(){
@@ -59,6 +62,15 @@ parse(){
 values(){
     ## This function generates the values override (diff) file from its template.
     ## Template needs only those keys that differ from chart's default (values.yaml).
+
+    envsubst < $values.tpl > $values 
+    [[ -f $values ]] || return 1
+
+    return 
+
+    #######################################################################
+    ## The sed method (below) is DEPRICATED : Use envsubst (above) instead
+    #######################################################################
     cat $values.tpl \
         |sed "s/HALB_PORT_HTTPS/$HALB_PORT_HTTPS/" \
         |sed "s/HALB_PORT_HTTP/$HALB_PORT_HTTP/" \
@@ -69,7 +81,7 @@ values(){
         |sed "s,PROMETHEUS_OPERATOR_NAMESPACE,${prometheus_operator_namespace:-DNE}," \
         |tee $values
     
-    [[ -f $values ]] || return 1
+   [[ -f $values ]] || return 1
 }
 helmAction(){
     ## ARGs: template|upgrade|install
