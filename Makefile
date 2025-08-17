@@ -165,10 +165,12 @@ menu :
 	@echo "============== "
 	@echo "fw           : Configure Linux firewall for the Kubernetes cluster"
 	@echo "  -k8s       : Configure firewalld and NetworkManager for K8s control and worker nodes"
-	@echo "   -external : firewall-cmd --list-all --zone=${K8S_FW_ZONE_EXTERNAL} (zone bound to ${HALB_DEVICE})"
-	@echo "   -internal : firewall-cmd --list-all --zone=${K8S_FW_ZONE_INTERNAL} (default zone)"
+	@echo "   -external : Configure --zone=${K8S_FW_ZONE_EXTERNAL} (zone bound to ${HALB_DEVICE})"
+	@echo "   -internal : Configure --zone=${K8S_FW_ZONE_INTERNAL} (default zone; binds to CNI adapters)"
 	@echo "  -calico    : Configure firewalld for Calico CNI"
 	@echo "  -list      : firewall-cmd --list-all : both k8s zones : ${K8S_FW_ZONE_EXTERNAL} and ${K8S_FW_ZONE_INTERNAL}"
+	@echo "   -external : firewall-cmd --list-all --zone=${K8S_FW_ZONE_EXTERNAL} (zone bound to ${HALB_DEVICE})"
+	@echo "   -internal : firewall-cmd --list-all --zone=${K8S_FW_ZONE_INTERNAL} (default zone; binds to CNI adapters)"
 	@echo "  -get       : firewall-cmd --info-service={} (each service) and --direct --get-all-rules"
 	@echo "  -zones     : firewall-cmd : Verify zones : active (${K8S_FW_ZONE_EXTERNAL}) and default (${K8S_FW_ZONE_INTERNAL})"
 	@echo "  -log       : Recently DROPped packets : journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP"
@@ -203,23 +205,6 @@ menu :
 	@echo "upload-certs : Generate new certificate-key for K8s store to join node into control-plane"
 	@echo "join-command : Print join command for control-plane node : same cert key/hash; new token"
 	@echo "join-token   : kubeadm token list"
-	@echo "============== "
-	@echo "healthz      : GET /healthz?verbose"
-	@echo "version      : GET /version"
-	@echo "iperf        : Bandwidth tests of the Cluster (Pod) Network"
-	@echo "watch        : kubectl get pods -A -o wide -w"
-	@echo "psk          : ps of K8s processes"
-	@echo "nodes        : K8s Node(s) status"
-	@echo "psrss        : ps sorted by RSS usage"
-	@echo "crictl       : containerd status"
-	@echo "  -images    : Images in containerd cache"
-	@echo "  -pods      : Pods of containerd"
-	@echo "  -ps        : Containers of containerd"
-	@echo "crictl-ready : Delete all containerd Pods in 'NotReady' status"
-	@echo "prune        : Delete all problemed Pods of certain Status values"
-	@echo "dump         : kubectl cluster-info dump |grep -i error"
-	@echo "etcd         : Certain endpoints"
-	@echo "journal      : Recent kubelet logs … --since='${ADMIN_FW_LOG_SINCE}'"
 	@echo "============== "
 	@echo "ingress-nginx: Ingress NGINX Controller"
 	@echo "  -status    : kubectl get "
@@ -262,6 +247,26 @@ menu :
 	@echo "podcidr      : PodCIDR and per node"
 	@echo "psrss        : Print targets' top memory usage : RSS [MiB]"
 	@echo "userrc       : Configure targets' bash shell using latest @ github.com/sempernow/userrc.git"
+	@echo "============== "
+	@echo "journal      : Recent kubelet logs … --since='${ADMIN_FW_LOG_SINCE}' (per node)"
+	@echo "healthz      : GET /healthz?verbose"
+	@echo "version      : GET /version"
+	@echo "nodes        : K8s Node(s) status"
+	@echo "watch        : kubectl get pods -A -o wide -w"
+	@echo "prune        : Delete all problemed Pods of certain Status values"
+	@echo "dump         : kubectl cluster-info dump |grep -i error"
+	@echo "iperf        : Bandwidth tests of the Cluster (Pod) Network"
+	@echo "psk          : ps of K8s processes"
+	@echo "psrss        : ps sorted by RSS usage"
+	@echo "crictl       : containerd status"
+	@echo "  -images    : Images in containerd cache"
+	@echo "  -ps        : Containers of containerd"
+	@echo "  -pods      : Pods of containerd"
+	@echo "  -ready     : Delete all containerd Pods in 'NotReady' status"
+	@echo "etcd         : etcdctl … : Command per 'make etcd-*' recipe"
+	@echo "  -status    : etcdctl {status,health,member list}"
+	@echo "  -snapshot  : etcdctl snapshot run on each node"
+	@echo "  -defrag    : etcdctl defrag run on each node"
 	@echo "============== "
 	@echo "env          : Print the make environment"
 	@echo "mode         : Fix folder and file modes of this project"
@@ -642,10 +647,18 @@ dump :
 	kubectl cluster-info dump |grep -i error
 journal journald journalctl :
 	ansibash "sudo journalctl --no-pager -u kubelet --since='${ADMIN_FW_LOG_SINCE}' |grep -i error"
-etcd :
+etcd-status :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
 	ansibash 'sudo bash etcd.sh status || echo "⚠️  ERR : $$?"' \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.${UTC}.log
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.status.${UTC}.log
+etcd-defrag :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
+	ansibash 'sudo bash etcd.sh defrag|| echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.defrag.${UTC}.log
+etcd-snapshot:
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
+	ansibash 'sudo bash etcd.sh snapshot || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.snapshot.${UTC}.log
 
 metrics metrics-up :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh apply
