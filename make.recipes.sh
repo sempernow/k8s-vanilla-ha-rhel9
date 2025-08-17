@@ -202,11 +202,11 @@ sudoer(){
 rebootSoft(){
     awaitNodeReady(){
         node=$1
-        timeout=300  # 5 minutes
+        timeout=300
         elapsed=0
         interval=5
 
-        echo -e "\n⌛ Awaiting 'Ready' status at node $node"
+        echo -e "\n⌛ Await 'Ready' status of node $node"
         while true; do
             status=$(kubectl get node "$node" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "NotFound")
             [[ "$status" == "True" ]] && {
@@ -231,26 +231,30 @@ rebootSoft(){
             echo "❌ DNS does NOT RESOLVE '$node.$domain'"
             break
         }
-        echo -e "\n🔧 : '$node.$domain'"
-        
+        echo -e "\n🔧 === $node"
+
+        echo -e "\nℹ️ Cordon and drain node $node ..."
         kubectl drain $node --ignore-daemonsets --delete-emptydir-data --force || {
             echo "❌ ERR at kubectl drain $node ..." 
             kubectl uncordon $node
             break
         }
+
         echo -e "\nℹ️ Command reboot of node $node ..."
         ssh -t $node 'sudo reboot;sleep 300'
-        echo -e "ℹ️ ...node $node is rebooting.\n" 
+        echo -e "ℹ️ ...node $node is rebooting." 
 
+        awaitNodeReady $node
+        
         request="https://$node.$domain:6443/healthz"
-        echo -e "⌛ Awaiting response from $request"
+        echo -e "⌛ Await response from $request"
         while true; do
             curl -fksIX GET --connect-timeout 3 $request |grep -v 50 |grep HTTP &&
                 break
             sleep 5
         done
 
-        awaitNodeReady $node
+        echo -e "\nℹ️ Uncordon node $node ..."
         kubectl uncordon $node
     done
     echo -e "\n✅ Done."
