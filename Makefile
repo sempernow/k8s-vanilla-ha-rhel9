@@ -188,6 +188,7 @@ menu :
 	@echo "cilium       : Install Cilium"
 	@echo "calico       : Install Calico"
 	@echo "  -status    : kubectl get …"
+	@echo "  -restart   : Rolling restart of both DaemonSet and controller (Fix for several Pod Network fail modes)"
 	@echo "  -teardown  : Teardown Calico"
 	@echo "calicoctl    : Reports of calicoctl via K8s plugin : kubectl calico …"
 	@echo "kuberouter   : Install Kube Router"
