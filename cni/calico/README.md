@@ -377,9 +377,33 @@ kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nod
 
 ```
 
-## Fix on 
 
+## Fix Pod Network
+
+### Case 1 : Failed pod(s)
+
+```bash
+# Delete all pods of phase Failed
 kubectl delete pod -A --field-selector=status.phase=Failed
+```
+
+### Case 2 : AuthN fail at `crictl ...`
+
+A host-level hard reboot leaves a bunch of "half-torn-down" state on each node, and when kubelet/CRI tries to clean it up on boot the Calico CNI DEL path needs a valid K8s token,but the file it uses (`/etc/cni/net.d/calico-kubeconfig`) often contains an expired bound-SA token. 
+
+Result: Unauthorized → sandbox teardown fails → pods stick in Terminating.
+
+Kubernetes with Calico has a recurring pattern where a pod is forever stuck in a non-functional state and can't be deleted.
+
+__Fix__:
+
+```bash
+## Rolling restart
+kubectl -n kube-system rollout restart ds/calico-node
+# Verify
+kubectl -n kube-system rollout status  ds/calico-node
+```
+- See LOG @ 2025-08-12 for details of cause, symtoms and confirmation
 
 
 ## Manual Recovery of Pod Network

@@ -93,9 +93,9 @@ export K8S_PROVISIONER_KEY    ?= ${ADMIN_KEY}
 export K8S_REGISTRY           ?= registry.k8s.io
 export K8S_VERBOSITY          ?= 5
 export K8S_NODE_INIT          ?= a1
-export K8S_NODES_CONTROL      ?= ${K8S_NODE_INIT} a2 a3
+export K8S_NODES_CONTROL      ?= a3 a2 ${K8S_NODE_INIT}
 export K8S_NODES_WORKER       ?=
-export K8S_NODES              ?= ${K8S_NODES_CONTROL} ${K8S_NODES_WORKER}
+export K8S_NODES              ?= ${K8S_NODES_WORKER} ${K8S_NODES_CONTROL}
 export K8S_NODES_JOIN         ?= $(shell echo ${K8S_NODES_CONTROL} |awk '{for (i=2; i<NF; i++) printf $$i " "; print $$NF}')
 export K8S_KUBEADM_CONF_INIT  ?= kubeadm-config-init.yaml
 export K8S_KUBEADM_CONF_JOIN  ?= kubeadm-config-join.yaml
@@ -152,9 +152,6 @@ export ADMIN_FW_LOG_SINCE    ?= 15 minute ago
 menu :
 	$(INFO) 'Install K8s onto all target hosts : RHEL9 is expected'
 	@echo "upgrade      : dnf upgrade all targets"
-	@echo "reboot       : Reboot all (K8S_NODES) : ${K8S_NODES}"
-	@echo "  -soft      : drain ➔  reboot ➔  uncordon"
-	@echo "  -hard      : reboot ${K8S_NODES}"
 	@echo "conf         : kernel selinux swap : See scripts/configure-*"
 	@echo "  -kernel    : Configure kernel for K8s/CNI/CRI : load modules and set runtime params"
 	@echo "  -selinux   : Configure targets' SELinux"
@@ -253,6 +250,9 @@ menu :
 	@echo "============== "
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
 	@echo "============== "
+	@echo "reboot       : Reboot all (K8S_NODES) : ${K8S_NODES}"
+	@echo "  -hard      : reboot ${K8S_NODES}"
+	@echo "  -soft      : drain ➔  reboot ➔  uncordon"
 	@echo "status       : Print targets' status"
 	@echo "sealert      : sealert -l '*'"
 	@echo "net          : Interfaces' info"
