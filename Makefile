@@ -143,7 +143,7 @@ export ADMIN_DST_DIR         ?= /tmp/$(shell basename "${ADMIN_SRC_DIR}")
 
 export ANSIBASH_TARGET_LIST  ?= ${ADMIN_TARGET_LIST}
 export ANSIBASH_USER         ?= ${ADMIN_USER}
-export ADMIN_FW_LOG_SINCE    ?= 5 minute ago
+export ADMIN_FW_LOG_SINCE    ?= 15 minute ago
 
 
 ##############################################################################
@@ -304,10 +304,8 @@ scan :
 #	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.scan.arp-scan.${UTC}.log
 
 status hello :
-	@ansibash 'printf "%12s: %s\n" Host $$(hostname) \
-	    && printf "%12s: %s\n" User $$(id -un) \
+	@ansibash 'printf "%12s: %s\n" SELinux $$(getenforce) \
 	    && printf "%12s: %s\n" firewalld $$(systemctl is-active firewalld.service) \
-	    && printf "%12s: %s\n" SELinux $$(getenforce) \
 	    && printf "%12s: %s\n" containerd $$(systemctl is-active containerd) \
 	    && printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
 	    && printf "%12s: %s\n" Kernel $$(uname -r) \
@@ -633,7 +631,7 @@ crictl-images :
 	ansibash sudo crictl images
 images :
 	kubectl get po -A -o jsonpath='{range .items[*]}{.spec.initContainers[].image}{"\n"}{.spec.containers[*].image}{"\n"}{end}' |sort -u
-crictl-ready :
+crictl-ready crictl-pods-ready crictl-pod-ready :
 	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl stopp'
 	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl rmp'
 prune :

@@ -172,7 +172,7 @@ iperftest(){
 
 prune(){
     echo -e "🚧 === Deleting problemed Pods across all Namespaces …"
-    for stat in StatusUnk Completed Error; do 
+    for stat in StatusUnk Error CrashLoopBackOff; do 
         echo -e "\n🔧 Delete all Pods having STATUS: $stat"
         kubectl get pod -A -o wide |grep '\b'$stat'\b' |awk '{print $1,$2}' |xargs -n2 /bin/bash -c '
             [[ $2 ]] || {
@@ -200,27 +200,60 @@ sudoer(){
         '
 }
 rebootSoft(){
+    awaitNodeReady(){
+        node=$1
+        timeout=300  # 5 minutes
+        elapsed=0
+        interval=5
+
+        echo -e "\n⌛ Awaiting 'Ready' status at node $node"
+        while true; do
+            status=$(kubectl get node "$node" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "NotFound")
+            [[ "$status" == "True" ]] && {
+                echo -e "✅ Node $node is Ready.\n"
+                break
+            }
+            (( elapsed >= timeout )) && {
+                echo -e "❌ Timeout : Node $node status remains NOT Ready after $timeout seconds.\n"
+                exit 1
+            }
+            sleep $interval
+            ((elapsed += interval))
+        done
+    }
+    export -f awaitNodeReady
     nodes="$@"
     domain=${HALB_DOMAIN:-HALB_DOMAIN}
+
     echo -e "🛠️ === Soft reboot of K8s nodes: $nodes : drain ➔  reboot ➔  uncordon"
     for node in $nodes; do
-        nslookup $node.$domain >/dev/null 2>&1 || { echo "❌ : DNS does NOT RESOLVE '$node.$domain'"; break; }
+        nslookup $node.$domain >/dev/null 2>&1 || { 
+            echo "❌ DNS does NOT RESOLVE '$node.$domain'"
+            break
+        }
         echo -e "\n🔧 : '$node.$domain'"
         
-        kubectl drain $node --ignore-daemonsets --delete-emptydir-data 
-        ssh -t $node sudo reboot
+        kubectl drain $node --ignore-daemonsets --delete-emptydir-data --force || {
+            echo "❌ ERR at kubectl drain $node ..." 
+            kubectl uncordon $node
+            break
+        }
+        echo -e "\nℹ️ Command reboot of node $node ..."
+        ssh -t $node 'sudo reboot;sleep 300'
+        echo -e "ℹ️ ...node $node is rebooting.\n" 
 
         request="https://$node.$domain:6443/healthz"
-        echo -e "⌛ : Awaiting response from $request"
+        echo -e "⌛ Awaiting response from $request"
         while true; do
-            echo -e "  $(date -Im) ..."
-            curl -fksIX GET --connect-timeout 30 $request >/dev/null 2>&1 &&
+            curl -fksIX GET --connect-timeout 3 $request |grep -v 50 |grep HTTP &&
                 break
+            sleep 5
         done
 
+        awaitNodeReady $node
         kubectl uncordon $node
     done
-    echo -e "\n✅ : Done."
+    echo -e "\n✅ Done."
 }
 rootCA(){
     echo "ℹ️ This method is DEPRICATED : Use project github.com/sempernow/window-server"
