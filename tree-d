@@ -20,7 +20,8 @@
 │               └── rbd
 ├── ingress
 │   ├── ingress-nginx
-│   │   └── e2e
+│   │   ├── e2e
+│   │   └── grafana-dashboards
 │   ├── tls
 │   │   └── kube.lime.lan
 │   └── traefik
@@ -52,4 +53,4 @@
     │   └── vault
     └── trivy-operator
 
-53 directories
+54 directories
