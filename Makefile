@@ -255,7 +255,8 @@ menu :
 	@echo "watch        : kubectl get pods -A -o wide -w"
 	@echo "prune        : Delete all problemed Pods of certain Status values"
 	@echo "dump         : kubectl cluster-info dump |grep -i error"
-	@echo "iperf        : Bandwidth tests of the Cluster (Pod) Network"
+	@echo "iperf        : Network I/O : Bandwidth tests of the Cluster (Pod) Network"
+	@echo "iostat       : Disk I/O : *_await(req/resp latency [ms]) and util(ization)"
 	@echo "psk          : ps of K8s processes"
 	@echo "psrss        : ps sorted by RSS usage"
 	@echo "crictl       : containerd status"
@@ -618,6 +619,8 @@ version :
 export port := 5551
 iperf :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/iperf3/k8s-iperf.sh ${port} || echo
+iostat :
+	ansibash iostat -xmd 2 5
 watch :
 	kubectl get pod -A -o wide -w
 nodes node no :
