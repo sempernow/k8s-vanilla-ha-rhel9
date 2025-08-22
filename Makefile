@@ -250,6 +250,7 @@ menu :
 	@echo "============== "
 	@echo "journal      : Recent kubelet logs … --since='${ADMIN_FW_LOG_SINCE}' (per node)"
 	@echo "healthz      : GET /healthz?verbose"
+	@echo "events       : kubectl events -A --sort-by=.lastTimestamp |tail -n 50"
 	@echo "version      : GET /version"
 	@echo "nodes        : K8s Node(s) status"
 	@echo "watch        : kubectl get pods -A -o wide -w"
@@ -615,6 +616,9 @@ version :
 	    && curl -fksS https://${K8S_FQDN}:8443/version |jq . \
 	    || curl -fksS https://${K8S_ENDPOINT}/version \
 	    || echo "ERR : $$?"
+
+events :
+	kubectl get events -A --sort-by=.lastTimestamp |tail -n 50
 
 export port := 5551
 iperf :
