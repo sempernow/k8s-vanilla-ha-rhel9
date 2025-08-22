@@ -287,9 +287,9 @@ env :
 eol :
 	find . -type f ! -path '*/.git/*' -exec dos2unix {} \+
 mode :
-	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \;
-	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \;
-#	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \;
+	find . -type d ! -path './.git/*' -exec chmod 755 "{}" \;
+	find . -type f ! -path './.git/*' -exec chmod 660 "{}" \;
+#	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 755 "{}" \;
 tree :
 	tree -d |tee tree-d
 html :
