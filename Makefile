@@ -340,7 +340,7 @@ podcidr :
 # Configure bash shell of target hosts using the declared Git project
 userrc :
 	ansibash 'git clone https://github.com/sempernow/userrc 2>/dev/null || echo ok'
-	ansibash 'pushd userrc && git pull && make sync-user && make user'
+	ansibash 'pushd userrc && git pull && make sync-user && make user && echo ✅ Updated!'
 
 reboot : reboot-soft
 reboot-hard :
