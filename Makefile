@@ -314,6 +314,8 @@ scan :
 status hello :
 	@ansibash 'printf "%12s: %s\n" SELinux $$(getenforce) \
 	    && printf "%12s: %s\n" firewalld $$(systemctl is-active firewalld.service) \
+	    && printf "%12s: %s\n" haproxy $$(systemctl is-active haproxy) \
+	    && printf "%12s: %s\n" keepalived $$(systemctl is-active keepalived) \
 	    && printf "%12s: %s\n" containerd $$(systemctl is-active containerd) \
 	    && printf "%12s: %s\n" kubelet $$(systemctl is-active kubelet) \
 	    && printf "%12s: %s\n" Kernel $$(uname -r) \
