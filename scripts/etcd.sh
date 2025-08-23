@@ -27,6 +27,7 @@ defrag(){
     _etcdctl defrag
 }
 snapshot(){
+    ## Source : pod.spec.volumes[].hostPath: /var/lib/etcd
     [[ $1 ]] && to="$1" || {
         mkdir -p /opt/backup/etcd
         cp --preserve=mode,timestamps etcd.sh /opt/backup/etcd/
