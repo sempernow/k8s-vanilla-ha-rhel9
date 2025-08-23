@@ -2,7 +2,7 @@
 #################################################################
 # See recipes of Makefile
 #################################################################
-set -euo pipefail
+
 
 vm_ip(){
     # Print IPv4 address of an ssh-configured Host ($1). 
@@ -185,7 +185,23 @@ prune(){
     done
     return 0
 }
-
+etcdLogs(){
+	podLog(){
+        local since=''
+        [[ $2 ]] && since="--since=${2}s"
+        echo "ℹ️ etcd-$1 : Logs $since"
+        kubectl logs -n kube-system etcd-$1 $since \
+            |jq -Mr '
+                select(.level != "info")
+                    | [.ts, .msg]
+                    | join("\t")
+                ' 2>/dev/null
+        echo
+    }
+    export -f podLog
+    local since=$1
+    printf "%s\n" ${K8S_NODES_CONTROL} |xargs -n1 /bin/bash -c 'podLog $1 $0' $since
+}
 sudoer(){
     group=ad-linux-sudoers
     ANSIBASH_TARGET_LIST=${ADMIN_TARGET_LIST} &&

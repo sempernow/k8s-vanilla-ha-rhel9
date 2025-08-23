@@ -1,7 +1,7 @@
 ##############################################################################
 ## Makefile.settings : Environment Variables for Makefile(s)
 include Makefile.settings
-# … ⋮ ︙ • “” ‘’ – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × ₽ € ¥ £ ¢ ¤ ♻ ⚐ ⚑ ✪ ❤ \ufe0f
+# … ⋮ ︙ • ● – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × ₽ € ¥ £ ¢ ¤ ♻ ⚐ ⚑ ✪ ❤ \ufe0f
 # ☢ ☣ ☠ ¦ ¶ § † ‡ ß µ Ø ƒ Δ ☡ ☈ ☧ ☩ ✚ ☨ ☦ ☓ ♰ ♱ ✖  ☘  웃 𝐀𝐏𝐏 🡸 🡺 ➔
 # ℹ️ ⚠️ ✅ ⌛ 🚀 🚧 🛠️ 🔧 🔍 🧪 👈 ⚡ ❌ 💡 🔒 📊 📈 🧩 📦 🥇 ✨️ 🔚
 ##############################################################################
@@ -144,6 +144,7 @@ export ADMIN_DST_DIR         ?= /tmp/$(shell basename "${ADMIN_SRC_DIR}")
 export ANSIBASH_TARGET_LIST  ?= ${ADMIN_TARGET_LIST}
 export ANSIBASH_USER         ?= ${ADMIN_USER}
 export ADMIN_FW_LOG_SINCE    ?= 15 minute ago
+export ADMIN_ETCD_LOG_SINCE  ?= 3600
 
 
 ##############################################################################
@@ -257,15 +258,17 @@ menu :
 	@echo "prune        : Delete all problemed Pods of certain Status values"
 	@echo "dump         : kubectl cluster-info dump |grep -i error"
 	@echo "iperf        : Network I/O : Bandwidth tests of the Cluster (Pod) Network"
-	@echo "iostat       : Disk I/O : *_await(req/resp latency [ms]) and util(ization)"
+	@echo "iostat       : Disk I/O : See '*_await' (req/resp latency [ms]) and '%util'(ization)"
 	@echo "psk          : ps of K8s processes"
-	@echo "psrss        : ps sorted by RSS usage"
+	@echo "psrss        : ps sorted by RSS usage : Resident Set Size (actual/physical memory)"
+	@echo "pscpu        : ps sorted by CPU usage"
 	@echo "crictl       : containerd status"
 	@echo "  -images    : Images in containerd cache"
 	@echo "  -ps        : Containers of containerd"
 	@echo "  -pods      : Pods of containerd"
 	@echo "  -ready     : Delete all containerd Pods in 'NotReady' status"
 	@echo "etcd         : etcdctl … : Command per 'make etcd-*' recipe"
+	@echo "  -logs      : Logs of etcd-* Pods, sans 'info' level, --since=${ADMIN_ETCD_LOG_SINCE}s"
 	@echo "  -status    : etcdctl {status,health,member list}"
 	@echo "  -snapshot  : etcdctl snapshot run on each node"
 	@echo "  -defrag    : etcdctl defrag run on each node"
@@ -279,10 +282,10 @@ menu :
 env :
 	$(INFO) 'Environment'
 	@echo "PWD=${PRJ_ROOT}"
+	@env |grep DOMAIN_ |grep -v HALB
+	@env |grep HALB_
 	@env |grep K8S_
 	@env |grep ADMIN_
-	@env |grep DOMAIN_
-	@env |grep HALB_
 
 eol :
 	find . -type f ! -path '*/.git/*' -exec dos2unix {} \+
@@ -332,8 +335,11 @@ ruleset:
 	ansibash sudo nft list ruleset
 iptables:
 	ansibash sudo iptables -L -n -v
+
 psrss :
 	ansibash -s scripts/psrss.sh
+pscpu :
+	ansibash -s scripts/pscpu.sh
 
 podcidr :
 	kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.podCIDR}{"\n"}{end}'
@@ -434,8 +440,7 @@ fw-zone fw-zones :
 	ansibash 'sudo firewall-cmd --get-active-zones'
 	ansibash 'sudo firewall-cmd --get-default-zone'
 fw-log fw-logs :
-	ansibash "sudo journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP;echo All recent DROP logs from \'${ADMIN_FW_LOG_SINCE}\' until $$(date -Is)" \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.firewall-stat.log
+	ansibash "sudo journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP;echo All recent DROP logs from \'${ADMIN_FW_LOG_SINCE}\' until $$(date -Is)"
 
 init-imperative :
 	ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} \
@@ -656,6 +661,8 @@ dump :
 	kubectl cluster-info dump |grep -i error
 journal journald journalctl :
 	ansibash "sudo journalctl --no-pager -u kubelet --since='${ADMIN_FW_LOG_SINCE}' |grep -i error"
+etcd-logs :
+	bash make.recipes.sh etcdLogs ${ADMIN_ETCD_LOG_SINCE}
 etcd-status :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
 	ansibash 'sudo bash etcd.sh status || echo "⚠️  ERR : $$?"' \
