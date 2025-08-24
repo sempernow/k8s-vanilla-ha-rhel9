@@ -14,8 +14,8 @@ metadata:
   name: kubernetes-services-endpoint
   namespace: tigera-operator
 data:
-  KUBERNETES_SERVICE_HOST: "K8S_CONTROL_PLANE_IP"
-  KUBERNETES_SERVICE_PORT: "K8S_CONTROL_PLANE_PORT"
+  KUBERNETES_SERVICE_HOST: "K8S_CONTROL_IP"
+  KUBERNETES_SERVICE_PORT: "K8S_CONTROL_PORT"
 ---
 apiVersion: operator.tigera.io/v1
 kind: Installation
@@ -51,4 +51,3 @@ kind: APIServer
 metadata:
   name: default
 spec: {}
-

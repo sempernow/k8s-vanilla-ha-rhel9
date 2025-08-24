@@ -342,8 +342,8 @@ metadata:
   name: kubernetes-services-endpoint
   namespace: tigera-operator
 data:
-  KUBERNETES_SERVICE_HOST: 'K8S_CONTROL_PLANE_IP'
-  KUBERNETES_SERVICE_PORT: 'K8S_CONTROL_PLANE_PORT'
+  KUBERNETES_SERVICE_HOST: 'K8S_CONTROL_IP'
+  KUBERNETES_SERVICE_PORT: 'K8S_CONTROL_PORT'
 ```
 
 @ Manifest method
@@ -355,13 +355,13 @@ metadata:
   name: kubernetes-services-endpoint
   namespace: kube-system
 data:
-  KUBERNETES_SERVICE_HOST: 'K8S_CONTROL_PLANE_IP'
-  KUBERNETES_SERVICE_PORT: 'K8S_CONTROL_PLANE_PORT'
+  KUBERNETES_SERVICE_HOST: 'K8S_CONTROL_IP'
+  KUBERNETES_SERVICE_PORT: 'K8S_CONTROL_PORT'
 ```
 
 ```bash
-sed -i "s,K8S_CONTROL_PLANE_IP,$K8S_CONTROL_PLANE_IP,g" $cm
-sed -i "s,K8S_CONTROL_PLANE_PORT,$K8S_CONTROL_PLANE_PORT,g" $cm
+sed -i "s,K8S_CONTROL_IP,$K8S_CONTROL_IP,g" $cm
+sed -i "s,K8S_CONTROL_PORT,$K8S_CONTROL_PORT,g" $cm
 kubectl apply -f $cm
 kubectl delete pod -n kube-system -l k8s-app=calico-node
 kubectl delete pod -n kube-system -l k8s-app=calico-kube-controllers

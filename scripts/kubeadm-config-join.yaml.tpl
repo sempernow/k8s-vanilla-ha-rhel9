@@ -13,7 +13,7 @@ discovery: # # TLS-bootstrap methods
   #   ## Generate token and CA certificate : kubeadm token generate
   #   ## CA certificate @ /etc/kubernetes/pki/ca.crt
   #   token: K8S_BOOTSTRAP_TOKEN
-  #   apiServerEndpoint: K8S_ENDPOINT
+  #   apiServerEndpoint: K8S_CONTROL_ENTRYPOINT
   #   ## CA-Certificate Hash(es):
   #   ## See "kubeadm init" output: 
   #   ## --discovery-token-ca-cert-hash sha256:<hex-encoded-value>

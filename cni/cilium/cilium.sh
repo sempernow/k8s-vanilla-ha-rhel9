@@ -76,8 +76,8 @@ install_by_cli(){
 
     # cilium install \
         #     --set debug.enabled='true' \
-        #     --set k8sServiceHost="${K8S_CONTROL_PLANE_IP}" \
-        #     --set k8sServicePort="${K8S_CONTROL_PLANE_PORT}" \
+        #     --set k8sServiceHost="${K8S_CONTROL_IP}" \
+        #     --set k8sServicePort="${K8S_CONTROL_PORT}" \
         #     --set cluster.name=${K8S_CLUSTER_NAME} \
         #     --set rollOutCiliumPods='true' \
         #     --set l2announcements.enabled='true' \
@@ -159,4 +159,3 @@ kubectl -n kube-system get configmap cilium-config -o yaml
 
 # Egress issues
 cilium egress list
-

@@ -105,8 +105,8 @@ cilium upgrade --reuse-values --set ... --set ... ...
 - `--set kubeProxyReplacement=true` : 
   [To replace `kube-proxy`](https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#kubeproxy-free) 
   : Requires:
-    - `--set k8sServiceHost=${K8S_CONTROL_PLANE_IP}`
-    - `--set k8sServicePort=${K8S_CONTROL_PLANE_PORT}`
+    - `--set k8sServiceHost=${K8S_CONTROL_IP}`
+    - `--set k8sServicePort=${K8S_CONTROL_PORT}`
     - 
 - Add Hubble
     - `--set hubble.ui.enabled='true'`

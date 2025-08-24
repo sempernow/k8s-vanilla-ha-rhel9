@@ -18,11 +18,11 @@ include Makefile.settings
 
 
 ##############################################################################
-## $(INFO) : Usage : `$(INFO) 'What ever'` prints a stylized "@ What ever".
+## $(INFO) : USAGE : `$(INFO) "Any !"` in recipe prints quoted str, stylized.
 SHELL   := /bin/bash
 YELLOW  := "\e[1;33m"
 RESTORE := "\e[0m"
-INFO    := @bash -c 'printf $(YELLOW);echo "@ $$1";printf $(RESTORE)' MESSAGE
+INFO    := @bash -c 'printf $(YELLOW);echo "$$1";printf $(RESTORE)' MESSAGE
 
 
 ##############################################################################
@@ -43,7 +43,7 @@ export TLS_C  ?= US
 
 
 ##############################################################################
-## Registry : registry.k8s.io
+## Registry
 
 #export CNCF_REGISTRY_IMAGE    ?= registry:2.8.3
 #export CNCF_REGISTRY_HOST     ?= oci.lime.lan
@@ -57,6 +57,7 @@ export TLS_C  ?= US
 ## HAProxy/Keepalived : HA Network Load Balancer (HANLB)
 ## (See project at github.com/sempernow/halb)
 
+export HALB_PROJECT      ?= github.com/sempernow/halb
 export HALB_DOMAIN       ?= lime.lan
 export HALB_FQDN         ?= kube.${HALB_DOMAIN}
 export HALB_FQDN_1       ?= a1.${HALB_DOMAIN}
@@ -78,7 +79,7 @@ export HALB_PORT_HTTPS   ?= 30443
 
 
 ##############################################################################
-## Cluster
+## K8s
 
 ## Configurations : https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/
 ## K8s RELEASEs https://kubernetes.io/releases/
@@ -87,8 +88,6 @@ export K8S_CLUSTER_NAME       ?= lime
 export K8S_VERSION            ?= v1.29.6
 #export K8S_VERSION            ?= v1.29.15
 #export K8S_VERSION            ?= v1.33.2
-export K8S_PROVISIONER        ?= ${ADMIN_USER}
-export K8S_PROVISIONER_KEY    ?= ${ADMIN_KEY}
 #export K8S_REGISTRY           ?= ${CNCF_REGISTRY_ENDPOINT}
 export K8S_REGISTRY           ?= registry.k8s.io
 export K8S_VERBOSITY          ?= 5
@@ -100,12 +99,12 @@ export K8S_NODES_JOIN         ?= $(shell echo ${K8S_NODES_CONTROL} |awk '{for (i
 export K8S_KUBEADM_CONF_INIT  ?= kubeadm-config-init.yaml
 export K8S_KUBEADM_CONF_JOIN  ?= kubeadm-config-join.yaml
 export K8S_JOIN_KUBECONFIG    ?= discovery.yaml
-#export K8S_CONTROL_PLANE_IP   ?= 192.168.11.101
-#export K8S_CONTROL_PLANE_PORT ?= 6443
-export K8S_CONTROL_PLANE_IP   ?= ${HALB_VIP}
-export K8S_CONTROL_PLANE_PORT ?= ${HALB_PORT_K8S}
 export K8S_NETWORK_DEVICE     ?= ${HALB_DEVICE}
-export K8S_ENDPOINT           ?= ${K8S_CONTROL_PLANE_IP}:${K8S_CONTROL_PLANE_PORT}
+export K8S_CONTROL_IP         ?= ${HALB_VIP}
+#export K8S_CONTROL_IP         ?= 192.168.11.101
+export K8S_CONTROL_PORT       ?= ${HALB_PORT_K8S}
+#export K8S_CONTROL_PORT       ?= 6443
+export K8S_CONTROL_ENTRYPOINT ?= ${K8S_CONTROL_IP}:${K8S_CONTROL_PORT}
 export K8S_FQDN               ?= kube.${HALB_DOMAIN}
 ## Pod and Service CIDRs : Set to Private Address space (RFC 1918) that is SLAAC-compliant .
 export K8S_HOST_CIDR          ?= ${HALB_DOMAIN_CIDR}
@@ -128,8 +127,9 @@ export DOMAIN_CA_CERT := ${PRJ_ROOT}/ingress/tls/lime-DC1-CA.cer
 
 
 ##############################################################################
-## ansibash
+## Admin
 
+export ADMIN_USER_CONF       ?= github.com/sempernow/userrc
 ## Public-key string of ssh user must be in ~/.ssh/authorized_keys of ADMIN_USER at all targets.
 #export ADMIN_USER            ?= $(shell id -un)
 export ADMIN_USER            ?= u2
@@ -141,17 +141,28 @@ export ADMIN_SRC_DIR         ?= $(shell pwd)
 #export ADMIN_DST_DIR         ?= ${ADMIN_SRC_DIR}
 export ADMIN_DST_DIR         ?= /tmp/$(shell basename "${ADMIN_SRC_DIR}")
 
+export ADMIN_JOURNAL_SINCE   ?= 15 minute ago
+export ADMIN_K8S_LOG_SINCE   ?= 3600s
+export ADMIN_PODS_PRUNE      ?= StatusUnk Error CrashLoopBackOff
+
 export ANSIBASH_TARGET_LIST  ?= ${ADMIN_TARGET_LIST}
 export ANSIBASH_USER         ?= ${ADMIN_USER}
-export ADMIN_FW_LOG_SINCE    ?= 15 minute ago
-export ADMIN_ETCD_LOG_SINCE  ?= 3600
 
 
 ##############################################################################
 ## Recipes : Meta
 
 menu :
-	$(INFO) 'Install K8s onto all target hosts : RHEL9 is expected'
+	$(INFO) '=== K8s Admin'
+	$(INFO) '🧩  Install HA kubeadm cluster onto target RHEL hosts'
+	@echo "    ● Target hosts expected: RHEL 8+"
+	@echo "    ● Control Plane Entrypoint: ${K8S_CONTROL_ENTRYPOINT} (${K8S_FQDN})"
+	@echo "      - External HA LB operating in TCP mode"
+	@echo "      - See https://${HALB_PROJECT}.git"
+	@echo "    ● Security requirements of targets include:"
+	@echo "      - SELinux mode is 'Enforcing'"
+	@echo "      - Linux firewall zone bound to host device (${K8S_NETWORK_DEVICE}) has target 'DROP'"
+	$(INFO) "🚧  1. Provision targets for a K8s cluster (kubeadm ${K8S_VERSION})"
 	@echo "upgrade      : dnf upgrade all targets"
 	@echo "conf         : kernel selinux swap : See scripts/configure-*"
 	@echo "  -kernel    : Configure kernel for K8s/CNI/CRI : load modules and set runtime params"
@@ -162,8 +173,8 @@ menu :
 	@echo "  -cni       : Install K8s CNI Pod network providers"
 	@echo "  -cri       : Install K8s CRI and all deps, and tools"
 	@echo "  -k8s       : Install K8s and CNI plugins"
-	@echo "rootca       : Create PKI for a Root CA"
-	@echo "============== "
+	@echo "rootca       : Create PKI for domain's Root Certificate Authority (CA)"
+	$(INFO) "🚧  2. Configure Linux firewall of targets to protect/allow K8s cluster traffic"
 	@echo "fw           : Configure Linux firewall for the Kubernetes cluster"
 	@echo "  -k8s       : Configure firewalld and NetworkManager for K8s control and worker nodes"
 	@echo "   -external : Configure --zone=${K8S_FW_ZONE_EXTERNAL} (zone bound to ${HALB_DEVICE})"
@@ -174,8 +185,8 @@ menu :
 	@echo "   -internal : firewall-cmd --list-all --zone=${K8S_FW_ZONE_INTERNAL} (default zone; binds to CNI adapters)"
 	@echo "  -get       : firewall-cmd --info-service={} (each service) and --direct --get-all-rules"
 	@echo "  -zones     : firewall-cmd : Verify zones : active (${K8S_FW_ZONE_EXTERNAL}) and default (${K8S_FW_ZONE_INTERNAL})"
-	@echo "  -log       : Recently DROPped packets : journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP"
-	@echo "============== "
+	@echo "  -log       : Recently DROPped packets : journalctl --since='${ADMIN_JOURNAL_SINCE}' |grep DROP"
+	$(INFO) "🚀  3. Initialize the K8s cluster"
 	@echo "init         : Create 1st control node of the cluster"
 	@echo "  -purge     : Purge Makefile.settings of stale PKI params"
 	@echo "  -gen       : Generate ${K8S_KUBEADM_CONF_INIT} from template (.yaml.tpl)"
@@ -185,9 +196,9 @@ menu :
 	@echo "  -pre       : kubeadm init phase preflight …"
 	@echo "  -certs     : kubeadm init phase upload certs …"
 	@echo "  -now       : kubeadm init … : at 1st node (${ADMIN_USER}@${K8S_NODE_INIT})"
-	@echo "============== "
-	@echo "kubeconfig   : Configure the client"
-	@echo "============== "
+	$(INFO) "🚧  4. Configure K8s API clients at local host ($(shell hostname))"
+	@echo "kubeconfig   : See ~/.kube/config, else set KUBECONFIG"
+	$(INFO) "🚧  5. Install (one) CNI Add-on to provision the cluster's Pod Network"
 	@echo "cilium       : Install Cilium"
 	@echo "calico       : Install Calico"
 	@echo "  -status    : kubectl get …"
@@ -196,17 +207,16 @@ menu :
 	@echo "calicoctl    : Reports of calicoctl via K8s plugin : kubectl calico …"
 	@echo "kuberouter   : Install Kube Router"
 	@echo "  -teardown  : Teardown Kuberoute"
-	@echo "============== "
+	$(INFO) "🚧  6. Join other nodes into the cluster"
 	@echo "join-control : Join all other control-plane nodes into cluster"
 	@echo "  -prep      : join-certs join-gen join-push"
 	@echo "  -certs     : See kubeadm-join-certs.sh"
 	@echo "  -gen       : Process ${K8S_KUBEADM_CONF_JOIN}.tpl into YAML"
 	@echo "  -push      : Push ${K8S_KUBEADM_CONF_JOIN} to nodes"
-	@echo "============== "
 	@echo "upload-certs : Generate new certificate-key for K8s store to join node into control-plane"
 	@echo "join-command : Print join command for control-plane node : same cert key/hash; new token"
 	@echo "join-token   : kubeadm token list"
-	@echo "============== "
+	$(INFO) "🚧  Ingress"
 	@echo "ingress-nginx: Ingress NGINX Controller"
 	@echo "  -status    : kubectl get "
 	@echo "  -up        : Install"
@@ -215,64 +225,69 @@ menu :
 	@echo "  -down      : Teardown"
 	@echo "  -e2e       : End-to-end HTTP  test : curl -s http://\$$host:\$$nodePort/{foo,bar}/hostname"
 	@echo "  -e2e-tls   : End-to-end HTTPS test : curl -s https://e2e.${K8S_FQDN}/{foo,bar}/hostname"
-	@echo "============== "
-	@echo "metrics      : Install metrics-server, enabling: kubectl top …"
-	@echo "dashboard    : Install K8s Dashboard : Web UI for K8s API"
-	@echo "trivy        : Install Trivy Operator by Helm"
-	@echo "============== "
+	$(INFO) "🚧  External Storage Provisioners (CSI)"
 	@echo "csi-local    : Install local-path-provisioner"
 	@echo "csi-nfs      : Install nfs-subdir-external-provisioner"
 	@echo "csi-rook-up  : Install Rook Operator / Ceph "
 	@echo "csi-rook-down: Teardown Rook Operator / Ceph "
-	@echo "============== "
+	$(INFO) "🚧  Observability"
+	@echo "metrics      : Install metrics-server, enabling: kubectl top …"
+	@echo "dashboard    : Install K8s Dashboard : Web UI for K8s API"
+	@echo "prom-*       : kube-prometheus-stack"
+	@echo "  -install   : Install by Helm chart"
+	@echo "  -access    : Forward Grafana port for local access (Remove: pkill kubectl)"
+	@echo "  -delete    : Delete the running release"
+	$(INFO) "🚧  Cluster-level Logging"
 	@echo "efk-apply    : Install EFK stack"
 	@echo "efk-delete   : Teardown EFK stack"
 	@echo "efk-verify   : GET request to Kibana"
 	@echo "loki-install : Install Grafana Loki chart"
 	@echo "loki-delete  : Uninstall Grafana Loki chart"
-	@echo "============== "
-	@echo "prom-install : Install kube-prometheus-stack chart"
-	@echo "prom-access  : Forward Grafana port for local access (Remove: pkill kubectl)"
-	@echo "prom-delete  : Delete kube-prometheus-stack chart"
-	@echo "============== "
+	$(INFO) "🚧  Security"
+	@echo "trivy        : Install Trivy Operator by Helm"
+	$(INFO) "⚠️  Cluster Teardown"
 	@echo "teardown     : kubeadm reset and cleanup at target node(s)"
-	@echo "============== "
-	@echo "reboot       : Reboot all (K8S_NODES) : ${K8S_NODES}"
-	@echo "  -hard      : reboot ${K8S_NODES}"
-	@echo "  -soft      : drain ➔  reboot ➔  uncordon"
+	$(INFO) "🔍  Inspect : Hosts"
 	@echo "status       : Print targets' status"
 	@echo "sealert      : sealert -l '*'"
 	@echo "net          : Interfaces' info"
 	@echo "ruleset      : nftables rulesets"
 	@echo "iptables     : iptables"
-	@echo "podcidr      : PodCIDR and per node"
-	@echo "psrss        : Print targets' top memory usage : RSS [MiB]"
-	@echo "userrc       : Configure targets' bash shell using latest @ github.com/sempernow/userrc.git"
-	@echo "============== "
-	@echo "journal      : Recent kubelet logs … --since='${ADMIN_FW_LOG_SINCE}' (per node)"
-	@echo "healthz      : GET /healthz?verbose"
-	@echo "events       : kubectl events -A --sort-by=.lastTimestamp |tail -n 50"
-	@echo "version      : GET /version"
-	@echo "nodes        : K8s Node(s) status"
-	@echo "watch        : kubectl get pods -A -o wide -w"
-	@echo "prune        : Delete all problemed Pods of certain Status values"
-	@echo "dump         : kubectl cluster-info dump |grep -i error"
-	@echo "iperf        : Network I/O : Bandwidth tests of the Cluster (Pod) Network"
-	@echo "iostat       : Disk I/O : See '*_await' (req/resp latency [ms]) and '%util'(ization)"
 	@echo "psk          : ps of K8s processes"
-	@echo "psrss        : ps sorted by RSS usage : Resident Set Size (actual/physical memory)"
+	@echo "psrss        : ps sorted by RSS usage"
 	@echo "pscpu        : ps sorted by CPU usage"
+	$(INFO) "🔍  Inspect : K8s API"
+	@echo "podcidr      : PodCIDR and per node"
+	@echo "journal      : kubelet logs … --since='${ADMIN_JOURNAL_SINCE}' (per node)"
+	@echo "version      : GET /version"
+	@echo "healthz      : GET /healthz"
+	@echo "events       : kubectl events -A --sort-by=.lastTimestamp |tail -n 50"
+	@echo "dump         : kubectl cluster-info dump |grep -i error"
+	@echo "nodes        : K8s Node(s) status"
+	@echo "pods         : kubectl get pods -A -o wide -w"
+	@echo "apiserver    : Timeout errors of K8s API server logs"
+	$(INFO) "🧪  Test"
+	@echo "iostat       : Disk I/O : See '*_await' (req/resp latency [ms]) and '%util'(ization)"
+	@echo "iperf        : Network I/O : Pod Network Bandwidth test"
+	$(INFO) "🛠️  Maintenance"
+	@echo "===  Host  ==="
+	@echo "userrc       : Configure targets' bash shell (See https://${ADMIN_USER_CONF}.git)"
+	@echo "reboot       : Reboot all (K8S_NODES) : ${K8S_NODES}"
+	@echo "  -hard      : reboot ${K8S_NODES}"
+	@echo "  -soft      : drain ➔  reboot ➔  uncordon"
+	@echo "===  K8S   ==="
+	@echo "prune        : Delete all (problemed) Pods of STATUS: ${ADMIN_PODS_PRUNE}"
 	@echo "crictl       : containerd status"
 	@echo "  -images    : Images in containerd cache"
 	@echo "  -ps        : Containers of containerd"
 	@echo "  -pods      : Pods of containerd"
 	@echo "  -ready     : Delete all containerd Pods in 'NotReady' status"
 	@echo "etcd         : etcdctl … : Command per 'make etcd-*' recipe"
-	@echo "  -logs      : Logs of etcd-* Pods, sans 'info' level, --since=${ADMIN_ETCD_LOG_SINCE}s"
+	@echo "  -logs      : Logs of etcd-* Pods, sans 'info' level, --since=${ADMIN_K8S_LOG_SINCE}s"
 	@echo "  -status    : etcdctl {status,health,member list}"
 	@echo "  -snapshot  : etcdctl snapshot run on each node"
 	@echo "  -defrag    : etcdctl defrag run on each node"
-	@echo "============== "
+	@echo "===  Meta  ==="
 	@echo "env          : Print the make environment"
 	@echo "mode         : Fix folder and file modes of this project"
 	@echo "eol          : Fix line endings : Convert all CRLF to LF"
@@ -283,9 +298,12 @@ env :
 	$(INFO) 'Environment'
 	@echo "PWD=${PRJ_ROOT}"
 	@env |grep DOMAIN_ |grep -v HALB
-	@env |grep HALB_
-	@env |grep K8S_
-	@env |grep ADMIN_
+	@echo
+	@env |grep HALB_ |sort
+	@echo
+	@env |grep K8S_ |grep -v ADMIN |sort
+	@echo
+	@env |grep ADMIN_ |sort
 
 eol :
 	find . -type f ! -path '*/.git/*' -exec dos2unix {} \+
@@ -440,16 +458,16 @@ fw-zone fw-zones :
 	ansibash 'sudo firewall-cmd --get-active-zones'
 	ansibash 'sudo firewall-cmd --get-default-zone'
 fw-log fw-logs :
-	ansibash "sudo journalctl --since='${ADMIN_FW_LOG_SINCE}' |grep DROP;echo All recent DROP logs from \'${ADMIN_FW_LOG_SINCE}\' until $$(date -Is)"
+	ansibash "sudo journalctl --since='${ADMIN_JOURNAL_SINCE}' |grep DROP;echo All recent DROP logs from \'${ADMIN_JOURNAL_SINCE}\' until $$(date -Is)"
 
 init-imperative :
 	ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} \
-	    sudo kubeadm init --control-plane-endpoint "${K8S_ENDPOINT}" \
+	    sudo kubeadm init --control-plane-endpoint "${K8S_CONTROL_ENTRYPOINT}" \
 	        --kubernetes-version ${K8S_VERSION} \
 	        --upload-certs \
 	        --pod-network-cidr "${K8S_POD_CIDR}" \
 	        --service-cidr "${K8S_SERVICE_CIDR}" \
-	        --apiserver-advertise-address ${K8S_CONTROL_PLANE_IP} \
+	        --apiserver-advertise-address ${K8S_CONTROL_IP} \
 	        --node-name ${K8S_NODE_INIT} \
 	        --cri-socket "${K8S_CRI_SOCKET}" \
 	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.kubeadm.init-imperative.${UTC}.log
@@ -579,7 +597,7 @@ calicoctl :
 	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
 	kubectl calico ipam show --show-configuration \
 	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
-	kubectl calico ipam show --ip=${K8S_CONTROL_PLANE_IP} \
+	kubectl calico ipam show --ip=${K8S_CONTROL_IP} \
 	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log
 	kubectl get tigerastatuses 2>/dev/null && kubectl get tigerastatuses \
 	    |tee -a ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.callico-status.log || echo
@@ -614,34 +632,38 @@ kubeproxy-restore :
 	    --type=json \
 	    -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/${selector}"}]'
 
-healthz :
-	#kubectl get --raw /healthz?verbose || echo "ERR : $$?"
-	curl -fksSIX GET https://${K8S_ENDPOINT}/healthz |grep HTTP || echo "ERR : $$?"
-	curl -ksS https://${K8S_FQDN}:${HALB_PORT_K8S}/healthz?verbose || echo "ERR : $$?"
+journal journald journalctl :
+	ansibash "sudo journalctl --no-pager -u kubelet --since='${ADMIN_JOURNAL_SINCE}' |grep -i error"
 version :
 	type jq >/dev/null 2>&1 \
 	    && curl -fksS https://${K8S_FQDN}:8443/version |jq . \
-	    || curl -fksS https://${K8S_ENDPOINT}/version \
+	    || curl -fksS https://${K8S_CONTROL_ENTRYPOINT}/version \
 	    || echo "ERR : $$?"
-
+healthz :
+	#kubectl get --raw /healthz?verbose || echo "ERR : $$?"
+	curl -fksSIX GET https://${K8S_CONTROL_ENTRYPOINT}/healthz |grep HTTP || echo "ERR : $$?"
+	curl -ksS https://${K8S_FQDN}:${HALB_PORT_K8S}/healthz?verbose || echo "ERR : $$?"
 events :
 	kubectl get events -A --sort-by=.lastTimestamp |tail -n 50
-
 export port := 5551
-iperf :
-	bash ${ADMIN_SRC_DIR}/observability/metrics/iperf3/k8s-iperf.sh ${port} || echo
-iostat :
-	ansibash iostat -xmd 2 5
-watch :
+psk :
+	ansibash psk
+pods pod watch :
 	kubectl get pod -A -o wide -w
-nodes node no :
+nodes node :
 	@kubectl get node && echo
 	@type yq >/dev/null 2>&1 \
 	    && kubectl get node -o yaml \
 	        |yq '.items[]? | [{"name": .metadata.name, "trueConditions": (.status.conditions[] | select(.status == "True")), "nodeInfo": .status.nodeInfo}]' \
 	            || echo REQUIREs yq
-psk :
-	ansibash psk
+apiserver :
+	@echo "ℹ️  Timeouts at all K8s API Pods (kube-apiserver) since ${ADMIN_K8S_LOG_SINCE} (ADMIN_K8S_LOG_SINCE)"
+	@printf "%s\n" ${K8S_NODES} |xargs -I{} kubectl -n kube-system logs pod/kube-apiserver-{} --timestamps --since=${ADMIN_K8S_LOG_SINCE} \
+	    |grep -e timeout -e time-elapsed || echo "    … NONE logged."
+iperf :
+	bash ${ADMIN_SRC_DIR}/observability/metrics/iperf3/k8s-iperf.sh ${port} || echo
+iostat :
+	ansibash iostat -xmd 2 5
 crictl : crictl-images crictl-ps crictl-pods
 crictl-ps crictl-ctnr crictl-container crictl-containers :
 	ansibash sudo crictl ps
@@ -651,7 +673,7 @@ crictl-images :
 	ansibash sudo crictl images
 images :
 	kubectl get po -A -o jsonpath='{range .items[*]}{.spec.initContainers[].image}{"\n"}{.spec.containers[*].image}{"\n"}{end}' |sort -u
-crictl-ready crictl-pods-ready crictl-pod-ready :
+crictl-ready crictl-pod-ready crictl-prune :
 	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl stopp'
 	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl rmp'
 prune :
@@ -659,10 +681,8 @@ prune :
 #	bash scripts/kubectl-mass-delete-pods.sh StatusUnk
 dump :
 	kubectl cluster-info dump |grep -i error
-journal journald journalctl :
-	ansibash "sudo journalctl --no-pager -u kubelet --since='${ADMIN_FW_LOG_SINCE}' |grep -i error"
-etcd-logs :
-	bash make.recipes.sh etcdLogs ${ADMIN_ETCD_LOG_SINCE}
+etcd-logs etcd-log :
+	bash make.recipes.sh etcdLogs ${ADMIN_K8S_LOG_SINCE}
 etcd-status :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
 	ansibash 'sudo bash etcd.sh status || echo "⚠️  ERR : $$?"' \

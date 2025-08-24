@@ -27,9 +27,9 @@ settings_inject(){
         |sed "s,K8S_NODE_INIT,${K8S_NODE_INIT},g" \
         |sed "s,K8S_REGISTRY,${K8S_REGISTRY},g" \
         |sed "s,K8S_NETWORK_DEVICE,${K8S_NETWORK_DEVICE},g" \
-        |sed "s,K8S_CONTROL_PLANE_IP,${K8S_CONTROL_PLANE_IP},g" \
-        |sed "s,K8S_CONTROL_PLANE_PORT,${K8S_CONTROL_PLANE_PORT},g" \
-        |sed "s,K8S_ENDPOINT,${K8S_ENDPOINT},g" \
+        |sed "s,K8S_CONTROL_IP,${K8S_CONTROL_IP},g" \
+        |sed "s,K8S_CONTROL_PORT,${K8S_CONTROL_PORT},g" \
+        |sed "s,K8S_CONTROL_ENTRYPOINT,${K8S_CONTROL_ENTRYPOINT},g" \
         |sed "s,K8S_SERVICE_CIDR,${K8S_SERVICE_CIDR},g" \
         |sed "s,K8S_NODE_CIDR6_MASK,${K8S_NODE_CIDR6_MASK},g" \
         |sed "s,K8S_NODE_CIDR_MASK,${K8S_NODE_CIDR_MASK},g" \
@@ -172,7 +172,7 @@ iperftest(){
 
 prune(){
     echo -e "🚧 === Deleting problemed Pods across all Namespaces …"
-    for stat in StatusUnk Error CrashLoopBackOff; do 
+    for stat in ${ADMIN_PODS_PRUNE}; do 
         echo -e "\n🔧 Delete all Pods having STATUS: $stat"
         kubectl get pod -A -o wide |grep '\b'$stat'\b' |awk '{print $1,$2}' |xargs -n2 /bin/bash -c '
             [[ $2 ]] || {
@@ -188,19 +188,21 @@ prune(){
 etcdLogs(){
 	podLog(){
         local since=''
-        [[ $2 ]] && since="--since=${2}s"
-        echo "ℹ️ etcd-$1 : Logs $since"
+        [[ $2 ]] && since="--since=${2}"
+        echo "ℹ️ etcd-$1 : Logs $since @ $(date -uIm)"
+        #kubectl logs -n kube-system etcd-$1 |jq -Mr . |jq -Mr . --slurp |jq -Mr '.[] | select(.level != "info")'; return
         kubectl logs -n kube-system etcd-$1 $since \
-            |jq -Mr '
-                select(.level != "info")
-                    | [.ts, .msg]
-                    | join("\t")
-                ' 2>/dev/null
-        echo
+            |jq -Mr . |jq -Mr . --slurp \
+            |jq -Mr '.[] | select(.level != "info") 
+                | [.ts, .msg, .took, .duration, .error, .["time spent"] ]
+                | join("\t")
+            '
+            echo
     }
     export -f podLog
     local since=$1
-    printf "%s\n" ${K8S_NODES_CONTROL} |xargs -n1 /bin/bash -c 'podLog $1 $0' $since
+    printf "%s\n" ${K8S_NODES_CONTROL} |xargs -n1 /bin/bash -c 'podLog $1 $0' $since 2>/dev/null
+    
 }
 sudoer(){
     group=ad-linux-sudoers

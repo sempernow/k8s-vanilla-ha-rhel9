@@ -59,7 +59,7 @@ apiServer:
   certSANs:     # []string          : SANs of API Server signing certificate.
 clusterName: K8S_CLUSTER_NAME
 ## External LB endpoint else that of init node
-controlPlaneEndpoint: "K8S_ENDPOINT"
+controlPlaneEndpoint: "K8S_CONTROL_ENTRYPOINT"
 controllerManager:
 ## https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#kubeadm-k8s-io-v1beta3-ControlPlaneComponent
 ## https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/

@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+echo "ℹ️ This method is DEPRICATED : Use function prune @ make.recipes.sh"
+exit 0
+
 [[ $1 ]] || exit 1
 [[ ${1,,} =~ 'running' ]] && exit 2
 
