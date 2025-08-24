@@ -287,7 +287,7 @@ rebootSoft(){
         request="https://$node.$domain:6443/healthz"
         echo -e "⌛ K8s : Await expected response from API server on subject node : $request"
         while true; do
-            curl -fksIX GET --connect-timeout 3 $request |grep -v 50 |grep HTTP &&
+            curl -fksIX GET --connect-timeout 3 $request |grep 200 |grep HTTP &&
                 break
             sleep 5
         done
