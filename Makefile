@@ -683,6 +683,10 @@ dump :
 	kubectl cluster-info dump |grep -i error
 etcd-logs etcd-log :
 	bash make.recipes.sh etcdLogs ${ADMIN_K8S_LOG_SINCE}
+etcd-p99 etcd-fio :
+	scp -p ${ADMIN_SRC_DIR}/scripts/etcd.sh ${K8S_NODE_INIT}:. \
+	    && ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} sudo bash etcd.sh p99 /var/lib/etcd \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.status.${UTC}.log
 etcd-status :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
 	ansibash 'sudo bash etcd.sh status || echo "⚠️  ERR : $$?"' \

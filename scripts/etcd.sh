@@ -48,6 +48,28 @@ restore(){
         --initial-cluster-token etcd-cluster-1 \
         --initial-advertise-peer-urls 'https://a3:2380'
 }
+p99(){
+    dir=${1:-/var/lib/etcd}
+    file=wal.text
+    sudo fio --name=static-etcd-fsync \
+        --directory=$dir \
+        --size=256m \
+        --filename=$file \
+        --bs=8k \
+        --ioengine=libaio \
+        --numjobs=1 \
+        --fdatasync=1 \
+        --iodepth=1 \
+        --rw=write \
+        --runtime=120 \
+        --time_based=1 \
+        --group_reporting=1 \
+        --lat_percentiles=1 \
+        --percentile_list=99,99.5,99.9 \
+        |tee fio.etcd.fsync.p99.log
+
+    sudo rm $dir/$file
+}
 
 "$@"
 
@@ -80,4 +102,3 @@ LEADER_EP="https://a1:2379"   # replace with the leader you saw above
 TRANSFEREE_ID="1234567890abcdef"  # a healthy follower’s ID
 
 _etcdctl --endpoints="$LEADER_EP" move-leader "$TRANSFEREE_ID"
-
