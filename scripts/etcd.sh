@@ -50,3 +50,34 @@ restore(){
 }
 
 "$@"
+
+exit
+
+# Confirm cluster has quorum first
+# - ERRORS column empty
+# - LEADER : 1 true; others false
+_etcdctl(){
+    sudo etcdctl \
+        --cacert /etc/kubernetes/pki/etcd/ca.crt \
+        --cert /etc/kubernetes/pki/etcd/server.crt \
+        --key /etc/kubernetes/pki/etcd/server.key \
+        "$@"
+}
+export -f _etcdctl 
+export eps="https://a1:2379,https://a2:2379,https://a3:2379"
+# --endpoints=https://127.0.0.1:2379
+
+_etcdctl --endpoints="$eps" endpoint status -w table
+
+# Verify all endpoints are healthy
+_etcdctl --endpoints="$eps" endpoint health -w table
+
+# Verify all voters present (and usually not learners)
+_etcdctl --endpoints="$EPS" member list -w table
+
+# IF this node is LEADER, then transfer lead to another
+LEADER_EP="https://a1:2379"   # replace with the leader you saw above
+TRANSFEREE_ID="1234567890abcdef"  # a healthy follower’s ID
+
+_etcdctl --endpoints="$LEADER_EP" move-leader "$TRANSFEREE_ID"
+
