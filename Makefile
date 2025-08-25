@@ -1,7 +1,7 @@
 ##############################################################################
 ## Makefile.settings : Environment Variables for Makefile(s)
 include Makefile.settings
-# … ⋮ ︙ • ● – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × ₽ € ¥ £ ¢ ¤ ♻ ⚐ ⚑ ✪ ❤ \ufe0f
+# … ⋮ ︙ • ● – — ™ ® © ± ° ¹ ² ³ ¼ ½ ¾ ÷ × ₽ € ¥ £ ¢ ¤ ♻ ⚐ ⚑ ✪ ❤  \ufe0f
 # ☢ ☣ ☠ ¦ ¶ § † ‡ ß µ Ø ƒ Δ ☡ ☈ ☧ ☩ ✚ ☨ ☦ ☓ ♰ ♱ ✖  ☘  웃 𝐀𝐏𝐏 🡸 🡺 ➔
 # ℹ️ ⚠️ ✅ ⌛ 🚀 🚧 🛠️ 🔧 🔍 🧪 👈 ⚡ ❌ 💡 🔒 📊 📈 🧩 📦 🥇 ✨️ 🔚
 ##############################################################################
@@ -54,8 +54,7 @@ export TLS_C  ?= US
 
 
 ##############################################################################
-## HAProxy/Keepalived : HA Network Load Balancer (HANLB)
-## (See project at github.com/sempernow/halb)
+## HAProxy/Keepalived : HA Network Load Balancer (HALB)
 
 export HALB_PROJECT      ?= github.com/sempernow/halb
 export HALB_DOMAIN       ?= lime.lan
@@ -154,7 +153,7 @@ export ANSIBASH_USER         ?= ${ADMIN_USER}
 
 menu :
 	$(INFO) '=== K8s Admin'
-	$(INFO) '🧩  Install HA kubeadm cluster onto target RHEL hosts'
+	$(INFO) '🧩  Install HA kubeadm cluster onto target hosts'
 	@echo "    ● Target hosts expected: RHEL 8+"
 	@echo "    ● Control Plane Entrypoint: ${K8S_CONTROL_ENTRYPOINT} (${K8S_FQDN})"
 	@echo "      - External HA LB operating in TCP mode"
@@ -269,12 +268,15 @@ menu :
 	$(INFO) "🧪  Test"
 	@echo "iostat       : Disk I/O : See '*_await' (req/resp latency [ms]) and '%util'(ization)"
 	@echo "iperf        : Network I/O : Pod Network Bandwidth test"
+	@echo "bench        : ApacheBench (ab) load tests"
+	@echo "  -healthz   : Load test K8s-API endpoint"
+	@echo "  -e2e       : Load test Ingress-E2E-Test endpoint"
 	$(INFO) "🛠️  Maintenance"
 	@echo "===  Host  ==="
 	@echo "userrc       : Configure targets' bash shell (See https://${ADMIN_USER_CONF}.git)"
 	@echo "reboot       : Reboot all (K8S_NODES) : ${K8S_NODES}"
-	@echo "  -hard      : reboot ${K8S_NODES}"
 	@echo "  -soft      : drain ➔  reboot ➔  uncordon"
+	@echo "  -hard      : reboot ${K8S_NODES}"
 	@echo "===  K8S   ==="
 	@echo "prune        : Delete all (problemed) Pods of STATUS: ${ADMIN_PODS_PRUNE}"
 	@echo "crictl       : containerd status"
@@ -660,6 +662,18 @@ apiserver :
 	@echo "ℹ️  Timeouts at all K8s API Pods (kube-apiserver) since ${ADMIN_K8S_LOG_SINCE} (ADMIN_K8S_LOG_SINCE)"
 	@printf "%s\n" ${K8S_NODES} |xargs -I{} kubectl -n kube-system logs pod/kube-apiserver-{} --timestamps --since=${ADMIN_K8S_LOG_SINCE} \
 	    |grep -e timeout -e time-elapsed || echo "    … NONE logged."
+
+bench : bench-healthz bench-e2e
+bench-healthz :
+	@echo -e "\n📊  K8s API"
+	type -t ab && ab -c 100 -n 10000 https://${K8S_CONTROL_ENTRYPOINT}/healthz?verbose || echo "⚠️  REQUIREs ab"
+bench-e2e :
+	@echo -e "\n📊  Ingress E2E"
+	kubectl -n test-ingress get ingress test-ingress-tls \
+	    && kubectl -n test-ingress get pod foo \
+	    && type -t ab \
+	    && ab -c 100 -n 10000 https://e2e.kube.lime.lan/foo/hostname || echo
+
 iperf :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/iperf3/k8s-iperf.sh ${port} || echo
 iostat :
