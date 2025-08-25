@@ -14,13 +14,14 @@ _etcdctl(){
     ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/etcd/ca.crt \
         --cert=/etc/kubernetes/pki/etcd/server.crt \
         --key=/etc/kubernetes/pki/etcd/server.key \
-        --endpoints=https://127.0.0.1:2379 "$@" 
+        "$@" 
 }
 export -f _etcdctl
 
+
 status(){
     for cmd in 'endpoint status' 'endpoint health --cluster' 'member list'; do
-        _etcdctl $cmd --write-out=table
+        _etcdctl --endpoints=https://127.0.0.1:2379 --write-out=table $cmd 
     done
 }
 defrag(){
@@ -41,12 +42,17 @@ restore(){
     echo "⚠️ Method NOT IMPLEMENTED" >&2
 
     return 99
-
-    ETCDCTL_API=3 etcdctl snapshot restore /path/to/backup.db \
-        --name a3 \
-        --initial-cluster 'a1=https://a1:2380,a2=https://a2:2380,a3=https://a3:2380' \
-        --initial-cluster-token etcd-cluster-1 \
-        --initial-advertise-peer-urls 'https://a3:2380'
+    
+    # Total restore to a cluster having a single control-node with etcd WIPED beforehand
+    db=/tmp/etcd/recovery/etcd.leader.2025-08-11.db
+    host=a1
+    ip=192.168.11.101
+    ETCDCTL_API=3 etcdctl snapshot restore "$db" \
+        --name "$host" \
+        --data-dir /var/lib/etcd \
+        --initial-advertise-peer-urls "https://$ip:2380" \
+        --initial-cluster "$host=https://$ip:2380" \
+        --initial-cluster-token "etcd-cluster-$host"
 }
 p99(){
     dir=${1:-/var/lib/etcd}

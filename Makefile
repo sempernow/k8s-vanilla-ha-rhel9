@@ -266,6 +266,7 @@ menu :
 	@echo "pods         : kubectl get pods -A -o wide -w"
 	@echo "apiserver    : Timeout errors of K8s API server logs"
 	$(INFO) "🧪  Test"
+	@echo "uniq         : K8s requires nodes have unique Product ID, Network device MAC, and hostname"
 	@echo "iostat       : Disk I/O : See '*_await' (req/resp latency [ms]) and '%util'(ization)"
 	@echo "iperf        : Network I/O : Pod Network Bandwidth test"
 	@echo "bench        : ApacheBench (ab) load tests"
@@ -346,15 +347,18 @@ status hello :
 	'
 sealert :
 	ansibash 'sudo sealert -l "*" |grep -e == -e "Source Path" -e "Last Seen" |grep -v 2024 |grep -B1 -e == -e "Last Seen"'
-net:
+net :
 	ansibash '\
 	    sudo nmcli dev status; \
 	    ip -brief addr; \
 	  '
-ruleset:
+ruleset :
 	ansibash sudo nft list ruleset
-iptables:
+iptables :
 	ansibash sudo iptables -L -n -v
+uniq :
+	@echo -e "ℹ️  K8s requires each node have unique: 1. Product UUID 2. Network device MAC 3. hostname"
+	ansibash -c 'hostname; sudo cat /sys/class/dmi/id/product_uuid;command ip -color=never -brief link show dev ${K8S_NETWORK_DEVICE}'
 
 psrss :
 	ansibash -s scripts/psrss.sh
