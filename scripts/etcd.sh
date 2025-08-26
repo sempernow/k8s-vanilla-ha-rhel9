@@ -54,10 +54,10 @@ restore(){
         --initial-cluster "$host=https://$ip:2380" \
         --initial-cluster-token "etcd-cluster-$host"
 }
-p99(){
+p99_1(){
     dir=${1:-/var/lib/etcd}
     file=wal.text
-    sudo fio --name=static-etcd-fsync \
+    fio --name=static-etcd-fsync \
         --directory=$dir \
         --size=256m \
         --filename=$file \
@@ -76,6 +76,23 @@ p99(){
 
     sudo rm $dir/$file
 }
+p99_2(){
+    dir=${1:-/var/lib/etcd}
+    file=wal.text
+    fio --name=static-etcd-fsync \
+        --rw=write \
+        --directory=$dir \
+        --filename=$file \
+        --fdatasync=1 \
+        --size=22m \
+        --bs=2300 \
+        --ioengine=sync \
+        --percentile_list=99,99.5,99.9 \
+        |tee fio.etcd.fsync.p99.log
+
+    rm $dir/$file
+}
+
 
 "$@"
 
@@ -85,7 +102,7 @@ exit
 # - ERRORS column empty
 # - LEADER : 1 true; others false
 _etcdctl(){
-    sudo etcdctl \
+    etcdctl \
         --cacert /etc/kubernetes/pki/etcd/ca.crt \
         --cert /etc/kubernetes/pki/etcd/server.crt \
         --key /etc/kubernetes/pki/etcd/server.key \

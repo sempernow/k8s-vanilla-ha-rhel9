@@ -268,6 +268,7 @@ menu :
 	$(INFO) "🧪  Test"
 	@echo "uniq         : K8s requires nodes have unique Product ID, Network device MAC, and hostname"
 	@echo "iostat       : Disk I/O : See '*_await' (req/resp latency [ms]) and '%util'(ization)"
+	@echo "fio          : etcd fsync 99-th percentile latency"
 	@echo "iperf        : Network I/O : Pod Network Bandwidth test"
 	@echo "bench        : ApacheBench (ab) load tests"
 	@echo "  -healthz   : Load test K8s-API endpoint"
@@ -290,6 +291,7 @@ menu :
 	@echo "  -status    : etcdctl {status,health,member list}"
 	@echo "  -snapshot  : etcdctl snapshot run on each node"
 	@echo "  -defrag    : etcdctl defrag run on each node"
+	@echo "  -p99       : etcd fsync 99-th percentile latency"
 	@echo "===  Meta  ==="
 	@echo "env          : Print the make environment"
 	@echo "mode         : Fix folder and file modes of this project"
@@ -682,6 +684,7 @@ iperf :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/iperf3/k8s-iperf.sh ${port} || echo
 iostat :
 	ansibash iostat -xmd 2 5
+fio : etcd-p99
 crictl : crictl-images crictl-ps crictl-pods
 crictl-ps crictl-ctnr crictl-container crictl-containers :
 	ansibash sudo crictl ps
@@ -703,7 +706,7 @@ etcd-logs etcd-log :
 	bash make.recipes.sh etcdLogs ${ADMIN_K8S_LOG_SINCE}
 etcd-p99 etcd-fio :
 	scp -p ${ADMIN_SRC_DIR}/scripts/etcd.sh ${K8S_NODE_INIT}:. \
-	    && ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} sudo bash etcd.sh p99 /var/lib/etcd \
+	    && ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} sudo bash etcd.sh p99_2 /var/lib/etcd \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.status.${UTC}.log
 etcd-status :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
