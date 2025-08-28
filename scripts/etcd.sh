@@ -77,6 +77,7 @@ p99_1(){
     sudo rm $dir/$file
 }
 p99_2(){
+    echo "ℹ️  Want : fsync 99.0th < 2000 (usec)"
     dir=${1:-/var/lib/etcd}
     file=wal.text
     fio --name=static-etcd-fsync \
@@ -92,7 +93,45 @@ p99_2(){
 
     rm $dir/$file
 }
+etcdLVM(){
+    dev=/dev/sdb
+    pv=${dev}1
+    vg=static
+    lv=etcd
+    mnt=/var/lib/etcd
 
+    # 0. Partition device if not already
+    isParted(){ lsblk -no TYPE "$pv" |grep part; }
+    isParted || {
+        parted -s $dev mklabel gpt
+        parted -s $dev mkpart pv 1MiB 100%
+        parted -s $dev set 1 lvm on
+        partprobe "$dev"
+        # Allow udev to catch up
+        while ! isParted; do sleep 1 >/dev/null; done 
+        udevadm settle
+    }
+
+    # 1. Create PV if not already
+    pvs "$pv" ||
+        pvcreate $pv
+
+    # 2. Create VG if not already
+    vgs "$vg" ||
+        vgcreate "$vg" "$pv"
+
+    # 3. Create LV if not already
+    lvs "$vg/$lv" ||
+        lvcreate -n "$lv" -l 100%FREE "$vg"
+
+    # 4. Format with XFS if not already
+    blkid "/dev/$vg/$lv" |grep 'TYPE="xfs"' ||
+        mkfs.xfs /dev/$vg/$lv
+
+    # 5. Mount it / Swap old to new
+    # See LOG : "Create LVM/XFS volume at node (Guest VM)"
+
+}
 
 "$@"
 

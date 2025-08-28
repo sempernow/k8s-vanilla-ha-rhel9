@@ -705,21 +705,21 @@ dump :
 etcd-logs etcd-log :
 	bash make.recipes.sh etcdLogs ${ADMIN_K8S_LOG_SINCE}
 etcd-p99 etcd-fio :
-	scp -p ${ADMIN_SRC_DIR}/scripts/etcd.sh ${K8S_NODE_INIT}:. \
-	    && ssh -t ${ADMIN_USER}@${K8S_NODE_INIT} sudo bash etcd.sh p99_2 /var/lib/etcd \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.status.${UTC}.log
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
+	ansibash sudo bash etcd.sh p99_2 /var/lib/etcd \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd-p99.${UTC}.log
 etcd-status :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
 	ansibash 'sudo bash etcd.sh status || echo "⚠️  ERR : $$?"' \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.status.${UTC}.log
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd-status.${UTC}.log
 etcd-defrag :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
 	ansibash 'sudo bash etcd.sh defrag|| echo "⚠️  ERR : $$?"' \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.defrag.${UTC}.log
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd-defrag.${UTC}.log
 etcd-snapshot:
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
 	ansibash 'sudo bash etcd.sh snapshot || echo "⚠️  ERR : $$?"' \
-	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd.snapshot.${UTC}.log
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd-snapshot.${UTC}.log
 
 metrics metrics-up :
 	bash ${ADMIN_SRC_DIR}/observability/metrics/metrics-server/metrics-server.sh apply
