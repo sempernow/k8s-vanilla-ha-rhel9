@@ -94,11 +94,20 @@ p99_2(){
     rm $dir/$file
 }
 etcdLVM(){
-    dev=/dev/sdb
+    blk=sdb
+    dev=/dev/$blk
     pv=${dev}1
     vg=static
     lv=etcd
     mnt=/var/lib/etcd
+    
+    # Abort if block device does not exist
+    lsblk -ndo NAME,SIZE,TYPE,MODEL |grep -q "\b$blk\b" ||
+        exit 11
+
+    # Abort if PV is mounted
+    mount |grep -q $pv &&
+        exit 22
 
     # 0. Partition device if not already
     isParted(){ lsblk -no TYPE "$pv" |grep part; }
@@ -132,10 +141,59 @@ etcdLVM(){
     # See LOG : "Create LVM/XFS volume at node (Guest VM)"
 
 }
+etcdLVMTeardown(){
+    blk=sdb
+    dev=/dev/sdb
+    pv=${dev}1
+    vg=static
+    lv=etcd
+    mnt=/var/lib/etcd
+
+    # Abort if block device does not exist
+    lsblk -ndo NAME,SIZE,TYPE,MODEL |grep -q "\b$blk\b" ||
+        exit 11
+
+    # Abort if PV is mounted
+    mount |grep -q $pv &&
+        exit 22
+
+    # 1. Unmount the LV
+    #umount $mnt 2>/dev/null || true
+
+    # 2. Disable swap, else no-op, then deactivate LV
+        # How to check for swaps
+        #cat /proc/swaps
+        #swapon --summary
+    swapoff /dev/$vg/$lv 2>/dev/null || true
+    lvchange -an /dev/$vg/$lv
+
+    # 3. Delete the Logical Volume
+    lvremove -y /dev/$vg/$lv
+
+    # 4. Remove the Volume Group
+    vgremove -y $vg
+
+    # 5. Remove the Physical Volume
+    pvremove $pv
+
+    # 6. Wipe filesystem signatures and partition table
+    wipefs -a $pv
+    wipefs -a $dev 
+
+    # 7. Zap partition table completely (optional and destructive)
+    sgdisk --zap-all $dev
+    partprobe $dev
+
+    # Validate : Want no trace of that LVM construct
+    lsblk $dev
+    pvs; vgs; lvs
+    blkid
+}
 
 "$@"
 
 exit
+####
 
 # Confirm cluster has quorum first
 # - ERRORS column empty
