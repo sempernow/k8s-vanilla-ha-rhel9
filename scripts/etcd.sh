@@ -99,7 +99,6 @@ etcdLVM(){
     pv=${dev}1
     vg=static
     lv=etcd
-    mnt=/var/lib/etcd
     
     # Abort if block device does not exist
     lsblk -ndo NAME,SIZE,TYPE,MODEL |grep -q "\b$blk\b" ||
@@ -137,9 +136,25 @@ etcdLVM(){
     blkid "/dev/$vg/$lv" |grep 'TYPE="xfs"' ||
         mkfs.xfs /dev/$vg/$lv
 
-    # 5. Mount it / Swap old to new
+    # 5. Mount it / Swap old to tmp
     # See LOG : "Create LVM/XFS volume at node (Guest VM)"
+    tmpMount(){
+        # 4) Temporary mount and copy data (with etcd stopped)
+        src=/var/lib/etcd
+        tmp=/mnt/etcd-tmp
 
+        mkdir -p $tmp
+        mount /dev/$vg/$lv $tmp
+
+        rsync -aHAX --numeric-ids --inplace --delete --fsync \
+            $src/  $tmp/
+
+        sync -f $tmp
+
+        # Fix permissions
+        chown -R root:root $tmp
+        chmod 700 $tmp/member 2>/dev/null || true
+    }
 }
 etcdLVMTeardown(){
     blk=sdb
