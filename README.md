@@ -10,6 +10,11 @@ See `make` recipes
 ```bash
 make
 ```
+## Join RHEL Host into AD Domain
+
+See project [`sempernow/windows-server`](https://github.com/sempernow/windows-server "GitHub")
+
+Section [`iac/adds/`](https://github.com/sempernow/windows-server/tree/master/iac/adds)
 
 ### Create cluster
 
