@@ -426,6 +426,10 @@ make trivy
 ```
 
 
+## CSI for Windows Shares (CIFS/SMB)
+
+See README @ [`csi/csi-driver-smb`](csi/csi-driver-smb/README.md)
+
 ## Background
 
 ### [`kubeadm init`](https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-init/)
