@@ -150,13 +150,37 @@ ok(){
 ok || exit $?
 
 ok(){
-    # Helm : https://github.com/helm/helm/releases
-    v=v3.18.3
+    # helm : https://github.com/helm/helm/releases/
+    v=v3.18.6
     platform=linux-amd64
     base=https://get.helm.sh/
     archive=helm-$v-$platform.tar.gz
+    
+    helm version |grep $v &&
+        return 0
+    
     curl -fsSLO $base/$archive &&
         tar -xvf $archive &&
             install $platform/helm /usr/local/bin/
+}
+ok || exit $?
+
+ok(){
+    # yq : https://github.com/mikefarah/yq/releases/
+    ver=v4.47.2
+    bin=yq_linux_amd64
+    base=https://github.com/mikefarah/yq/releases/download/$ver
+
+    yq --version |grep $ver &&
+        return 0
+
+    curl -fsSLO $base/$bin.tar.gz &&
+        tar -xvf $bin.tar.gz &&
+            install $bin /usr/local/bin/yq &&
+                cp yq.1 /usr/share/man/man1/ &&
+                    rm $bin yq.1 $bin.tar.gz install-man-page.sh
+
+    type yq
+    yq --version
 }
 ok || exit $?

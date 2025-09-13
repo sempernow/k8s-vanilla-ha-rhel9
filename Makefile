@@ -226,7 +226,11 @@ menu :
 	@echo "  -e2e-tls   : End-to-end HTTPS test : curl -s https://e2e.${K8S_FQDN}/{foo,bar}/hostname"
 	$(INFO) "🚧  External Storage Provisioners (CSI)"
 	@echo "csi-local    : Install local-path-provisioner"
-	@echo "csi-nfs      : Install nfs-subdir-external-provisioner"
+	@echo "csi-nfs      : Install chart of a K8s CSI External Provisioner and SC of NFS-type storage"
+	@echo "  -down      : Teardown the chart"
+	@echo "  -test      : Test dynamic PV provisioning and write access thereto by Pod/PVC manifest"
+	@echo "  -test-down : Teardown the test Pod/PVC/PV"
+	@echo "csi-nfs      : Install K8s CSI SC and Provisioner for NFS "
 	@echo "csi-rook-up  : Install Rook Operator / Ceph "
 	@echo "csi-rook-down: Teardown Rook Operator / Ceph "
 	$(INFO) "🚧  Observability"
@@ -767,9 +771,28 @@ ingress-nginx-down ingress-nginx-teardown :
 trivy :
 	bash ${ADMIN_SRC_DIR}/security/trivy/trivy-operator-install.sh
 
-csi-nfs :
-	pushd csi/nfs/nfs-subdir-external-provisioner \
+#csi_nfs_dir := csi/nfs-subdir-external-provisioner
+csi_nfs_dir := csi/csi-driver-nfs
+csi-nfs : csi-nfs2
+csi-nfs-down : csi-nfs2-down
+csi-nfs-test : csi-nfs2-test
+csi-nfs-test-down : csi-nfs2-test-down
+csi-nfs2 :
+	pushd ${csi_nfs_dir} \
+	    && bash csi-driver-nfs.sh install
+csi-nfs2-down :
+	pushd ${csi_nfs_dir} \
+	    && bash csi-driver-nfs.sh teardown
+csi-nfs2-test : 
+	kubectl apply -f ${csi_nfs_dir}/csi-driver-nfs-test.yaml 
+csi-nfs2-test-down : 
+	kubectl delete -f ${csi_nfs_dir}/csi-driver-nfs-test.yaml 
+csi-nfs1 :
+	pushd csi/nfs-subdir-external-provisioner \
 	    && bash nfs-subdir-provisioner.sh
+csi-nfs1-test : 
+	kubectl apply -f csi/nfs-subdir-external-provisioner/app.test-nfs.yaml 
+
 csi-local :
 	bash ${ADMIN_SRC_DIR}/csi/local-path-provisioner/local-path-provisioner.sh
 csi-rook-up :

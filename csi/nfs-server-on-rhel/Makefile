@@ -89,6 +89,10 @@ html :
 ##############################################################################
 ## Recipes : NFS
 
+lvm :
+	scp -p ${PRJ_ROOT}/provision-lvm-data-nfs.sh ${ADMIN_USER}@${ADMIN_HOST}:.
+	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} sudo bash provision-lvm-data-nfs.sh
+
 # UPDATE : Configure for K8s nfs exclusively (no NFS mounts at any host)
 #nfs : nfs-kerberos nfs-server nfs-clients
 
@@ -112,10 +116,6 @@ nfs-server : lvm
 	ansibash sudo systemctl disable --now nfs-server
 	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} sudo bash install-nfs-server.sh \
 	    ${NFS_EXPORT_PATH} ${NFS_CIDR} ${NFS_DC_HOST}.${NFS_DOMAIN}
-
-lvm :
-	scp -p ${PRJ_ROOT}/provision-lvm-data-nfs.sh ${ADMIN_USER}@${ADMIN_HOST}:.
-	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} sudo bash provision-lvm-data-nfs.sh
 
 nfs-clients nfs-client :
 	ANSIBASH_TARGET_LIST="${NFS_CLIENT_HOSTS}" \
@@ -151,15 +151,18 @@ client :
 	        && rm ${NFS_EXPORT_PATH}/${file} \
 	'
 
-k8s-nfs-subdir :
-	pushd nfs-subdir-external-provisioner \
+nfs-subdir :
+	pushd ../nfs-subdir-external-provisioner \
 		&& bash nfs-subdir-provisioner.sh
 
 app app-up up :
-	kubectl get pv test-nfs-pv || kubectl -n default apply -f test-nfs-app-state.yaml
+	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} mkdir -p ${NFS_EXPORT_PATH}/test-nfs-pv
+	kubectl get pv test-nfs-pv || kubectl -n default apply -f test-nfs-pv.yaml
 	kubectl -n default apply -f test-nfs-app.yaml
 	sleep 5 && ssh ${ADMIN_USER}@${NFS_SERVER_HOST} ls -ahlRZ ${NFS_EXPORT_PATH}
 app-exec exec :
 	kubectl -n default exec -it test-nfs-pod -- ls -ahlR /data
 app-down down :
 	kubectl -n default delete -f test-nfs-app.yaml || echo ok
+	kubectl -n default delete -f test-nfs-pv.yaml || echo ok
+	ssh ${ADMIN_USER}@${NFS_SERVER_HOST} sudo rm -f ${NFS_EXPORT_PATH}/test-nfs-pv/*

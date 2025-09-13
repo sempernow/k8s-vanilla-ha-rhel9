@@ -62,6 +62,10 @@ mkdir -p "$share"
 umount $share # Should not have been mounted anyway.
 chgrp 'ad-linux-users' $share
 
+user=nfsanon
+group=ad-nfsanon
+chown -R "$user:$group" "$share"
+
 # Set ACLs and such so that owner:group of all current and new dirs/files 
 # have same access, and are owned by whichever user created it.
 # And deny any access to other.
@@ -85,10 +89,11 @@ getent group $name || groupadd -g $id $name
 id $name || useradd -u $id -g $name -s /sbin/nologin -d /dev/null $name
 anonid=",anonuid=$id,anongid=$id"
 unset anonid # if NFSv4 or Kerberos
-
+opts="rw,sync,sec=krb5p:krb5i:krb5:sys,root_squash,no_subtree_check$anonid"
+opts='rw,sync,no_root_squash,no_subtree_check'
 sed -i "\,$cidr,d" /etc/exports
 cat <<EOH |tee /etc/exports
-$share    $cidr(rw,sync,sec=krb5p:krb5i:krb5:sys,root_squash,no_subtree_check$anonid)
+$share    $cidr($opts)
 EOH
 
 # Allow through Linux firewall
@@ -113,4 +118,5 @@ vers="$(cat /proc/fs/nfsd/versions)"
 
 # Inspect the running configuration
 exportfs -v
-#=> /mnt/nfs_01  192.168.11.0/24(sync,wdelay,hide,no_subtree_check,anonuid=50000,anongid=50000,sec=sys,rw,secure,root_squash,no_all_squash)
+find "$share" -type d -execdir stat --format="%04a  %A  %n" {} \;
+ls -halZ $share

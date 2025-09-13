@@ -15,6 +15,7 @@ ok(){
     # Tools
     all='
     dnf-plugins-core
+    selinux-policy
     selinux-policy-targeted 
     libselinux-utils
     policycoreutils
@@ -53,6 +54,7 @@ ok(){
     dnf -y --color=never install $all || return 33
 }
 ok || exit $?
+
 
 securityProfile(){
 

@@ -27,7 +27,7 @@ storageClass:
 
   # Set StorageClass as the default StorageClass
   # Ignored if storageClass.create is false
-  defaultClass: true
+  defaultClass: false
 
   # Add parameters.mountOptions by Patch. (Ignored here.)
   # kubectl patch storageclass <storageclass-name> -p '{"parameters": {"mountOptions": "dir_mode=0770,file_mode=0660"}}'
@@ -87,7 +87,7 @@ podSecurityContext: {}
 
 securityContext:
   runAsUser: 50000
-  runAsGroup: 322202601
+  runAsGroup: 322202611 # 322202611(ad-nfsanon)
   #fsGroup: 322202601
 
 serviceAccount:

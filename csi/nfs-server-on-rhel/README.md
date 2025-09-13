@@ -1,4 +1,8 @@
-# NFS | NFS Subdir External Provisioner ([README](nfs-subdir-external-provisioner/README.md))
+# NFS 
+
+>Provision an NFS server on any RHEL host
+
+This is intended for use by clients that are K8s CSI provisioners of NFS type storage.
 
 ## [`provision-lvm-data-nfs.sh`](nfs/provision-lvm-data-nfs.sh)
 
