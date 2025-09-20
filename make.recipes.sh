@@ -3,7 +3,6 @@
 # See recipes of Makefile
 #################################################################
 
-
 vm_ip(){
     # Print IPv4 address of an ssh-configured Host ($1). 
     [[ $1 ]] || return 99
@@ -169,7 +168,6 @@ iperftest(){
 
     kubectl -n $ns delete pod $pod
 }
-
 prune(){
     echo -e "🚧 === Deleting problemed Pods across all Namespaces …"
     for stat in ${ADMIN_PODS_PRUNE}; do 

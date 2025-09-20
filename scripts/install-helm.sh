@@ -1,20 +1,18 @@
 #!/usr/bin/env bash
-###################################################################
-# Install helm : Releases https://github.com/helm/helm/releases
-###################################################################
-
 ok(){
-    # Helm : https://github.com/helm/helm/releases
-    v=v3.18.6
-    platform=linux-amd64
-    base=https://get.helm.sh/
-    archive=helm-$v-$platform.tar.gz
-    
-    helm version |grep $v &&
-        return 0
-    
-    curl -fsSLO $base/$archive &&
-        tar -xvf $archive &&
-            install $platform/helm /usr/local/bin/
+    # Install helm (idempotent)
+    # https://github.com/helm/helm/releases
+    ver=v3.18.6
+    arch=linux-amd64
+    url=https://get.helm.sh/helm-$ver-$arch.tar.gz
+    type -t helm >/dev/null 2>&1 &&
+        helm version 2>/dev/null |grep -q $ver || {
+            curl -sSfL $url |tar -xzf - &&
+                sudo install $arch/helm /usr/local/bin/ &&
+                    rm -rf $arch ||
+                        return $?
+        }
+
+    helm version
 }
 ok || exit $?

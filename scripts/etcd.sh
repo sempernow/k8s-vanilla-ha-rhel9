@@ -54,10 +54,20 @@ restore(){
         --initial-cluster "$host=https://$ip:2380" \
         --initial-cluster-token "etcd-cluster-$host"
 }
+
+# etcd performs frequent fsync ops, especially on the WAL, to guarantee data durability. 
+# High fsync latency (especially p99 and beyond) directly impacts:
+# - Write latency (especially for PUT, CREATE, DELETE)
+# - Raft election stability (slow followers can trigger unnecessary elections)
+# - Cluster throughput
+# Docs at etcd recommend: fsync p99 < 2ms (2000µs)
+
 p99_1(){
+    # Test volume endurance, and handling of sustatined load
     dir=${1:-/var/lib/etcd}
+    echo "ℹ️  @ $dir : Want : fsync 99.0th < 2000 (usec)"
     file=wal.text
-    fio --name=static-etcd-fsync \
+    fio --name=etcd-fsync \
         --directory=$dir \
         --size=256m \
         --filename=$file \
@@ -74,21 +84,26 @@ p99_1(){
         --percentile_list=99,99.5,99.9 \
         |tee fio.etcd.fsync.p99.log
 
-    sudo rm $dir/$file
+    rm $dir/$file
 }
 p99_2(){
-    echo "ℹ️  Want : fsync 99.0th < 2000 (usec)"
+    # Test sync behavior
     dir=${1:-/var/lib/etcd}
+    echo "ℹ️  @ $dir : Want : fsync 99.0th < 2000 (usec)"
     file=wal.text
-    fio --name=static-etcd-fsync \
+    fio --name=etcd-fsync \
         --rw=write \
         --directory=$dir \
         --filename=$file \
-        --fdatasync=1 \
-        --size=22m \
         --bs=2300 \
+        --size=64m \
         --ioengine=sync \
+        --fdatasync=1 \
+        --runtime=60 \
+        --time_based=1 \
+        --numjobs=1 \
         --percentile_list=99,99.5,99.9 \
+        --lat_percentiles=1 \
         |tee fio.etcd.fsync.p99.log
 
     rm $dir/$file
@@ -139,13 +154,12 @@ etcdLVM(){
     # 5. Mount it / Swap old to tmp
     # See LOG : "Create LVM/XFS volume at node (Guest VM)"
     tmpMount(){
-        # 4) Temporary mount and copy data (with etcd stopped)
-        src=/var/lib/etcd
+        # Temporary mount 
         tmp=/mnt/etcd-tmp
-
         mkdir -p $tmp
         mount /dev/$vg/$lv $tmp
-
+        # Copy data (with etcd stopped)
+        src=/var/lib/etcd
         rsync -aHAX --numeric-ids --inplace --delete --fsync \
             $src/  $tmp/
 

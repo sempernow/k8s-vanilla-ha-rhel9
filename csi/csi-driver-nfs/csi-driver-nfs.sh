@@ -5,9 +5,10 @@ export NFS_SERVER='a0.lime.lan'
 export NFS_EXPORT_PATH='/srv/nfs/k8s'
 
 # Client 
-repo=https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+repo=csi-driver-nfs
+url=https://raw.githubusercontent.com/kubernetes-csi/$repo/master/charts
 chart=csi-driver-nfs
-v=4.11.0
+version=4.11.0
 release=nfs-csi
 ns=kube-system
 template=helm.template.yaml
@@ -24,8 +25,8 @@ prep(){
 
 repo(){
     # Adds repo metadata to fasciliate all downstream commands
-    helm repo add $chart $repo &&
-        helm repo update $chart || {
+    helm repo add $repo $url &&
+        helm repo update $repo || {
             echo "⚠️  ERR on helm repo add/update : $repo"
 
             return 22
@@ -35,8 +36,8 @@ repo(){
 pullChart(){
     # The chart is not required locally unless target environment is air-gap.
     repo &&
-        helm pull $chart/$chart --version $v &&
-            tar -xaf ${chart}-$v.tgz &&
+        helm pull $repo/$chart --version $version &&
+            tar -xaf ${chart}-$version.tgz &&
                 cp $chart/values.yaml . &&
                     rm -rf $chart ||
                         return 33
@@ -44,7 +45,7 @@ pullChart(){
 
 pullValues(){
     # Extract the chart's default values.yaml
-    curl -fsSL $repo/v$v/${chart}-$v.tgz \
+    curl -fsSL $url/v$version/${chart}-$version.tgz \
         |tar -xzOf - $chart/values.yaml \
         |tee values.yaml
 }
@@ -61,22 +62,26 @@ diffValues(){ diff $values values.yaml |grep -- '<'; }
 template(){
     # Generate manifest (YAML) file containing all K8s resources 
     # of the chart under this particular set of $values declarations.
-    helm template --namespace $ns --values $values $release $chart/$chart \
+    helm template $release $repo/$chart \
+        --namespace $ns \
+        --values $values \
         |tee $template ||
             return 44
 }
 
 install(){
-    helm upgrade --install $release $chart/$chart \
+    helm upgrade $release $repo/$chart \
+        --install \
         --namespace $ns \
-        --version $v \
+        --version $version \
         --values $values
 }
 
 installBySet(){
-    helm upgrade --install $release $chart/$chart \
+    helm upgrade $release $repo/$chart \
+        --install \
         --namespace $ns \
-        --version $v \
+        --version $version \
         --set externalSnapshotter.enabled=true \
         --set controller.runOnControlPlane=true \
         --set controller.replicas=2
