@@ -417,6 +417,22 @@ nbox   1/1     Running   0          21s   10.244.0.30   a1     <none>           
         - Auth by token (okay) or KUBECONFIG (fail)
 
 
+### [__`kube-prometheus-stack`__](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack#kube-prometheus-stack "prometheus-community/kube-prometheus-stack")
+
+>Note: This chart was formerly named prometheus-operator chart, now renamed to more clearly reflect that it installs the kube-prometheus project stack, within which Prometheus Operator is only one component. This chart does not install all components of kube-prometheus, notably excluding the Prometheus Adapter and Prometheus black-box exporter.
+
+### [`prometheus-operator`](https://github.com/prometheus-operator/) 
+
+- [`/prometheus-operator`](https://github.com/prometheus-operator/prometheus-operator)
+- [`/kube-prometheus`](https://github.com/prometheus-operator/kube-prometheus)
+
+### [Inspektor Gadget framework](https://github.com/inspektor-gadget/inspektor-gadget) | [Running Gadgets](https://inspektor-gadget.io/docs/latest/reference/run/)
+
+Inspektor Gadget is a set of tools and framework for data collection and system inspection on Kubernetes clusters and Linux hosts using eBPF
+
+A Gadget is an OCI image that includes one or more eBPF programs, metadata YAML file and, optionally, WASM modules for post processing. As OCI images, they can be stored in a container registry, making them easy to distribute and share. Gadgets are built using the ig image build command.
+
+
 ## Security
 
 ### [`trivy-operator-install.sh`](security/trivy/trivy-operator-install.sh)
