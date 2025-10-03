@@ -154,7 +154,7 @@ export ANSIBASH_USER         ?= ${ADMIN_USER}
 menu :
 	$(INFO) '=== K8s Admin'
 	$(INFO) '🧩  Install HA kubeadm cluster onto target hosts'
-	@echo "    ● Target hosts expected: RHEL 8+"
+	@echo "    ● Expects target hosts are RHEL 8+"
 	@echo "    ● Control Plane Entrypoint: ${K8S_CONTROL_ENTRYPOINT} (${K8S_FQDN})"
 	@echo "      - External HA LB operating in TCP mode"
 	@echo "      - See https://${HALB_PROJECT}.git"
@@ -698,7 +698,7 @@ crictl-images :
 	ansibash sudo crictl images
 images :
 	kubectl get po -A -o jsonpath='{range .items[*]}{.spec.initContainers[].image}{"\n"}{.spec.containers[*].image}{"\n"}{end}' |sort -u
-crictl-ready crictl-pod-ready crictl-prune :
+crictl-ready crictl-pod-ready crictl-pods-ready crictl-prune :
 	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl stopp'
 	ansibash 'sudo crictl pods |grep NotReady |cut -d" " -f1 |xargs -n1 sudo crictl rmp'
 prune :
