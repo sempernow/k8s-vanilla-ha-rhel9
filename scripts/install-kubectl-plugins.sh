@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-
+#####################################
+# krew : https://krew.sigs.k8s.io/
+#####################################
 ok(){
     # krew : Install 
     # https://krew.sigs.k8s.io/docs/user-guide/setup/install/ 
@@ -30,7 +32,7 @@ ok(){
 ok || exit $?
 
 ok(){
-    kubectl krew install ns ctx get-all resource-capacity deprecations tail oomd whoami who-can
+    kubectl krew install ns ctx get-all resource-capacity oomd tail stern whoami rbac-tool who-can deprecations
 }
 ok || exit $?
 
@@ -60,3 +62,25 @@ kubectl krew install gadget
 kubectl gadget deploy
 kubectl gadget --help
 
+########################
+## Air-gap environment
+########################
+name=neat
+## Muster the artifacts
+kubectl krew list ## All installed : Lists : PLUGIN VERSION, e.g., who-can  v0.4.0
+## - Archive using `k krew list`` to extact "URI:" value of each
+curl -fsSLO $(kubectl krew info $name |grep URI |cut -d' ' -f2-)
+## Form : https://github.com/$owner/$name/releases/download/v0.4.1/kubectl-${name}_v${ver}_${os}_${arch}.tar.gz
+## E.g. : https://github.com/vladimirvivien/ktop/releases/download/v0.4.1/kubectl-ktop_v0.4.1_linux_amd64.tar.gz
+## - Manifest of installs are located at : ~/.krew/index/default/plugins/$name.yaml
+
+## Install 
+kubectl krew install --manifest=$plugin_yaml_path --archive=$plugin_archive_path
+
+## Reference : Location when installed by `kubectl krew install $plugin` 
+☩ ls ~/.krew/bin/
+total 0
+
+lrwxrwxrwx 1 x1 x1 44 Oct 24 16:25 kubectl-neat -> /home/u1/.krew/store/neat/v2.0.4/kubectl-neat
+lrwxrwxrwx 1 x1 x1 36 Sep 21 19:54 kubectl-ns -> /home/u1/.krew/store/ns/v0.9.5/kubens
+lrwxrwxrwx 1 x1 x1 47 Oct 24 17:16 kubectl-rbac_tool -> /home/u1/.krew/store/rbac-tool/v1.20.0/rbac-tool
