@@ -27,7 +27,6 @@ install(){
     v=72.4.0
     repo=prometheus-community
     chart=kube-prometheus-stack
-    values=values.v0.0.0.yaml  # Chart default values.yaml
     values=values.minimal.yaml # Minimal diff for core functionality.
     opts="-n $NAMESPACE --create-namespace --version $v -f $values" 
     helm repo add $repo https://$repo.github.io/helm-charts --force-update &&

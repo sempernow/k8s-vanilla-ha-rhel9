@@ -21,7 +21,9 @@ grafana:
 prometheus:
   enabled: true
   prometheusSpec:
+    # To allow scraping beyond this helm installation
+    ruleSelectorNilUsesHelmValues: false
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
-    ruleSelectorNilUsesHelmValues: false
-    # Scrape configs will be driven by ServiceMonitors you create
+    probeSelectorNilUsesHelmValues: false
+
