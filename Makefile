@@ -325,7 +325,6 @@ tree :
 html :
 	find . -type f ! -path './.git/*' -name '*.md' -exec md2html.exe "{}" \;
 commit push : html mode
-	echo > Makefile.settings
 	gc && git push && gl && gs
 
 
