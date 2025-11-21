@@ -11,7 +11,7 @@ base=https://github.com/kubernetes-csi/csi-driver-smb/raw/refs/heads/master/char
 ver=v1.9.0
 chart=csi-driver-smb-$ver.tgz
 release=csi-driver-smb
-ns=csi-smb
+ns=smb
 download='' # Don't pull
 [[ -f $chart ]] || {
     [[ $download ]] && {
