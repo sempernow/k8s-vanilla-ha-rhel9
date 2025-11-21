@@ -26,10 +26,12 @@ that is shared by CIFS protocol as "__`san-cifs`__" .
 ## [`csi-driver-smb.sh`](csi-driver-smb.sh)
 
 
-### [Examples](https://github.com/kubernetes-csi/csi-driver-smb/tree/master/deploy/example "GitHub")
+Resources
 
-- `StorageClass` : [example-storageclass-smb.yaml](example-storageclass-smb.yaml)
-- `PersistentVolume` : [`example-pv-smb.yaml`](example-pv-smb.yaml)
+- `PersistentVolume` : [`smb.pv.yaml`](smb.pv.yaml) (If manually provisioned)
+- `StorageClass` : [smb.sc.yaml](smb.sc.yaml) (Dynamic provisioning)
+- `PersistentVolumeClaim` : [`smb.pvc.yaml`](smb.pvc.yaml)
+- Other [examples](https://github.com/kubernetes-csi/csi-driver-smb/tree/master/deploy/example "GitHub : kubernetes-csi/csi-driver-smb/deploy/example")
 
 ---
 

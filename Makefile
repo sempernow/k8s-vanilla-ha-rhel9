@@ -230,6 +230,7 @@ menu :
 	@echo "  -test      : Test dynamic PV provisioning and write access thereto by Pod/PVC manifest"
 	@echo "  -test-down : Teardown the test Pod/PVC/PV"
 	@echo "csi-nfs      : Install K8s CSI SC and Provisioner for NFS "
+	@echo "csi-smb      : WIP : Install K8s csi-driver-smb"
 	@echo "csi-rook-up  : Install Rook Operator / Ceph "
 	@echo "csi-rook-down: Teardown Rook Operator / Ceph "
 	$(INFO) "🚧  Observability"
@@ -807,11 +808,14 @@ csi-nfs1 :
 csi-nfs1-test : 
 	kubectl apply -f csi/nfs-subdir-external-provisioner/app.test-nfs.yaml 
 
+csi-smb : 
+	@echo "🛠️  WIP" 
+	bash ${ADMIN_SRC_DIR}/csi/csi-driver-smb/csi-driver-smb.sh prep
 csi-local :
 	bash ${ADMIN_SRC_DIR}/csi/local-path-provisioner/local-path-provisioner.sh
 csi-rook-up :
 	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh up
-rbd := sdb__VERIFY_THIS__
+rbd := sdb__VERIFY_OR_MODIFY
 ## Reboot after rook teardown
 csi-rook-down :
 	bash ${ADMIN_SRC_DIR}/csi/rook/rook.sh down

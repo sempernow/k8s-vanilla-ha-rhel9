@@ -4,7 +4,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: csi-smb-controller-sa
-  namespace: csi-smb
+  namespace: smb
   labels:
     app.kubernetes.io/instance: "release-name"
     app.kubernetes.io/managed-by: "Helm"
@@ -17,7 +17,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: csi-smb-node-sa
-  namespace: csi-smb
+  namespace: smb
   labels:
     app.kubernetes.io/instance: "release-name"
     app.kubernetes.io/managed-by: "Helm"
@@ -76,7 +76,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: csi-smb-controller-sa
-    namespace: csi-smb
+    namespace: smb
 roleRef:
   kind: ClusterRole
   name: smb-external-provisioner-role
@@ -87,7 +87,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: csi-smb-node
-  namespace: csi-smb
+  namespace: smb
   labels:
     app.kubernetes.io/instance: "release-name"
     app.kubernetes.io/managed-by: "Helm"
@@ -232,7 +232,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: csi-smb-controller
-  namespace: csi-smb
+  namespace: smb
   labels:
     app.kubernetes.io/instance: "release-name"
     app.kubernetes.io/managed-by: "Helm"
@@ -276,7 +276,7 @@ spec:
             - "-v=2"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election"
-            - "--leader-election-namespace=csi-smb"
+            - "--leader-election-namespace=smb"
             - "--extra-create-metadata=true"
           env:
             - name: ADDRESS

@@ -18,8 +18,6 @@ ok(){
     kubectl create -f pvc.yaml -f pod.yaml
 }
 
-pushd ${BASH_SOURCE%/*} || exit 1
-ok || code=$?
+pushd "${BASH_SOURCE%/*}" || pushd . || return 1
+ok || echo "ERR: $?"
 popd
-[[ $code ]] && echo " ERR : $code" || echo
-exit $code
