@@ -513,6 +513,8 @@ init-push :
 	ANSIBASH_TARGET_LIST='${K8S_NODES_CONTROL}' \
 	    ansibash -u ${ADMIN_SRC_DIR}/scripts/${K8S_KUBEADM_CONF_INIT} \
 	        |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.init-push.${UTC}.log
+# kubectl krew install community-images
+# kubectl community-images --mirror # List of the images
 init-images :
 	ANSIBASH_TARGET_LIST='${K8S_NODES_CONTROL}' \
 	    ansibash sudo kubeadm config images pull -v${K8S_VERBOSITY} \
