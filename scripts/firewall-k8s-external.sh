@@ -59,7 +59,7 @@ svc_scoped_rules(){
     [[ $_do == 'add' ]] && {
         ## Create and configure the service
         firewall-cmd --get-services |grep -q "\b$svc\b" ||
-            firewall-cmd --new-service=$svc
+            firewall-cmd --permanent --new-service=$svc
         at="--permanent --zone=$zone --service=$svc"
 
         firewall-cmd $at --set-description="K8s every node"
@@ -86,7 +86,7 @@ svc_scoped_rules(){
     [[ $_do == 'add' ]] && {
         ## Create and configure the service
         firewall-cmd --get-services |grep -q "\b$svc\b" ||
-            firewall-cmd --new-service=$svc
+            firewall-cmd --permanent --new-service=$svc
         at="--permanent --zone=$zone --service=$svc"
 
         firewall-cmd $at --set-description="K8s Control node"
