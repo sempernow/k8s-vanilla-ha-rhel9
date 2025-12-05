@@ -18,9 +18,14 @@ _etcdctl(){
 }
 export -f _etcdctl
 
-
 status(){
+    for node in $@; do list="$list,https://$node:2379"; done
+    _etcdctl --endpoints="${list/,/}" --write-out=table endpoint status
+
+}
+local(){
     for cmd in 'endpoint status' 'endpoint health --cluster' 'member list'; do
+        echo "ℹ️ $cmd"
         _etcdctl --endpoints=https://127.0.0.1:2379 --write-out=table $cmd 
     done
 }

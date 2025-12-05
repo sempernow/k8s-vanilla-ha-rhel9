@@ -731,7 +731,7 @@ etcd-p99 etcd-fio :
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd-p99.${UTC}.log
 etcd-status :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
-	ansibash 'sudo bash etcd.sh status || echo "⚠️  ERR : $$?"' \
+	ansibash 'sudo bash etcd.sh status ${K8S_NODES_CONTROL} || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd-status.${UTC}.log
 etcd-defrag :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
