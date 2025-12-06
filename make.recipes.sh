@@ -223,16 +223,18 @@ health(){
         ' $ep X
     set +x
     echo 'ℹ️  Cluster Entrypoint : IPv4'
+    opts='-fksSIX GET --connect-timeout 5'
     set -x
-    curl -fksSIX GET https://${K8S_CONTROL_ENTRYPOINT}/$ep |grep HTTP || echo "❌ ERR : $?"
+    curl $opts https://${K8S_CONTROL_ENTRYPOINT}/$ep |grep HTTP || echo "❌ ERR : $?"
     set +x
     echo 'ℹ️  Cluster Entrypoint : DNS'
     set -x
-    curl -fksSIX GET https://${K8S_FQDN}:${HALB_PORT_K8S}/$ep |grep HTTP || echo "❌ ERR : $?" 
+    curl $opts https://${K8S_FQDN}:${HALB_PORT_K8S}/$ep |grep HTTP || echo "❌ ERR : $?" 
     set +x
     echo 'ℹ️  Cluster Entrypoint : DNS : Verbose (filter out all "ok")'
+    opts='-fksS --connect-timeout 5'
     set -x
-    curl -fksS https://${K8S_FQDN}:${HALB_PORT_K8S}/$ep?verbose |grep -v '\bok\b' || echo "❌ ERR : $?"
+    curl $opts https://${K8S_FQDN}:${HALB_PORT_K8S}/$ep?verbose |grep -v '\bok\b' || echo "❌ ERR : $?"
 }
 sudoer(){
     group=ad-linux-sudoers

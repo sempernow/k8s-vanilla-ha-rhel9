@@ -36,19 +36,21 @@ p4LockDown(){
     export at="--permanent --zone=$zone"
     # For each peer (k8s node) 
     printf "%s\n" $peers |
-        xargs -I{} firewall-cmd $at --$do-rich-rule='rule protocol value="4" source address="'{}'" accept'
+        xargs -I{} firewall-cmd $at --$do-rich-rule='rule family="ipv4" protocol value="4" source address="'{}'" accept'
     # Drop all other protocol 4 traffic
-    firewall-cmd $at --$do-rich-rule='rule protocol value="4" drop'
+    firewall-cmd $at --$do-rich-rule='rule family="ipv4" protocol value="4" drop'
 }
+
 export at="--permanent --zone=$zone"
-#firewall-cmd $at --$do-protocol=4       # Allow IP-in-IP : WARNING : can bypass normal (tcp/udp) rules
-p4LockDown                             # Allow IP-in-IP only betwen K8s peers
+firewall-cmd $at --$do-protocol=4       # Allow IP-in-IP : WARNING : can bypass normal (tcp/udp) rules
+#p4LockDown                             # Allow IP-in-IP only betwen K8s peers
 
 export svc='calico'
 
 [[ $do == 'add' ]] && {
     firewall-cmd --list-services --zone=$zone |grep $svc ||
         firewall-cmd $at --new-service=$svc
+
     export at="--permanent --zone=$zone --service=$svc"
     firewall-cmd $at --set-description='Calico : BGP, VXLAN, Typha agent hosts, Wireguard'
     firewall-cmd $at --add-port=179/tcp     # BGP (Calico)
@@ -57,7 +59,9 @@ export svc='calico'
     firewall-cmd $at --add-port=51820/udp   # Wireguard (Calico)
     firewall-cmd $at --add-port=51821/udp   # Wireguard (Calico)
     firewall-cmd $at --add-port=9099/tcp    # Health check
+
 }
-firewall-cmd --permanent --zone=$zone --$do-service=$svc
+firewall-cmd --permanent --zone=$zone --$do-service=$svc ||
+    echo "ℹ️  Okay if error is AME_CONFLICT"
 
 firewall-cmd --reload

@@ -59,7 +59,7 @@ export at="--permanent --zone=$zone"
             firewall-cmd --reload
     }
 
-    firewall-cmd $at --set-target=DROP  # Drop all packets not explicitly allowed (Whitelisted)
+    firewall-cmd $at --set-target=ACCEPT  
     firewall-cmd --set-log-denied=all   # Logging applies to all zones
 
     ## Allow outbound traffic via NAT (e.g., IP-in-IP tunneling) and all internal Pod-Service routing.

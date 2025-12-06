@@ -733,6 +733,10 @@ etcd-status :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
 	ansibash 'sudo bash etcd.sh status ${K8S_NODES_CONTROL} || echo "⚠️  ERR : $$?"' \
 	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd-status.${UTC}.log
+etcd-status-local :
+	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
+	ansibash 'sudo bash etcd.sh local || echo "⚠️  ERR : $$?"' \
+	    |tee ${ADMIN_SRC_DIR}/logs/${LOG_PRE}.etcd-status.${UTC}.log
 etcd-defrag :
 	ansibash -u ${ADMIN_SRC_DIR}/scripts/etcd.sh
 	ansibash 'sudo bash etcd.sh defrag|| echo "⚠️  ERR : $$?"' \
